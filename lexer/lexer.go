@@ -2,6 +2,13 @@ package lexer
 
 import "fmt"
 
+const (
+	TokenTypeIdentifier = iota
+	TokenTypeOperator
+	TokenTypeNumber
+	TokenTypeWhitespace
+)
+
 type Token struct {
 	Type           int
 	Representation []int8
