@@ -6,7 +6,7 @@ import "ULang/lexer"
 func StringToToken(s string) lexer.Token {
 	var token lexer.Token
 	for _, r := range s {
-		token = append(token, int8(r))
+		token.Representation = append(token.Representation, int8(r))
 	}
 	return token
 }

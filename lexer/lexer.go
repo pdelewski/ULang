@@ -2,7 +2,10 @@ package lexer
 
 import "fmt"
 
-type Token = []int8
+type Token struct {
+	Type           int
+	Representation []int8
+}
 
 func IsDigit(b int8) bool {
 	return b >= '0' && b <= '9'
@@ -10,7 +13,7 @@ func IsDigit(b int8) bool {
 
 func DumpTokens(tokens []Token) {
 	for _, token := range tokens {
-		for _, b := range token {
+		for _, b := range token.Representation {
 			if b == ' ' {
 				fmt.Print(" ")
 			} else if b == '\t' {
@@ -24,24 +27,24 @@ func DumpTokens(tokens []Token) {
 	}
 }
 
-func GetTokens(buf []int8) []Token {
+func GetTokens(token Token) []Token {
 	var tokens []Token
 	var currentToken Token
 
-	for _, b := range buf {
+	for _, b := range token.Representation {
 		if b == ' ' || b == '\t' || b == '\n' { // If the character is a space, tab, or newline
-			if len(currentToken) > 0 {
+			if len(currentToken.Representation) > 0 {
 				tokens = append(tokens, currentToken)
-				currentToken = nil
+				currentToken.Representation = nil
 			}
-			tokens = append(tokens, Token{b}) // Add the whitespace character as a separate token
+			tokens = append(tokens, Token{Representation: []int8{b}}) // Add the whitespace character as a separate token
 		} else {
-			currentToken = append(currentToken, b)
+			currentToken.Representation = append(currentToken.Representation, b)
 		}
 	}
 
 	// Add the last token if it exists
-	if len(currentToken) > 0 {
+	if len(currentToken.Representation) > 0 {
 		tokens = append(tokens, currentToken)
 	}
 

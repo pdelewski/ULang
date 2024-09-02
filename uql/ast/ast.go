@@ -26,7 +26,7 @@ type From struct {
 }
 
 type LogicalExpr struct {
-	Op          lexer.Token
+	Value       lexer.Token
 	Left        uint16
 	Right       uint16
 	Expressions []LogicalExpr

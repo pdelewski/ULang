@@ -15,12 +15,12 @@ func TestIsDigit(t *testing.T) {
 }
 
 func TestGetTokens(t *testing.T) {
-	buf := []int8{'a', 'b', ' ', 'c', ' ', 'd'}
+	token := Token{Representation: []int8{'a', 'b', ' ', 'c', ' ', 'd'}}
 
-	tokens := GetTokens(buf)
+	tokens := GetTokens(token)
 	assert.Equal(t, 5, len(tokens))
-	assert.Equal(t, []int8{'a', 'b'}, tokens[0])
-	assert.Equal(t, []int8{'c'}, tokens[2])
-	assert.Equal(t, []int8{'d'}, tokens[4])
+	assert.Equal(t, []int8{'a', 'b'}, tokens[0].Representation)
+	assert.Equal(t, []int8{'c'}, tokens[2].Representation)
+	assert.Equal(t, []int8{'d'}, tokens[4].Representation)
 	DumpTokens(tokens)
 }
