@@ -2,8 +2,27 @@ package ast
 
 import "ULang/lexer"
 
+const (
+	StatementTypeFrom = iota
+	StatementTypeWhere
+	StatementTypeSelect
+)
+
+type Statement struct {
+	Type  int
+	Index uint16
+}
+
+type AST struct {
+	FromS      []From
+	WhereS     []Where
+	SelectS    []Select
+	Statements []Statement
+}
+
 type From struct {
-	TableExpr []lexer.Token
+	TableExpr       []lexer.Token
+	ResultTableExpr lexer.Token
 }
 
 type LogicalExpr struct {
@@ -14,9 +33,11 @@ type LogicalExpr struct {
 }
 
 type Where struct {
-	Expr LogicalExpr
+	Expr            LogicalExpr
+	ResultTableExpr lexer.Token
 }
 
 type Select struct {
-	Fields []lexer.Token
+	Fields          []lexer.Token
+	ResultTableExpr lexer.Token
 }
