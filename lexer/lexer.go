@@ -44,8 +44,10 @@ func GetTokens(token Token) []Token {
 				tokens = append(tokens, currentToken)
 				currentToken.Representation = nil
 			}
-			tokens = append(tokens, Token{Representation: []int8{b}}) // Add the whitespace character as a separate token
+			tokens = append(tokens, Token{Type: TokenTypeWhitespace, Representation: []int8{b}}) // Add the whitespace character as a separate token
 		} else {
+			// TODO build correct token type
+			currentToken.Type = TokenTypeIdentifier
 			currentToken.Representation = append(currentToken.Representation, b)
 		}
 	}
