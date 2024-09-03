@@ -20,6 +20,7 @@ func IsDigit(b int8) bool {
 }
 
 func DumpTokens(tokens []Token) {
+
 	for _, token := range tokens {
 		fmt.Printf("Token type: %d ", token.Type)
 		for _, b := range token.Representation {
