@@ -7,6 +7,7 @@ const (
 	TokenTypeOperator
 	TokenTypeNumber
 	TokenTypeWhitespace
+	TokenTypeDot // Added for the dot operator
 )
 
 type Token struct {
@@ -20,17 +21,21 @@ func IsDigit(b int8) bool {
 
 func DumpTokens(tokens []Token) {
 	for _, token := range tokens {
+		fmt.Printf("Token type: %d ", token.Type)
 		for _, b := range token.Representation {
 			if b == ' ' {
 				fmt.Print(" ")
 			} else if b == '\t' {
 				fmt.Print("\t")
 			} else if b == '\n' {
-				fmt.Println()
+				fmt.Print("\n")
+			} else if b == '.' {
+				fmt.Print(".")
 			} else {
 				fmt.Printf("%c", b)
 			}
 		}
+		fmt.Println()
 	}
 }
 
@@ -39,7 +44,7 @@ func GetTokens(token Token) []Token {
 	var currentToken Token
 
 	for _, b := range token.Representation {
-		if b == ' ' || b == '\t' || b == '\n' { // If the character is a space, tab, or newline
+		if b == ' ' || b == '\t' || b == '\n' || b == '.' { // If the character is a space, tab, or newline
 			if len(currentToken.Representation) > 0 {
 				tokens = append(tokens, currentToken)
 				currentToken.Representation = nil
