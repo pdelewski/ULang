@@ -5,6 +5,7 @@ import (
 	"ULang/uql/ast"
 	uqllexer "ULang/uql/lexer"
 	"fmt"
+	"strings"
 )
 
 func sliceToInt64(slice []int8) int64 {
@@ -34,6 +35,11 @@ var associativity = map[int64]int8{
 	sliceToInt64([]int8{'<', '='}): 'L',
 	sliceToInt64([]int8{'=', '='}): 'L',
 	sliceToInt64([]int8{'!', '='}): 'L',
+}
+
+func ParseExpression(tokens []lexer.Token) (ast.LogicalExpr, error) {
+	expr, _ := parseExpression(tokens, 0)
+	return expr, nil
 }
 
 func parseExpression(tokens []lexer.Token, minPrecedence int8) (ast.LogicalExpr, int) {
@@ -75,10 +81,15 @@ func parseExpression(tokens []lexer.Token, minPrecedence int8) (ast.LogicalExpr,
 	return lhs, i
 }
 
-func printLogicalExpr(expr ast.LogicalExpr, depth int) {
-	indent := ' '
-	fmt.Printf("%sValue: %s\n", indent, expr.Value.Representation)
+func PrintLogicalExpr(expr ast.LogicalExpr) {
+	printLogicalExpr(expr, 0)
+}
 
+func printLogicalExpr(expr ast.LogicalExpr, depth int) {
+	indent := strings.Repeat("  ", depth)
+	fmt.Printf("%sValue:", indent)
+	lexer.DumpTokens([]lexer.Token{expr.Value})
+	fmt.Println()
 	if expr.Left != 0 || expr.Right != 0 {
 		fmt.Printf("%sLeft:\n", indent)
 		printLogicalExpr(expr.Expressions[0], depth+1)

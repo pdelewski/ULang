@@ -45,12 +45,12 @@ func GetTokens(token Token) []Token {
 	var currentToken Token
 
 	for _, b := range token.Representation {
-		if b == ' ' || b == '\t' || b == '\n' || b == '.' { // If the character is a space, tab, or newline
+		if b == ' ' || b == '\t' || b == '\n' /*|| b == '.'*/ { // If the character is a space, tab, or newline
 			if len(currentToken.Representation) > 0 {
 				tokens = append(tokens, currentToken)
 				currentToken.Representation = nil
 			}
-			tokens = append(tokens, Token{Type: TokenTypeWhitespace, Representation: []int8{b}}) // Add the whitespace character as a separate token
+			//tokens = append(tokens, Token{Type: TokenTypeWhitespace, Representation: []int8{b}}) // Add the whitespace character as a separate token
 		} else {
 			// TODO build correct token type
 			currentToken.Type = TokenTypeIdentifier
