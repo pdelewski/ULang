@@ -89,7 +89,6 @@ func printLogicalExpr(expr ast.LogicalExpr, depth int) {
 	indent := strings.Repeat("  ", depth)
 	fmt.Printf("%sValue:", indent)
 	lexer.DumpTokens([]lexer.Token{expr.Value})
-	fmt.Println()
 	if expr.Left != 0 || expr.Right != 0 {
 		fmt.Printf("%sLeft:\n", indent)
 		printLogicalExpr(expr.Expressions[0], depth+1)
