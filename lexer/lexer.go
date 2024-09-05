@@ -22,6 +22,41 @@ func IsDigit(b int8) bool {
 	return b >= '0' && b <= '9'
 }
 
+func IsAlpha(b int8) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z' || b == '_')
+}
+
+func IsEqual(b int8) bool {
+	return b == '='
+}
+
+func IsFrom(token Token) bool {
+	return len(token.Representation) == 4 &&
+		token.Representation[0] == 'f' &&
+		token.Representation[1] == 'r' &&
+		token.Representation[2] == 'o' &&
+		token.Representation[3] == 'm'
+}
+
+func IsSelect(token Token) bool {
+	return len(token.Representation) == 6 &&
+		token.Representation[0] == 's' &&
+		token.Representation[1] == 'e' &&
+		token.Representation[2] == 'l' &&
+		token.Representation[3] == 'e' &&
+		token.Representation[4] == 'c' &&
+		token.Representation[5] == 't'
+}
+
+func IsWhere(token Token) bool {
+	return len(token.Representation) == 5 &&
+		token.Representation[0] == 'w' &&
+		token.Representation[1] == 'h' &&
+		token.Representation[2] == 'e' &&
+		token.Representation[3] == 'r' &&
+		token.Representation[4] == 'e'
+}
+
 func DumpTokens(tokens []Token) {
 	for _, token := range tokens {
 		fmt.Printf("Token type: %d ", token.Type)
@@ -97,4 +132,11 @@ func GetTokens(token Token) []Token {
 	}
 
 	return tokens
+}
+
+func GetNextToken(tokens []Token) (Token, []Token) {
+	if len(tokens) == 0 {
+		return Token{}, []Token{}
+	}
+	return tokens[0], tokens[1:]
 }

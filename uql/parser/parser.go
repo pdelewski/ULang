@@ -102,8 +102,47 @@ func walkLogicalExpr(
 	state = postVisit(state, expr)
 }
 
-func Parse(text string) []lexer.Token {
+func parseFrom(tokens []lexer.Token) (ast.From, int8) {
+	return ast.From{}, 0
+}
+
+func parseWhere(tokens []lexer.Token) (ast.Where, int8) {
+	return ast.Where{}, 0
+}
+
+func parseSelect(tokens []lexer.Token) (ast.Select, int8) {
+	return ast.Select{}, 0
+}
+
+func Parse(text string) (ast.AST, int8) {
 	tokens := lexer.GetTokens(uqllexer.StringToToken(text))
-	lexer.DumpTokens(tokens)
-	return tokens
+	token, tokens := lexer.GetNextToken(tokens)
+
+	if !lexer.IsAlpha(token.Representation[0]) {
+		return nil, -1
+	}
+
+	token, tokens = lexer.GetNextToken(tokens)
+	if !lexer.IsEqual(token.Representation[0]) {
+		return nil, -1
+	}
+
+	token, tokens = lexer.GetNextToken(tokens)
+	if !lexer.IsFrom(token) && !lexer.IsWhere(token) && !lexer.IsSelect(token) {
+		return nil, -1
+	}
+
+	if lexer.IsFrom(token) {
+		parseFrom(tokens)
+	}
+
+	if lexer.IsWhere(token) {
+		parseWhere(tokens)
+	}
+
+	if lexer.IsSelect(token) {
+		parseSelect(tokens)
+	}
+
+	return ast.AST{}, 0
 }

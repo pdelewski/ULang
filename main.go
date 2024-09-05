@@ -37,10 +37,14 @@ func main() {
 	state := State{depth: 0}
 	uqlparser.WalkLogicalExpr(expr, state, preVisit, postVisit)
 
-	uqlparser.Parse(`
+	ast, err := uqlparser.Parse(`
  t1 = from table1
  t2 = where t1.field1 > 10 && t1.field2 < 20
  t3 = select t2.field1
 `)
+	_ = ast
+	if err != 0 {
+		fmt.Println("Error parsing query")
+	}
 
 }
