@@ -85,7 +85,7 @@ func PrintLogicalExpr(expr ast.LogicalExpr) {
 	printLogicalExpr(expr, 0)
 }
 
-func PrintLogicalExprString(expr ast.LogicalExpr) string {
+func PrintLogicalExprString(expr ast.LogicalExpr) any {
 	return printLogicalExprString(expr, 0)
 }
 
@@ -101,14 +101,16 @@ func printLogicalExpr(expr ast.LogicalExpr, depth int) {
 	}
 }
 
-func printLogicalExprString(expr ast.LogicalExpr, depth int) string {
+func printLogicalExprString(expr ast.LogicalExpr, depth int) any {
 	var builder strings.Builder
 	indent := strings.Repeat("  ", depth)
 	builder.WriteString(fmt.Sprintf("%sValue:", indent))
 	builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.Value}))
 	if expr.Left != 0 || expr.Right != 0 {
-		builder.WriteString(printLogicalExprString(expr.Expressions[0], depth+1))
-		builder.WriteString(printLogicalExprString(expr.Expressions[1], depth+1))
+		left := printLogicalExprString(expr.Expressions[0], depth+1)
+		right := printLogicalExprString(expr.Expressions[1], depth+1)
+		builder.WriteString(left.(string))
+		builder.WriteString(right.(string))
 	}
 	return builder.String()
 }
