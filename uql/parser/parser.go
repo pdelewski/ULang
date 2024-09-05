@@ -4,8 +4,6 @@ import (
 	"ULang/lexer"
 	"ULang/uql/ast"
 	uqllexer "ULang/uql/lexer"
-	"fmt"
-	"strings"
 )
 
 func sliceToInt64(slice []int8) int64 {
@@ -81,38 +79,27 @@ func parseExpression(tokens []lexer.Token, minPrecedence int8) (ast.LogicalExpr,
 	return lhs, i
 }
 
-func PrintLogicalExpr(expr ast.LogicalExpr) {
-	printLogicalExpr(expr, 0)
+func WalkLogicalExpr(expr ast.LogicalExpr,
+	state any,
+	preVisit func(state any, expr ast.LogicalExpr) any,
+	postVisit func(state any, expr ast.LogicalExpr) any,
+) {
+	walkLogicalExpr(expr, 0, state, preVisit, postVisit)
 }
 
-func PrintLogicalExprString(expr ast.LogicalExpr) any {
-	return printLogicalExprString(expr, 0)
-}
-
-func printLogicalExpr(expr ast.LogicalExpr, depth int) {
-	indent := strings.Repeat("  ", depth)
-	fmt.Printf("%sValue:", indent)
-	lexer.DumpTokens([]lexer.Token{expr.Value})
+func walkLogicalExpr(
+	expr ast.LogicalExpr,
+	depth int,
+	state any,
+	preVisit func(state any, expr ast.LogicalExpr) any,
+	postVisit func(state any, expr ast.LogicalExpr) any,
+) {
+	state = preVisit(state, expr)
 	if expr.Left != 0 || expr.Right != 0 {
-		fmt.Printf("%sLeft:\n", indent)
-		printLogicalExpr(expr.Expressions[0], depth+1)
-		fmt.Printf("%sRight:\n", indent)
-		printLogicalExpr(expr.Expressions[1], depth+1)
+		walkLogicalExpr(expr.Expressions[0], depth+1, state, preVisit, postVisit)
+		walkLogicalExpr(expr.Expressions[1], depth+1, state, preVisit, postVisit)
 	}
-}
-
-func printLogicalExprString(expr ast.LogicalExpr, depth int) any {
-	var builder strings.Builder
-	indent := strings.Repeat("  ", depth)
-	builder.WriteString(fmt.Sprintf("%sValue:", indent))
-	builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.Value}))
-	if expr.Left != 0 || expr.Right != 0 {
-		left := printLogicalExprString(expr.Expressions[0], depth+1)
-		right := printLogicalExprString(expr.Expressions[1], depth+1)
-		builder.WriteString(left.(string))
-		builder.WriteString(right.(string))
-	}
-	return builder.String()
+	state = postVisit(state, expr)
 }
 
 func Parse(text string) []lexer.Token {
