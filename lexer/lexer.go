@@ -1,6 +1,9 @@
 package lexer
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	TokenTypeIdentifier = iota
@@ -20,7 +23,6 @@ func IsDigit(b int8) bool {
 }
 
 func DumpTokens(tokens []Token) {
-
 	for _, token := range tokens {
 		fmt.Printf("Token type: %d ", token.Type)
 		for _, b := range token.Representation {
@@ -38,6 +40,37 @@ func DumpTokens(tokens []Token) {
 		}
 		fmt.Println()
 	}
+}
+
+func DumpTokensString(tokens []Token) string {
+	var builder strings.Builder
+
+	for _, token := range tokens {
+		// Append token type to the string
+		builder.WriteString(fmt.Sprintf("Token type: %d ", token.Type))
+
+		// Append representation to the string
+		for _, b := range token.Representation {
+			switch b {
+			case ' ':
+				builder.WriteString(" ")
+			case '\t':
+				builder.WriteString("\t")
+			case '\n':
+				builder.WriteString("\n")
+			case '.':
+				builder.WriteString(".")
+			default:
+				builder.WriteString(fmt.Sprintf("%c", b))
+			}
+		}
+
+		// Add a newline after each token
+		builder.WriteString("\n")
+	}
+
+	// Return the constructed string
+	return builder.String()
 }
 
 func GetTokens(token Token) []Token {

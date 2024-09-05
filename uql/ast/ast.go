@@ -9,16 +9,12 @@ const (
 )
 
 type Statement struct {
-	Type  int
-	Index uint16
+	FromS   []From
+	WhereS  []Where
+	SelectS []Select
 }
 
-type AST struct {
-	FromS      []From
-	WhereS     []Where
-	SelectS    []Select
-	Statements []Statement
-}
+type AST []Statement
 
 type From struct {
 	TableExpr       []lexer.Token

@@ -85,6 +85,10 @@ func PrintLogicalExpr(expr ast.LogicalExpr) {
 	printLogicalExpr(expr, 0)
 }
 
+func PrintLogicalExprString(expr ast.LogicalExpr) string {
+	return printLogicalExprString(expr, 0)
+}
+
 func printLogicalExpr(expr ast.LogicalExpr, depth int) {
 	indent := strings.Repeat("  ", depth)
 	fmt.Printf("%sValue:", indent)
@@ -95,6 +99,18 @@ func printLogicalExpr(expr ast.LogicalExpr, depth int) {
 		fmt.Printf("%sRight:\n", indent)
 		printLogicalExpr(expr.Expressions[1], depth+1)
 	}
+}
+
+func printLogicalExprString(expr ast.LogicalExpr, depth int) string {
+	var builder strings.Builder
+	indent := strings.Repeat("  ", depth)
+	builder.WriteString(fmt.Sprintf("%sValue:", indent))
+	builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.Value}))
+	if expr.Left != 0 || expr.Right != 0 {
+		builder.WriteString(printLogicalExprString(expr.Expressions[0], depth+1))
+		builder.WriteString(printLogicalExprString(expr.Expressions[1], depth+1))
+	}
+	return builder.String()
 }
 
 func Parse(text string) []lexer.Token {
