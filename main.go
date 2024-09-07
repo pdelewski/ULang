@@ -31,16 +31,16 @@ func postVisit(state any, expr ast.LogicalExpr) any {
 }
 
 func main() {
-	tokens := lexer.GetTokens(uqllexer.StringToToken("t1.field1 > 10 && t1.field2 < 20"))
+	tokens := lexer.GetTokens(uqllexer.StringToToken("t1.field1 > 10 && t1.field2 < 20;"))
 	expr, _ := uqlparser.ParseExpression(tokens)
 	fmt.Println("Parsed Expression Tree:")
 	state := State{depth: 0}
 	uqlparser.WalkLogicalExpr(expr, state, preVisit, postVisit)
 
 	ast, err := uqlparser.Parse(`
- t1 = from table1
- t2 = where t1.field1 > 10 && t1.field2 < 20
- t3 = select t2.field1
+ t1 = from table1;
+ t2 = where t1.field1 > 10 && t1.field2 < 20;
+ t3 = select t2.field1;
 `)
 	_ = ast
 	if err != 0 {

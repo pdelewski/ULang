@@ -102,16 +102,16 @@ func walkLogicalExpr(
 	state = postVisit(state, expr)
 }
 
-func parseFrom(tokens []lexer.Token) (ast.From, int8) {
-	return ast.From{}, 0
+func parseFrom(tokens []lexer.Token, lhs lexer.Token) (ast.From, int8) {
+	return ast.From{ResultTableExpr: lhs}, 0
 }
 
-func parseWhere(tokens []lexer.Token) (ast.Where, int8) {
-	return ast.Where{}, 0
+func parseWhere(tokens []lexer.Token, lhs lexer.Token) (ast.Where, int8) {
+	return ast.Where{ResultTableExpr: lhs}, 0
 }
 
-func parseSelect(tokens []lexer.Token) (ast.Select, int8) {
-	return ast.Select{}, 0
+func parseSelect(tokens []lexer.Token, lhs lexer.Token) (ast.Select, int8) {
+	return ast.Select{ResultTableExpr: lhs}, 0
 }
 
 func Parse(text string) (ast.AST, int8) {
@@ -121,7 +121,7 @@ func Parse(text string) (ast.AST, int8) {
 	if !lexer.IsAlpha(token.Representation[0]) {
 		return nil, -1
 	}
-
+	lhs := token
 	token, tokens = lexer.GetNextToken(tokens)
 	if !lexer.IsEqual(token.Representation[0]) {
 		return nil, -1
@@ -133,15 +133,15 @@ func Parse(text string) (ast.AST, int8) {
 	}
 
 	if lexer.IsFrom(token) {
-		parseFrom(tokens)
+		parseFrom(tokens, lhs)
 	}
 
 	if lexer.IsWhere(token) {
-		parseWhere(tokens)
+		parseWhere(tokens, lhs)
 	}
 
 	if lexer.IsSelect(token) {
-		parseSelect(tokens)
+		parseSelect(tokens, lhs)
 	}
 
 	return ast.AST{}, 0
