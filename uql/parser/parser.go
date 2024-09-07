@@ -35,9 +35,9 @@ var associativity = map[int64]int8{
 	sliceToInt64([]int8{'!', '='}): 'L',
 }
 
-func ParseExpression(tokens []lexer.Token) (ast.LogicalExpr, error) {
-	expr, _ := parseExpression(tokens, 0)
-	return expr, nil
+func ParseExpression(tokens []lexer.Token) (ast.LogicalExpr, int) {
+	expr, index := parseExpression(tokens, 0)
+	return expr, index
 }
 
 func parseExpression(tokens []lexer.Token, minPrecedence int8) (ast.LogicalExpr, int) {
@@ -102,47 +102,84 @@ func walkLogicalExpr(
 	state = postVisit(state, expr)
 }
 
-func parseFrom(tokens []lexer.Token, lhs lexer.Token) (ast.From, int8) {
-	return ast.From{ResultTableExpr: lhs}, 0
+func parseFrom(tokens []lexer.Token, lhs lexer.Token) (ast.From, []lexer.Token) {
+	for {
+		var token lexer.Token
+		token, tokens = lexer.GetNextToken(tokens)
+		if lexer.IsSemicolon(token.Representation[0]) {
+			break
+		}
+	}
+	return ast.From{ResultTableExpr: lhs}, tokens
 }
 
-func parseWhere(tokens []lexer.Token, lhs lexer.Token) (ast.Where, int8) {
-	return ast.Where{ResultTableExpr: lhs}, 0
+func parseWhere(tokens []lexer.Token, lhs lexer.Token) (ast.Where, []lexer.Token) {
+	expr, i := ParseExpression(tokens)
+	tokens = tokens[i:]
+	for {
+		var token lexer.Token
+		token, tokens = lexer.GetNextToken(tokens)
+		if lexer.IsSemicolon(token.Representation[0]) {
+			break
+		}
+	}
+	return ast.Where{ResultTableExpr: lhs, Expr: expr}, tokens
 }
 
-func parseSelect(tokens []lexer.Token, lhs lexer.Token) (ast.Select, int8) {
-	return ast.Select{ResultTableExpr: lhs}, 0
+func parseSelect(tokens []lexer.Token, lhs lexer.Token) (ast.Select, []lexer.Token) {
+	for {
+		var token lexer.Token
+		token, tokens = lexer.GetNextToken(tokens)
+		if lexer.IsSemicolon(token.Representation[0]) {
+			break
+		}
+	}
+	return ast.Select{ResultTableExpr: lhs}, tokens
 }
 
 func Parse(text string) (ast.AST, int8) {
+	var resultAst ast.AST
 	tokens := lexer.GetTokens(uqllexer.StringToToken(text))
-	token, tokens := lexer.GetNextToken(tokens)
 
-	if !lexer.IsAlpha(token.Representation[0]) {
-		return nil, -1
-	}
-	lhs := token
-	token, tokens = lexer.GetNextToken(tokens)
-	if !lexer.IsEqual(token.Representation[0]) {
-		return nil, -1
-	}
+	for len(tokens) > 0 {
+		var token lexer.Token
+		token, tokens = lexer.GetNextToken(tokens)
 
-	token, tokens = lexer.GetNextToken(tokens)
-	if !lexer.IsFrom(token) && !lexer.IsWhere(token) && !lexer.IsSelect(token) {
-		return nil, -1
-	}
+		if !lexer.IsAlpha(token.Representation[0]) {
+			return nil, -1
+		}
+		lhs := token
+		token, tokens = lexer.GetNextToken(tokens)
+		if !lexer.IsEqual(token.Representation[0]) {
+			return nil, -1
+		}
 
-	if lexer.IsFrom(token) {
-		parseFrom(tokens, lhs)
-	}
+		token, tokens = lexer.GetNextToken(tokens)
+		if !lexer.IsFrom(token) && !lexer.IsWhere(token) && !lexer.IsSelect(token) {
+			return nil, -1
+		}
 
-	if lexer.IsWhere(token) {
-		parseWhere(tokens, lhs)
-	}
+		if lexer.IsFrom(token) {
+			var from ast.From
+			from, tokens = parseFrom(tokens, lhs)
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeFrom, From: from})
+			continue
+		}
 
-	if lexer.IsSelect(token) {
-		parseSelect(tokens, lhs)
-	}
+		if lexer.IsWhere(token) {
+			var where ast.Where
+			where, tokens = parseWhere(tokens, lhs)
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeWhere, Where: where})
+			continue
+		}
 
-	return ast.AST{}, 0
+		if lexer.IsSelect(token) {
+			var project ast.Select
+			project, tokens = parseSelect(tokens, lhs)
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeSelect, Select: project})
+			token, tokens = lexer.GetNextToken(tokens)
+			continue
+		}
+	}
+	return resultAst, 0
 }

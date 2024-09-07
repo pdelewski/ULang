@@ -43,6 +43,9 @@ func main() {
  t3 = select t2.field1;
 `)
 	_ = ast
+	for _, statement := range ast {
+		fmt.Println(statement.Type)
+	}
 	if err != 0 {
 		fmt.Println("Error parsing query")
 	}

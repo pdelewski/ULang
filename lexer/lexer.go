@@ -31,6 +31,10 @@ func IsEqual(b int8) bool {
 	return b == '='
 }
 
+func IsSemicolon(b int8) bool {
+	return b == ';'
+}
+
 func IsFrom(token Token) bool {
 	return len(token.Representation) == 4 &&
 		token.Representation[0] == 'f' &&
