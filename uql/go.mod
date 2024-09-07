@@ -1,4 +1,4 @@
-module ULang
+module ugl
 
 go 1.22
 

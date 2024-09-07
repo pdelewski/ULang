@@ -1,6 +1,8 @@
 package ast
 
-import "ULang/lexer"
+import (
+	"ugl/lexer"
+)
 
 const (
 	StatementTypeFrom = iota

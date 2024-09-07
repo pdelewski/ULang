@@ -1,9 +1,8 @@
 package parser
 
 import (
-	"ULang/lexer"
-	"ULang/uql/ast"
-	uqllexer "ULang/uql/lexer"
+	"ugl/ast"
+	"ugl/lexer"
 )
 
 func sliceToInt64(slice []int8) int64 {
@@ -122,7 +121,7 @@ func parseSelect(tokens []lexer.Token, lhs lexer.Token) (ast.Select, []lexer.Tok
 
 func Parse(text string) (ast.AST, int8) {
 	var resultAst ast.AST
-	tokens := lexer.GetTokens(uqllexer.StringToToken(text))
+	tokens := lexer.GetTokens(lexer.StringToToken(text))
 
 	for len(tokens) > 0 {
 		var token lexer.Token
