@@ -13,18 +13,18 @@ type State struct {
 	depth int
 }
 
-func preVisit(state any, expr ast.LogicalExpr) any {
+func preVisit(state any, expr any) any {
 	newState := state.(State)
 	newState.depth++
 	var builder strings.Builder
 	indent := strings.Repeat("  ", newState.depth)
 	builder.WriteString(fmt.Sprintf("%sValue:", indent))
-	builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.Value}))
+	builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.(ast.LogicalExpr).Value}))
 	fmt.Print(builder.String())
 	return newState
 }
 
-func postVisit(state any, expr ast.LogicalExpr) any {
+func postVisit(state any, expr any) any {
 	newState := state.(State)
 	newState.depth--
 	return newState

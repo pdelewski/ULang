@@ -39,10 +39,38 @@ type Select struct {
 	ResultTableExpr lexer.Token
 }
 
+func WalkFrom(expr From,
+	state any,
+	preVisit func(state any, expr any) any,
+	postVisit func(state any, expr any) any,
+) {
+	preVisit(state, expr)
+	postVisit(state, expr)
+}
+
+func WalkWhere(expr Where,
+	state any,
+	preVisit func(state any, expr any) any,
+	postVisit func(state any, expr any) any,
+) {
+	preVisit(state, expr)
+	WalkLogicalExpr(expr.Expr, state, preVisit, postVisit)
+	postVisit(state, expr)
+}
+
+func WalkSelect(expr Select,
+	state any,
+	preVisit func(state any, expr any) any,
+	postVisit func(state any, expr any) any,
+) {
+	preVisit(state, expr)
+	postVisit(state, expr)
+}
+
 func WalkLogicalExpr(expr LogicalExpr,
 	state any,
-	preVisit func(state any, expr LogicalExpr) any,
-	postVisit func(state any, expr LogicalExpr) any,
+	preVisit func(state any, expr any) any,
+	postVisit func(state any, expr any) any,
 ) {
 	walkLogicalExpr(expr, 0, state, preVisit, postVisit)
 }
@@ -51,8 +79,8 @@ func walkLogicalExpr(
 	expr LogicalExpr,
 	depth int,
 	state any,
-	preVisit func(state any, expr LogicalExpr) any,
-	postVisit func(state any, expr LogicalExpr) any,
+	preVisit func(state any, expr any) any,
+	postVisit func(state any, expr any) any,
 ) {
 	state = preVisit(state, expr)
 	if expr.Left != 0 || expr.Right != 0 {
