@@ -39,53 +39,58 @@ type Select struct {
 	ResultTableExpr lexer.Token
 }
 
+type Visitor struct {
+	PreVisitFrom         func(state any, expr From) any
+	PostVisitFrom        func(state any, expr From) any
+	PreVisitWhere        func(state any, expr Where) any
+	PostVisitWhere       func(state any, expr Where) any
+	PreVisitSelect       func(state any, expr Select) any
+	PostVisitSelect      func(state any, expr Select) any
+	PreVisitLogicalExpr  func(state any, expr LogicalExpr) any
+	PostVisitLogicalExpr func(state any, expr LogicalExpr) any
+}
+
 func WalkFrom(expr From,
 	state any,
-	preVisit func(state any, expr any) any,
-	postVisit func(state any, expr any) any,
+	visitor Visitor,
 ) {
-	preVisit(state, expr)
-	postVisit(state, expr)
+	state = visitor.PreVisitFrom(state, expr)
+	state = visitor.PostVisitFrom(state, expr)
 }
 
 func WalkWhere(expr Where,
 	state any,
-	preVisit func(state any, expr any) any,
-	postVisit func(state any, expr any) any,
+	visitor Visitor,
 ) {
-	preVisit(state, expr)
-	WalkLogicalExpr(expr.Expr, state, preVisit, postVisit)
-	postVisit(state, expr)
+	state = visitor.PreVisitWhere(state, expr)
+	WalkLogicalExpr(expr.Expr, state, visitor)
+	state = visitor.PostVisitWhere(state, expr)
 }
 
 func WalkSelect(expr Select,
 	state any,
-	preVisit func(state any, expr any) any,
-	postVisit func(state any, expr any) any,
+	visitor Visitor,
 ) {
-	preVisit(state, expr)
-	postVisit(state, expr)
+	state = visitor.PreVisitSelect(state, expr)
+	state = visitor.PostVisitSelect(state, expr)
 }
 
 func WalkLogicalExpr(expr LogicalExpr,
 	state any,
-	preVisit func(state any, expr any) any,
-	postVisit func(state any, expr any) any,
+	visitor Visitor,
 ) {
-	walkLogicalExpr(expr, 0, state, preVisit, postVisit)
+	walkLogicalExpr(expr, state, visitor)
 }
 
 func walkLogicalExpr(
 	expr LogicalExpr,
-	depth int,
 	state any,
-	preVisit func(state any, expr any) any,
-	postVisit func(state any, expr any) any,
+	visitor Visitor,
 ) {
-	state = preVisit(state, expr)
+	state = visitor.PreVisitLogicalExpr(state, expr)
 	if expr.Left != 0 || expr.Right != 0 {
-		walkLogicalExpr(expr.Expressions[0], depth+1, state, preVisit, postVisit)
-		walkLogicalExpr(expr.Expressions[1], depth+1, state, preVisit, postVisit)
+		walkLogicalExpr(expr.Expressions[0], state, visitor)
+		walkLogicalExpr(expr.Expressions[1], state, visitor)
 	}
-	state = postVisit(state, expr)
+	state = visitor.PostVisitLogicalExpr(state, expr)
 }

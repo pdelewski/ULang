@@ -30,6 +30,49 @@ func postVisit(state any, expr any) any {
 }
 
 func main() {
+
+	visitor := ast.Visitor{
+		PreVisitFrom: func(state any, expr ast.From) any {
+			newState := state.(State)
+			return newState
+		},
+		PostVisitFrom: func(state any, expr ast.From) any {
+			newState := state.(State)
+			return newState
+		},
+		PreVisitWhere: func(state any, expr ast.Where) any {
+			newState := state.(State)
+			return newState
+		},
+		PostVisitWhere: func(state any, expr ast.Where) any {
+			newState := state.(State)
+			return newState
+		},
+		PreVisitSelect: func(state any, expr ast.Select) any {
+			newState := state.(State)
+			return newState
+		},
+		PostVisitSelect: func(state any, expr ast.Select) any {
+			newState := state.(State)
+			return newState
+		},
+		PreVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
+			newState := state.(State)
+			newState.depth++
+			var builder strings.Builder
+			indent := strings.Repeat("  ", newState.depth)
+			builder.WriteString(fmt.Sprintf("%sValue:", indent))
+			builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.Value}))
+			fmt.Print(builder.String())
+			return newState
+		},
+		PostVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
+			newState := state.(State)
+			newState.depth--
+			return newState
+		},
+	}
+	_ = visitor
 	astTree, err := uqlparser.Parse(`
  t1 = from table1;
  t2 = where t1.field1 > 10 && t1.field2 < 20;
@@ -47,7 +90,7 @@ func main() {
 		case ast.StatementTypeWhere:
 			fmt.Println("Where:")
 			lexer.DumpToken(statement.Where.ResultTableExpr)
-			ast.WalkLogicalExpr(statement.Where.Expr, State{depth: 0}, preVisit, postVisit)
+			ast.WalkWhere(statement.Where, State{depth: 0}, visitor)
 		case ast.StatementTypeSelect:
 			fmt.Println("Select:")
 			lexer.DumpToken(statement.Select.ResultTableExpr)
