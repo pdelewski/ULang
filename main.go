@@ -35,7 +35,7 @@ func main() {
 	expr, _ := uqlparser.ParseExpression(tokens)
 	fmt.Println("Parsed Expression Tree:")
 	state := State{depth: 0}
-	uqlparser.WalkLogicalExpr(expr, state, preVisit, postVisit)
+	ast.WalkLogicalExpr(expr, state, preVisit, postVisit)
 
 	astTree, err := uqlparser.Parse(`
  t1 = from table1;

@@ -38,3 +38,26 @@ type Select struct {
 	Fields          []lexer.Token
 	ResultTableExpr lexer.Token
 }
+
+func WalkLogicalExpr(expr LogicalExpr,
+	state any,
+	preVisit func(state any, expr LogicalExpr) any,
+	postVisit func(state any, expr LogicalExpr) any,
+) {
+	walkLogicalExpr(expr, 0, state, preVisit, postVisit)
+}
+
+func walkLogicalExpr(
+	expr LogicalExpr,
+	depth int,
+	state any,
+	preVisit func(state any, expr LogicalExpr) any,
+	postVisit func(state any, expr LogicalExpr) any,
+) {
+	state = preVisit(state, expr)
+	if expr.Left != 0 || expr.Right != 0 {
+		walkLogicalExpr(expr.Expressions[0], depth+1, state, preVisit, postVisit)
+		walkLogicalExpr(expr.Expressions[1], depth+1, state, preVisit, postVisit)
+	}
+	state = postVisit(state, expr)
+}

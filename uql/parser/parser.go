@@ -79,29 +79,6 @@ func parseExpression(tokens []lexer.Token, minPrecedence int8) (ast.LogicalExpr,
 	return lhs, i
 }
 
-func WalkLogicalExpr(expr ast.LogicalExpr,
-	state any,
-	preVisit func(state any, expr ast.LogicalExpr) any,
-	postVisit func(state any, expr ast.LogicalExpr) any,
-) {
-	walkLogicalExpr(expr, 0, state, preVisit, postVisit)
-}
-
-func walkLogicalExpr(
-	expr ast.LogicalExpr,
-	depth int,
-	state any,
-	preVisit func(state any, expr ast.LogicalExpr) any,
-	postVisit func(state any, expr ast.LogicalExpr) any,
-) {
-	state = preVisit(state, expr)
-	if expr.Left != 0 || expr.Right != 0 {
-		walkLogicalExpr(expr.Expressions[0], depth+1, state, preVisit, postVisit)
-		walkLogicalExpr(expr.Expressions[1], depth+1, state, preVisit, postVisit)
-	}
-	state = postVisit(state, expr)
-}
-
 func parseFrom(tokens []lexer.Token, lhs lexer.Token) (ast.From, []lexer.Token) {
 	for {
 		var token lexer.Token
