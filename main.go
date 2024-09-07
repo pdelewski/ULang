@@ -37,17 +37,27 @@ func main() {
 	state := State{depth: 0}
 	uqlparser.WalkLogicalExpr(expr, state, preVisit, postVisit)
 
-	ast, err := uqlparser.Parse(`
+	astTree, err := uqlparser.Parse(`
  t1 = from table1;
  t2 = where t1.field1 > 10 && t1.field2 < 20;
  t3 = select t2.field1;
 `)
-	_ = ast
-	for _, statement := range ast {
-		fmt.Println(statement.Type)
-	}
 	if err != 0 {
 		fmt.Println("Error parsing query")
 	}
+	for _, statement := range astTree {
+		fmt.Println(statement.Type)
+		switch statement.Type {
+		case ast.StatementTypeFrom:
+			fmt.Println("From:")
+			lexer.DumpToken(statement.From.ResultTableExpr)
+		case ast.StatementTypeWhere:
+			fmt.Println("Where:")
+			lexer.DumpToken(statement.Where.ResultTableExpr)
+		case ast.StatementTypeSelect:
+			fmt.Println("Select:")
+			lexer.DumpToken(statement.Select.ResultTableExpr)
+		}
 
+	}
 }
