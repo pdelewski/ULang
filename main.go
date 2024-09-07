@@ -12,23 +12,6 @@ type State struct {
 	depth int
 }
 
-func preVisit(state any, expr any) any {
-	newState := state.(State)
-	newState.depth++
-	var builder strings.Builder
-	indent := strings.Repeat("  ", newState.depth)
-	builder.WriteString(fmt.Sprintf("%sValue:", indent))
-	builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.(ast.LogicalExpr).Value}))
-	fmt.Print(builder.String())
-	return newState
-}
-
-func postVisit(state any, expr any) any {
-	newState := state.(State)
-	newState.depth--
-	return newState
-}
-
 func main() {
 	visitor := ast.Visitor{
 		PreVisitFrom: func(state any, expr ast.From) any {
@@ -39,6 +22,7 @@ func main() {
 			newState := state.(State)
 			fmt.Println("From:")
 			lexer.DumpToken(from.ResultTableExpr)
+			lexer.DumpToken(from.TableExpr[0])
 			return newState
 		},
 		PreVisitWhere: func(state any, where ast.Where) any {
@@ -55,6 +39,7 @@ func main() {
 			newState := state.(State)
 			fmt.Println("Select:")
 			lexer.DumpToken(project.ResultTableExpr)
+			lexer.DumpToken(project.Fields[0])
 			return newState
 		},
 		PostVisitSelect: func(state any, expr ast.Select) any {

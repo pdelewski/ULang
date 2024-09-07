@@ -80,14 +80,17 @@ func parseExpression(tokens []lexer.Token, minPrecedence int8) (ast.LogicalExpr,
 }
 
 func parseFrom(tokens []lexer.Token, lhs lexer.Token) (ast.From, []lexer.Token) {
+	from := ast.From{ResultTableExpr: lhs}
 	for {
 		var token lexer.Token
 		token, tokens = lexer.GetNextToken(tokens)
+		// TODO handle more than one table
+		from.TableExpr = append(from.TableExpr, token)
 		if lexer.IsSemicolon(token.Representation[0]) {
 			break
 		}
 	}
-	return ast.From{ResultTableExpr: lhs}, tokens
+	return from, tokens
 }
 
 func parseWhere(tokens []lexer.Token, lhs lexer.Token) (ast.Where, []lexer.Token) {
@@ -104,14 +107,17 @@ func parseWhere(tokens []lexer.Token, lhs lexer.Token) (ast.Where, []lexer.Token
 }
 
 func parseSelect(tokens []lexer.Token, lhs lexer.Token) (ast.Select, []lexer.Token) {
+	project := ast.Select{ResultTableExpr: lhs}
 	for {
 		var token lexer.Token
 		token, tokens = lexer.GetNextToken(tokens)
+		// TODO handle more than one field
+		project.Fields = append(project.Fields, token)
 		if lexer.IsSemicolon(token.Representation[0]) {
 			break
 		}
 	}
-	return ast.Select{ResultTableExpr: lhs}, tokens
+	return project, tokens
 }
 
 func Parse(text string) (ast.AST, int8) {
