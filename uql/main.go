@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"strings"
-	"ugl/ast"
-	"ugl/lexer"
-	"ugl/parser"
+	"uql/ast"
+	"uql/lexer"
+	"uql/parser"
 )
 
 type State struct {

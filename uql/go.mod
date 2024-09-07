@@ -1,4 +1,4 @@
-module ugl
+module uql
 
 go 1.22
 

@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"ugl/ast"
-	"ugl/lexer"
+	"uql/ast"
+	"uql/lexer"
 )
 
 func sliceToInt64(slice []int8) int64 {

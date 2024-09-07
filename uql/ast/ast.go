@@ -1,7 +1,7 @@
 package ast
 
 import (
-	"ugl/lexer"
+	"uql/lexer"
 )
 
 const (
