@@ -30,26 +30,31 @@ func postVisit(state any, expr any) any {
 }
 
 func main() {
-
 	visitor := ast.Visitor{
 		PreVisitFrom: func(state any, expr ast.From) any {
 			newState := state.(State)
 			return newState
 		},
-		PostVisitFrom: func(state any, expr ast.From) any {
+		PostVisitFrom: func(state any, from ast.From) any {
 			newState := state.(State)
+			fmt.Println("From:")
+			lexer.DumpToken(from.ResultTableExpr)
 			return newState
 		},
-		PreVisitWhere: func(state any, expr ast.Where) any {
+		PreVisitWhere: func(state any, where ast.Where) any {
 			newState := state.(State)
+			fmt.Println("Where:")
+			lexer.DumpToken(where.ResultTableExpr)
 			return newState
 		},
 		PostVisitWhere: func(state any, expr ast.Where) any {
 			newState := state.(State)
 			return newState
 		},
-		PreVisitSelect: func(state any, expr ast.Select) any {
+		PreVisitSelect: func(state any, project ast.Select) any {
 			newState := state.(State)
+			fmt.Println("Select:")
+			lexer.DumpToken(project.ResultTableExpr)
 			return newState
 		},
 		PostVisitSelect: func(state any, expr ast.Select) any {
@@ -72,28 +77,26 @@ func main() {
 			return newState
 		},
 	}
-	_ = visitor
+
 	astTree, err := uqlparser.Parse(`
  t1 = from table1;
  t2 = where t1.field1 > 10 && t1.field2 < 20;
  t3 = select t2.field1;
 `)
+
 	if err != 0 {
 		fmt.Println("Error parsing query")
 	}
+
 	for _, statement := range astTree {
 		fmt.Println(statement.Type)
 		switch statement.Type {
 		case ast.StatementTypeFrom:
-			fmt.Println("From:")
-			lexer.DumpToken(statement.From.ResultTableExpr)
+			ast.WalkFrom(statement.From, State{depth: 0}, visitor)
 		case ast.StatementTypeWhere:
-			fmt.Println("Where:")
-			lexer.DumpToken(statement.Where.ResultTableExpr)
 			ast.WalkWhere(statement.Where, State{depth: 0}, visitor)
 		case ast.StatementTypeSelect:
-			fmt.Println("Select:")
-			lexer.DumpToken(statement.Select.ResultTableExpr)
+			ast.WalkSelect(statement.Select, State{depth: 0}, visitor)
 		}
 	}
 }
