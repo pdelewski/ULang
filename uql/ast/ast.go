@@ -58,13 +58,13 @@ func WalkFrom(expr From,
 	state = visitor.PostVisitFrom(state, expr)
 }
 
-func WalkWhere(expr Where,
+func WalkWhere(where Where,
 	state any,
 	visitor Visitor,
 ) {
-	state = visitor.PreVisitWhere(state, expr)
-	WalkLogicalExpr(expr.Expr, state, visitor)
-	state = visitor.PostVisitWhere(state, expr)
+	state = visitor.PreVisitWhere(state, where)
+	walkLogicalExpr(where.Expr, state, visitor)
+	state = visitor.PostVisitWhere(state, where)
 }
 
 func WalkSelect(expr Select,
@@ -73,13 +73,6 @@ func WalkSelect(expr Select,
 ) {
 	state = visitor.PreVisitSelect(state, expr)
 	state = visitor.PostVisitSelect(state, expr)
-}
-
-func WalkLogicalExpr(expr LogicalExpr,
-	state any,
-	visitor Visitor,
-) {
-	walkLogicalExpr(expr, state, visitor)
 }
 
 func walkLogicalExpr(
