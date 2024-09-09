@@ -36,17 +36,11 @@ func main() {
 	passManager := &PassManager{
 		pkgs: pkgs,
 		passes: []Pass{
-			{
-				name:    "Sema",
-				visitor: &Sema{},
-			},
+			&Sema{},
 		},
 	}
 
-	passManager.passes = append(passManager.passes, Pass{
-		name:    "CppGen",
-		visitor: &CppBackend{},
-	})
+	passManager.passes = append(passManager.passes, &CppBackend{})
 
 	passManager.RunPasses()
 }

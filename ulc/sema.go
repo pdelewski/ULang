@@ -6,7 +6,16 @@ import (
 	"go/token"
 )
 
-type Sema struct{}
+type Sema struct {
+}
+
+func (v *Sema) Name() string {
+	return "Sema"
+}
+
+func (v *Sema) Visitor() ast.Visitor {
+	return v
+}
 
 func (v *Sema) Visit(node ast.Node) ast.Visitor {
 	switch decl := node.(type) {
