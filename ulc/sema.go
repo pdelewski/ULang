@@ -6,18 +6,21 @@ import (
 	"go/token"
 )
 
-func exprToString(expr ast.Expr) string {
+func (v *Sema) exprToString(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident:
 		return t.Name
 	case *ast.SelectorExpr:
-		return fmt.Sprintf("%s.%s", exprToString(t.X), t.Sel.Name)
+		return fmt.Sprintf("%s.%s", v.exprToString(t.X), t.Sel.Name)
 	case *ast.StarExpr:
-		return "*" + exprToString(t.X)
+		return "*" + v.exprToString(t.X)
 	case *ast.ArrayType:
-		return "[]" + exprToString(t.Elt)
+		return "[]" + v.exprToString(t.Elt)
 	case *ast.MapType:
-		return fmt.Sprintf("map[%s]%s", exprToString(t.Key), exprToString(t.Value))
+		return fmt.Sprintf("map[%s]%s", v.exprToString(t.Key), v.exprToString(t.Value))
+	case *ast.FuncType:
+		v.dumpFuncType(t)
+		return fmt.Sprintf("%T", expr)
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
@@ -36,7 +39,7 @@ func (v *Sema) Visitor() ast.Visitor {
 
 func (v *Sema) dumpField(field *ast.Field) {
 	for _, fieldName := range field.Names {
-		fmt.Printf("  Field: %s, Type: %s\n", fieldName.Name, exprToString(field.Type))
+		fmt.Printf("  Field: %s, Type: %s\n", fieldName.Name, v.exprToString(field.Type))
 	}
 }
 
@@ -44,6 +47,31 @@ func (v *Sema) dumpFuncDecl(decl *ast.FuncDecl) {
 	fmt.Printf("Found a function declaration: %s\n", decl.Name.Name)
 	for _, param := range decl.Type.Params.List {
 		v.dumpField(param)
+	}
+}
+
+func (v *Sema) dumpFuncType(funcType *ast.FuncType) {
+	// Dump parameters
+	fmt.Printf("Function type:\n")
+	fmt.Println("Parameters:")
+	if funcType.Params != nil {
+		for _, param := range funcType.Params.List {
+			v.dumpField(param)
+		}
+	}
+
+	// Dump return values
+	fmt.Println("Return values:")
+	if funcType.Results != nil {
+		for _, result := range funcType.Results.List {
+			if len(result.Names) > 0 {
+				for _, resultName := range result.Names {
+					fmt.Printf("  Return: %s, Type: %s\n", resultName.Name, v.exprToString(result.Type))
+				}
+			} else {
+				fmt.Printf("  Type: %s\n", v.exprToString(result.Type))
+			}
+		}
 	}
 }
 
