@@ -34,6 +34,19 @@ func (v *Sema) Visitor() ast.Visitor {
 	return v
 }
 
+func (v *Sema) dumpField(field *ast.Field) {
+	for _, fieldName := range field.Names {
+		fmt.Printf("  Field: %s, Type: %s\n", fieldName.Name, exprToString(field.Type))
+	}
+}
+
+func (v *Sema) dumpFuncDecl(decl *ast.FuncDecl) {
+	fmt.Printf("Found a function declaration: %s\n", decl.Name.Name)
+	for _, param := range decl.Type.Params.List {
+		v.dumpField(param)
+	}
+}
+
 func (v *Sema) Visit(node ast.Node) ast.Visitor {
 	switch decl := node.(type) {
 	case *ast.GenDecl:
@@ -51,20 +64,12 @@ func (v *Sema) Visit(node ast.Node) ast.Visitor {
 				fmt.Printf("Found a struct: %s\n", typeSpec.Name.Name)
 
 				for _, field := range structType.Fields.List {
-					for _, fieldName := range field.Names {
-						fmt.Printf("  Field: %s, Type: %s\n", fieldName.Name, field.Type)
-					}
+					v.dumpField(field)
 				}
 			}
 		}
 	case *ast.FuncDecl:
-		// Function declarations
-		fmt.Printf("Found a function declaration: %s\n", decl.Name.Name)
-		for _, param := range decl.Type.Params.List {
-			for _, paramName := range param.Names {
-				fmt.Printf("  Param: %s, Type: %s\n", paramName.Name, exprToString(param.Type))
-			}
-		}
+		v.dumpFuncDecl(decl)
 	}
 	// Continue traversing the AST
 	return v
