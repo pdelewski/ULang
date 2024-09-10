@@ -6,6 +6,23 @@ import (
 	"go/token"
 )
 
+func exprToString(expr ast.Expr) string {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		return t.Name
+	case *ast.SelectorExpr:
+		return fmt.Sprintf("%s.%s", exprToString(t.X), t.Sel.Name)
+	case *ast.StarExpr:
+		return "*" + exprToString(t.X)
+	case *ast.ArrayType:
+		return "[]" + exprToString(t.Elt)
+	case *ast.MapType:
+		return fmt.Sprintf("map[%s]%s", exprToString(t.Key), exprToString(t.Value))
+	default:
+		return fmt.Sprintf("%T", expr)
+	}
+}
+
 type Sema struct {
 }
 
@@ -43,6 +60,11 @@ func (v *Sema) Visit(node ast.Node) ast.Visitor {
 	case *ast.FuncDecl:
 		// Function declarations
 		fmt.Printf("Found a function declaration: %s\n", decl.Name.Name)
+		for _, param := range decl.Type.Params.List {
+			for _, paramName := range param.Names {
+				fmt.Printf("  Param: %s, Type: %s\n", paramName.Name, exprToString(param.Type))
+			}
+		}
 	}
 	// Continue traversing the AST
 	return v
