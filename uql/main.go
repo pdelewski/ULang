@@ -16,19 +16,29 @@ func main() {
 	visitor := ast.Visitor{
 		PreVisitFrom: func(state any, expr ast.From) any {
 			newState := state.(State)
+			newState.depth++
 			return newState
 		},
 		PostVisitFrom: func(state any, from ast.From) any {
 			newState := state.(State)
 			fmt.Println("From:")
-			lexer.DumpToken(from.ResultTableExpr)
-			lexer.DumpToken(from.TableExpr[0])
+			var builder strings.Builder
+			indent := strings.Repeat("  ", newState.depth)
+			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(from.ResultTableExpr)))
+			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(from.TableExpr[0])))
+			fmt.Print(builder.String())
+			newState.depth--
 			return newState
 		},
 		PreVisitWhere: func(state any, where ast.Where) any {
 			newState := state.(State)
+			newState.depth++
 			fmt.Println("Where:")
-			lexer.DumpToken(where.ResultTableExpr)
+			var builder strings.Builder
+			indent := strings.Repeat("  ", newState.depth)
+			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(where.ResultTableExpr)))
+			fmt.Print(builder.String())
+			newState.depth--
 			return newState
 		},
 		PostVisitWhere: func(state any, expr ast.Where) any {
@@ -37,13 +47,19 @@ func main() {
 		},
 		PreVisitSelect: func(state any, project ast.Select) any {
 			newState := state.(State)
+			newState.depth++
 			fmt.Println("Select:")
-			lexer.DumpToken(project.ResultTableExpr)
-			lexer.DumpToken(project.Fields[0])
+			var builder strings.Builder
+			indent := strings.Repeat("  ", newState.depth)
+			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(project.ResultTableExpr)))
+			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(project.Fields[0])))
+			fmt.Print(builder.String())
+			newState.depth--
 			return newState
 		},
 		PostVisitSelect: func(state any, expr ast.Select) any {
 			newState := state.(State)
+			newState.depth--
 			return newState
 		},
 		PreVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
@@ -72,16 +88,17 @@ func main() {
 	if err != 0 {
 		fmt.Println("Error parsing query")
 	}
-
+	var state any
+	state = State{depth: 0}
 	for _, statement := range astTree {
 		fmt.Println(statement.Type)
 		switch statement.Type {
 		case ast.StatementTypeFrom:
-			ast.WalkFrom(statement.From, State{depth: 0}, visitor)
+			state = ast.WalkFrom(statement.From, state, visitor)
 		case ast.StatementTypeWhere:
-			ast.WalkWhere(statement.Where, State{depth: 0}, visitor)
+			state = ast.WalkWhere(statement.Where, state, visitor)
 		case ast.StatementTypeSelect:
-			ast.WalkSelect(statement.Select, State{depth: 0}, visitor)
+			state = ast.WalkSelect(statement.Select, state, visitor)
 		}
 	}
 }

@@ -55,37 +55,41 @@ type Visitor struct {
 func WalkFrom(expr From,
 	state any,
 	visitor Visitor,
-) {
+) any {
 	state = visitor.PreVisitFrom(state, expr)
 	state = visitor.PostVisitFrom(state, expr)
+	return state
 }
 
 func WalkWhere(where Where,
 	state any,
 	visitor Visitor,
-) {
+) any {
 	state = visitor.PreVisitWhere(state, where)
-	walkLogicalExpr(where.Expr, state, visitor)
+	state = walkLogicalExpr(where.Expr, state, visitor)
 	state = visitor.PostVisitWhere(state, where)
+	return state
 }
 
 func WalkSelect(expr Select,
 	state any,
 	visitor Visitor,
-) {
+) any {
 	state = visitor.PreVisitSelect(state, expr)
 	state = visitor.PostVisitSelect(state, expr)
+	return state
 }
 
 func walkLogicalExpr(
 	expr LogicalExpr,
 	state any,
 	visitor Visitor,
-) {
+) any {
 	state = visitor.PreVisitLogicalExpr(state, expr)
 	if expr.Left != 0 || expr.Right != 0 {
-		walkLogicalExpr(expr.Expressions[0], state, visitor)
-		walkLogicalExpr(expr.Expressions[1], state, visitor)
+		state = walkLogicalExpr(expr.Expressions[0], state, visitor)
+		state = walkLogicalExpr(expr.Expressions[1], state, visitor)
 	}
 	state = visitor.PostVisitLogicalExpr(state, expr)
+	return state
 }
