@@ -11,7 +11,8 @@ import (
 
 type Pass interface {
 	Name() string
-	Visitor() ast.Visitor
+	Visitors() []ast.Visitor
+	Finish()
 }
 
 type PassManager struct {
@@ -34,8 +35,11 @@ func (pm *PassManager) RunPasses() {
 					fmt.Fprintf(os.Stderr, "Error parsing file %s: %v\n", file, err)
 					continue
 				}
-				ast.Walk(pass.Visitor(), parsedFile)
+				for _, visitor := range pass.Visitors() {
+					ast.Walk(visitor, parsedFile)
+				}
 			}
 		}
+		pass.Finish()
 	}
 }

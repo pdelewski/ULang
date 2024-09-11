@@ -6,7 +6,7 @@ import (
 	"go/token"
 )
 
-func (v *Sema) exprToString(expr ast.Expr) string {
+func (v *TypeVisitor) exprToString(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident:
 		return t.Name
@@ -29,28 +29,31 @@ func (v *Sema) exprToString(expr ast.Expr) string {
 type Sema struct {
 }
 
-func (v *Sema) Name() string {
+func (s *Sema) Name() string {
 	return "Sema"
 }
 
-func (v *Sema) Visitor() ast.Visitor {
-	return v
+func (s *Sema) Visitors() []ast.Visitor {
+	return []ast.Visitor{&TypeVisitor{}}
 }
 
-func (v *Sema) dumpField(field *ast.Field) {
+type TypeVisitor struct {
+}
+
+func (v *TypeVisitor) dumpField(field *ast.Field) {
 	for _, fieldName := range field.Names {
 		fmt.Printf("  Field: %s, Type: %s\n", fieldName.Name, v.exprToString(field.Type))
 	}
 }
 
-func (v *Sema) dumpFuncDecl(decl *ast.FuncDecl) {
+func (v *TypeVisitor) dumpFuncDecl(decl *ast.FuncDecl) {
 	fmt.Printf("Found a function declaration: %s\n", decl.Name.Name)
 	for _, param := range decl.Type.Params.List {
 		v.dumpField(param)
 	}
 }
 
-func (v *Sema) dumpFuncType(funcType *ast.FuncType) {
+func (v *TypeVisitor) dumpFuncType(funcType *ast.FuncType) {
 	// Dump parameters
 	fmt.Printf("Function type:\n")
 	fmt.Println("Parameters:")
@@ -75,7 +78,7 @@ func (v *Sema) dumpFuncType(funcType *ast.FuncType) {
 	}
 }
 
-func (v *Sema) Visit(node ast.Node) ast.Visitor {
+func (v *TypeVisitor) Visit(node ast.Node) ast.Visitor {
 	switch decl := node.(type) {
 	case *ast.GenDecl:
 		// Check if it's a type declaration
@@ -101,4 +104,7 @@ func (v *Sema) Visit(node ast.Node) ast.Visitor {
 	}
 	// Continue traversing the AST
 	return v
+}
+
+func (s *Sema) Finish() {
 }
