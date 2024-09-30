@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/ast"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -33,10 +34,14 @@ func main() {
 		return
 	}
 
+	sema := &Sema{
+		structs: make(map[string]*ast.StructType),
+	}
+
 	passManager := &PassManager{
 		pkgs: pkgs,
 		passes: []Pass{
-			&Sema{},
+			sema,
 		},
 	}
 

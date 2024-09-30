@@ -15,7 +15,7 @@ const (
 )
 
 type Token struct {
-	Type           int
+	Type           int8
 	Representation []int8
 }
 
