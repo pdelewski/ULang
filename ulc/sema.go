@@ -89,7 +89,7 @@ func (s *Sema) Visitors() []ast.Visitor {
 }
 
 func (s *Sema) Name() string {
-	return "Sema2"
+	return "Sema"
 }
 
 func (s *Sema) Finish() {
