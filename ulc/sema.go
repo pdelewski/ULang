@@ -50,6 +50,9 @@ func (s *Sema) inspectStruct(name string, indent int) {
 			if structType, isStruct := field.Type.(*ast.Ident); isStruct && s.isStructType(structType) {
 				s.inspectStruct(structType.Name, indent+2)
 			}
+			if selType, isSelector := field.Type.(*ast.SelectorExpr); isSelector {
+				fmt.Printf("%sExternal type: %s.%s\n", indentStr(indent+2), selType.X, selType.Sel)
+			}
 		}
 	}
 }
