@@ -18,8 +18,13 @@ var allowedTypes = map[string]struct{}{
 	"float64": {},
 }
 
+type StructDescriptor struct {
+	StructType *ast.StructType
+	PkgName    string
+}
+
 type StructVisitor struct {
-	structs map[string]*ast.StructType // Stores all struct definitions
+	structs map[string]StructDescriptor // Stores all struct definitions
 }
 
 // Visit implements the ast.Visitor interface, called for each node
@@ -28,7 +33,7 @@ func (v *StructVisitor) Visit(n ast.Node) ast.Visitor {
 	case *ast.TypeSpec:
 		// Check if the type is a struct and store it
 		if st, ok := ts.Type.(*ast.StructType); ok {
-			v.structs[ts.Name.Name] = st
+			v.structs[ts.Name.Name] = StructDescriptor{StructType: st}
 		}
 	}
 	return v
@@ -41,7 +46,7 @@ func (s *Sema) inspectStruct(name string, indent int) {
 		return
 	}
 
-	for _, field := range st.Fields.List {
+	for _, field := range st.StructType.Fields.List {
 		for _, fieldName := range field.Names {
 			fieldTypeStr := fieldType(field.Type)
 			fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), fieldName.Name, fieldTypeStr)
@@ -84,7 +89,7 @@ func indentStr(indent int) string {
 }
 
 type Sema struct {
-	structs map[string]*ast.StructType
+	structs map[string]StructDescriptor
 }
 
 func (s *Sema) Visitors() []ast.Visitor {
