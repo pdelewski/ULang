@@ -42,7 +42,7 @@ func main() {
 		},
 	}
 
-	//passManager.passes = append(passManager.passes, &CppBackend{})
+	passManager.passes = append(passManager.passes, &CppBackend{})
 
 	passManager.RunPasses()
 }
