@@ -15,11 +15,9 @@ func main() {
 		return
 	}
 	cfg := &packages.Config{
-		Mode: packages.NeedName |
-			packages.NeedFiles |
-			packages.NeedSyntax |
-			packages.NeedTypes,
-		Dir: sourceDir,
+		Mode:  packages.LoadSyntax,
+		Dir:   sourceDir,
+		Tests: false,
 	}
 
 	pkgs, err := packages.Load(cfg, "./...")
@@ -34,7 +32,7 @@ func main() {
 	}
 
 	sema := &Sema{
-		structs: make(map[string]StructDescriptor),
+		structs: make(map[string]StructInfo),
 	}
 
 	passManager := &PassManager{
@@ -44,7 +42,7 @@ func main() {
 		},
 	}
 
-	passManager.passes = append(passManager.passes, &CppBackend{})
+	//passManager.passes = append(passManager.passes, &CppBackend{})
 
 	passManager.RunPasses()
 }
