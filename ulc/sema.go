@@ -67,11 +67,9 @@ func (v *SemaVisitor) inspectStruct(name string, indent int, visited map[string]
 					if ts.Name.Name == name {
 						if st, ok := ts.Type.(*ast.StructType); ok {
 							for _, field := range st.Fields.List {
-								fieldType := v.inspectFieldType(field.Type)
-
+								//fieldType := v.inspectFieldType(field.Type)
 								for _, fieldName := range field.Names {
-									fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent+2), fieldName.Name, fieldType)
-									v.inspectFieldRecursively(field.Type, indent+2, visited)
+									v.inspectFieldRecursively(fieldName.Name, field.Type, indent+2, visited)
 								}
 							}
 						}
@@ -88,13 +86,13 @@ func (v *SemaVisitor) inspectStruct(name string, indent int, visited map[string]
 }
 
 // inspectFieldRecursively inspects the fields of the struct recursively
-func (v *SemaVisitor) inspectFieldRecursively(expr ast.Expr, indent int, visited map[string]struct{}) {
+func (v *SemaVisitor) inspectFieldRecursively(fieldName string, expr ast.Expr, indent int, visited map[string]struct{}) {
 	switch typ := expr.(type) {
 	case *ast.Ident: // Local struct or basic types
 		if obj := v.pkg.TypesInfo.Uses[typ]; obj != nil {
 			if named, ok := obj.Type().(*types.Named); ok {
 				if structType, ok := named.Underlying().(*types.Struct); ok {
-					fmt.Printf("%sRecursively inspecting struct: %s from package: %s\n", indentStr(indent), named.Obj().Name(), named.Obj().Pkg().Path())
+					//fmt.Printf("%sRecursively inspecting struct: %s from package: %s\n", indentStr(indent), named.Obj().Name(), named.Obj().Pkg().Path())
 					v.structs[named.Obj().Name()] = StructInfo{
 						Name:       named.Obj().Name(),
 						Struct:     structType,
@@ -103,6 +101,8 @@ func (v *SemaVisitor) inspectFieldRecursively(expr ast.Expr, indent int, visited
 					}
 					v.inspectExternalStruct(structType, indent+2, visited)
 				}
+			} else {
+				fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), fieldName, obj.Type().String())
 			}
 		}
 
@@ -110,7 +110,7 @@ func (v *SemaVisitor) inspectFieldRecursively(expr ast.Expr, indent int, visited
 		if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 			if named, ok := obj.Type().(*types.Named); ok {
 				if structType, ok := named.Underlying().(*types.Struct); ok {
-					fmt.Printf("%sRecursively inspecting external struct: %s from package: %s\n", indentStr(indent), named.Obj().Name(), named.Obj().Pkg().Path())
+					//fmt.Printf("%sRecursively inspecting external struct: %s from package: %s\n", indentStr(indent), named.Obj().Name(), named.Obj().Pkg().Path())
 					v.structs[named.Obj().Name()] = StructInfo{
 						Name:       named.Obj().Name(),
 						Struct:     structType,
@@ -119,9 +119,14 @@ func (v *SemaVisitor) inspectFieldRecursively(expr ast.Expr, indent int, visited
 					}
 					v.inspectExternalStruct(structType, indent+2, visited)
 				}
+			} else {
+				fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), fieldName, named.Obj().Name())
 			}
 		}
+	case *ast.FuncType:
+		fmt.Printf("%sField: %s\n", indentStr(indent), "func")
 	}
+
 }
 
 func (v *SemaVisitor) inspectExternalStruct(structType *types.Struct, indent int, visited map[string]struct{}) {
@@ -132,25 +137,24 @@ func (v *SemaVisitor) inspectExternalStruct(structType *types.Struct, indent int
 	for i := 0; i < structType.NumFields(); i++ {
 		field := structType.Field(i)
 		fieldType := field.Type().String()
-		fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), field.Name(), fieldType)
+		//fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), field.Name(), fieldType)
 
 		// Handle named types
 		if named, ok := field.Type().(*types.Named); ok {
 			if nestedStruct, ok := named.Underlying().(*types.Struct); ok {
-				fmt.Printf("%sRecursively inspecting nested struct: %s\n", indentStr(indent+2), named.Obj().Name())
+				//fmt.Printf("%sRecursively inspecting nested struct: %s\n", indentStr(indent+2), named.Obj().Name())
 				v.inspectExternalStruct(nestedStruct, indent+4, visited)
 			}
-		}
-
-		// Handle slice types
-		if slice, ok := field.Type().(*types.Slice); ok {
+		} else if slice, ok := field.Type().(*types.Slice); ok {
 			elemType := slice.Elem()
-			fmt.Printf("%sField: %s is a slice of: %s\n", indentStr(indent), field.Name(), elemType.String())
+			//fmt.Printf("%sField: %s is a slice of: %s\n", indentStr(indent), field.Name(), elemType.String())
 			if namedElem, ok := elemType.(*types.Named); ok {
 				if nestedStruct, ok := namedElem.Underlying().(*types.Struct); ok {
 					v.inspectExternalStruct(nestedStruct, indent+4, visited)
 				}
 			}
+		} else {
+			fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), field.Name(), fieldType)
 		}
 	}
 }
