@@ -9,7 +9,7 @@ import (
 )
 
 type State struct {
-	depth int
+	depth int8
 }
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 			newState := state.(State)
 			fmt.Println("From:")
 			var builder strings.Builder
-			indent := strings.Repeat("  ", newState.depth)
+			indent := strings.Repeat("  ", int(newState.depth))
 			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(from.ResultTableExpr)))
 			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(from.TableExpr[0])))
 			fmt.Print(builder.String())
@@ -35,7 +35,7 @@ func main() {
 			newState.depth++
 			fmt.Println("Where:")
 			var builder strings.Builder
-			indent := strings.Repeat("  ", newState.depth)
+			indent := strings.Repeat("  ", int(newState.depth))
 			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(where.ResultTableExpr)))
 			fmt.Print(builder.String())
 			newState.depth--
@@ -50,7 +50,7 @@ func main() {
 			newState.depth++
 			fmt.Println("Select:")
 			var builder strings.Builder
-			indent := strings.Repeat("  ", newState.depth)
+			indent := strings.Repeat("  ", int(newState.depth))
 			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(project.ResultTableExpr)))
 			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(project.Fields[0])))
 			fmt.Print(builder.String())
@@ -66,7 +66,7 @@ func main() {
 			newState := state.(State)
 			newState.depth++
 			var builder strings.Builder
-			indent := strings.Repeat("  ", newState.depth)
+			indent := strings.Repeat("  ", int(newState.depth))
 			builder.WriteString(fmt.Sprintf("%sValue:", indent))
 			builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.Value}))
 			fmt.Print(builder.String())
