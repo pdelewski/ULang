@@ -9,7 +9,7 @@ import (
 type Pass interface {
 	Name() string
 	Visitors(pkg *packages.Package) []ast.Visitor
-	PostVisit(visitor ast.Visitor)
+	PostVisit(visitor ast.Visitor, visited map[string]struct{})
 	Finish()
 }
 
@@ -21,6 +21,7 @@ type PassManager struct {
 func (pm *PassManager) RunPasses() {
 	for _, pass := range pm.passes {
 		fmt.Printf("Running pass: %s\n", pass.Name())
+		visited := make(map[string]struct{})
 		for _, pkg := range pm.pkgs {
 			fmt.Printf("Package: %s\n", pkg.Name)
 			visitors := pass.Visitors(pkg)
@@ -31,7 +32,7 @@ func (pm *PassManager) RunPasses() {
 				}
 			}
 			for _, visitor := range visitors {
-				pass.PostVisit(visitor)
+				pass.PostVisit(visitor, visited)
 			}
 		}
 

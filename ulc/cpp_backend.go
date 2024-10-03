@@ -23,6 +23,6 @@ func (v *CppBackend) Visit(node ast.Node) ast.Visitor {
 func (v *CppBackend) Finish() {
 }
 
-func (v *CppBackend) PostVisit(visitor ast.Visitor) {
+func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 
 }
