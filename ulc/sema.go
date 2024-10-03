@@ -204,6 +204,9 @@ func (s *Sema) Name() string {
 	return "Sema"
 }
 
+func (s *Sema) PreVisit(visitor ast.Visitor) {
+}
+
 func (s *Sema) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	semaVisitor := visitor.(*SemaVisitor)
 	for name, val := range semaVisitor.structs {
@@ -217,5 +220,8 @@ func (s *Sema) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	}
 }
 
-func (s *Sema) Finish() {
+func (s *Sema) ProLog() {
+}
+
+func (s *Sema) EpiLog() {
 }

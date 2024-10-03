@@ -7,10 +7,12 @@ import (
 )
 
 type Pass interface {
+	ProLog()
 	Name() string
 	Visitors(pkg *packages.Package) []ast.Visitor
+	PreVisit(visitor ast.Visitor)
 	PostVisit(visitor ast.Visitor, visited map[string]struct{})
-	Finish()
+	EpiLog()
 }
 
 type PassManager struct {
@@ -22,9 +24,14 @@ func (pm *PassManager) RunPasses() {
 	for _, pass := range pm.passes {
 		fmt.Printf("Running pass: %s\n", pass.Name())
 		visited := make(map[string]struct{})
+		pass.ProLog()
 		for _, pkg := range pm.pkgs {
 			fmt.Printf("Package: %s\n", pkg.Name)
 			visitors := pass.Visitors(pkg)
+
+			for _, visitor := range visitors {
+				pass.PreVisit(visitor)
+			}
 
 			for _, visitor := range visitors {
 				for _, file := range pkg.Syntax {
@@ -35,7 +42,6 @@ func (pm *PassManager) RunPasses() {
 				pass.PostVisit(visitor, visited)
 			}
 		}
-
-		pass.Finish()
+		pass.EpiLog()
 	}
 }
