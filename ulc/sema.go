@@ -102,7 +102,10 @@ func (v *SemaVisitor) inspectFieldRecursively(fieldName string, expr ast.Expr, i
 					v.inspectExternalStruct(named.Obj().Name(), structType, indent+2, visited)
 				}
 			} else {
-				fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), fieldName, obj.Type().String())
+				//				fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), fieldName, obj.Type().String())
+				if _, ok := allowedTypes[obj.Type().String()]; !ok {
+					fmt.Printf("Sema failed: %sField: %s, Type: %s\n", indentStr(indent), fieldName, obj.Type().String())
+				}
 			}
 		}
 
@@ -110,7 +113,7 @@ func (v *SemaVisitor) inspectFieldRecursively(fieldName string, expr ast.Expr, i
 		if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 			if named, ok := obj.Type().(*types.Named); ok {
 				if structType, ok := named.Underlying().(*types.Struct); ok {
-					//fmt.Printf("%sRecursively inspecting external struct: %s from package: %s\n", indentStr(indent), named.Obj().Name(), named.Obj().Pkg().Path())
+					fmt.Printf("%sInspecting struct: %s from package: %s\n", indentStr(indent), named.Obj().Name(), named.Obj().Pkg().Path())
 					v.structs[named.Obj().Name()] = StructInfo{
 						Name:       named.Obj().Name(),
 						Struct:     structType,
@@ -120,11 +123,14 @@ func (v *SemaVisitor) inspectFieldRecursively(fieldName string, expr ast.Expr, i
 					v.inspectExternalStruct(named.Obj().Name(), structType, indent+2, visited)
 				}
 			} else {
-				fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), fieldName, named.Obj().Name())
+				//fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), fieldName, named.Obj().Name())
+				if _, ok := allowedTypes[obj.Type().String()]; !ok {
+					fmt.Printf("Sema failed: %sField: %s, Type: %s\n", indentStr(indent), fieldName, obj.Type().String())
+				}
 			}
 		}
 	case *ast.FuncType:
-		fmt.Printf("%sField: %s\n", indentStr(indent), "func")
+		//fmt.Printf("%sField: %s\n", indentStr(indent), "func")
 	}
 
 }
@@ -142,7 +148,7 @@ func (v *SemaVisitor) inspectExternalStruct(structName string, structType *types
 		// Handle named types
 		if named, ok := field.Type().(*types.Named); ok {
 			if nestedStruct, ok := named.Underlying().(*types.Struct); ok {
-				//fmt.Printf("%sRecursively inspecting nested struct: %s\n", indentStr(indent+2), named.Obj().Name())
+				fmt.Printf("%sInspecting struct: %s\n", indentStr(indent+2), named.Obj().Name())
 				v.inspectExternalStruct(structName, nestedStruct, indent+4, visited)
 			}
 		} else if slice, ok := field.Type().(*types.Slice); ok {
@@ -154,7 +160,10 @@ func (v *SemaVisitor) inspectExternalStruct(structName string, structType *types
 				}
 			}
 		} else {
-			fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), field.Name(), fieldType)
+			//fmt.Printf("%sField: %s, Type: %s\n", indentStr(indent), field.Name(), fieldType)
+			if _, ok := allowedTypes[fieldType]; !ok {
+				fmt.Printf("Sema failed: %sField: %s, Type: %s\n", indentStr(indent), field.Name(), fieldType)
+			}
 		}
 	}
 }
