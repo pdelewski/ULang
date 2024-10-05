@@ -47,6 +47,8 @@ func process(a A) A {
 
 ## Allowed operations (semantically correct ULang subset)
 
+Not all syntactically valid GoLang constructs will be available from ULang.
+
 * primitives
 
 ```
