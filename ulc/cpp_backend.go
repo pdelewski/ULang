@@ -49,6 +49,14 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 						}
 					}
 				}
+			case *ast.ArrayType:
+				switch elt := typ.Elt.(type) {
+				case *ast.Ident:
+					_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s> %s;\n", elt.Name, fieldName.Name))
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+					}
+				}
 			}
 		}
 	}
