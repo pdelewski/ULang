@@ -45,7 +45,7 @@ func process(a A) A {
 }
 ```
 
-## Allowed operations
+## Allowed operations (semantically correct ULang subset)
 
 * primitives
 
@@ -53,3 +53,12 @@ func process(a A) A {
   x := 1 // x inferred as int8
   x = 2  // mutating x
 ```
+
+* structs
+
+```
+  a := A{x:1}
+  a.x = 2
+```
+
+* arrays
