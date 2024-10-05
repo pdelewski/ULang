@@ -28,6 +28,20 @@ func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
 	return []ast.Visitor{v.visitor}
 }
 
+func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
+	for _, field := range st.Fields.List {
+		for _, fieldName := range field.Names {
+			if typ, ok := field.Type.(*ast.Ident); ok {
+				//fmt.Println("  ", typ.Name, fieldName.Name, ";")
+				_, err := v.pass.file.WriteString(fmt.Sprintf("  %s %s;\n", typ.Name, fieldName.Name))
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+				}
+			}
+		}
+	}
+}
+
 func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 	switch node := node.(type) {
 	case *ast.TypeSpec:
@@ -50,18 +64,7 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				fmt.Println("Error writing to file:", err)
 				return v
 			}
-			for _, field := range st.Fields.List {
-				for _, fieldName := range field.Names {
-					if typ, ok := field.Type.(*ast.Ident); ok {
-						//fmt.Println("  ", typ.Name, fieldName.Name, ";")
-						_, err := v.pass.file.WriteString(fmt.Sprintf("  %s %s;\n", typ.Name, fieldName.Name))
-						if err != nil {
-							fmt.Println("Error writing to file:", err)
-							return v
-						}
-					}
-				}
-			}
+			v.generateFields(st)
 			//fmt.Println("};")
 			_, err = v.pass.file.WriteString("};\n\n")
 			if err != nil {
