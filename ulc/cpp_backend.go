@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
 	"golang.org/x/tools/go/packages"
 	"os"
 )
@@ -31,11 +32,22 @@ func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
 func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
-			if typ, ok := field.Type.(*ast.Ident); ok {
-				//fmt.Println("  ", typ.Name, fieldName.Name, ";")
+			switch typ := field.Type.(type) {
+			case *ast.Ident:
 				_, err := v.pass.file.WriteString(fmt.Sprintf("  %s %s;\n", typ.Name, fieldName.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
+				}
+			case *ast.SelectorExpr: // External struct from another package
+				if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
+					if named, ok := obj.Type().(*types.Named); ok {
+						if _, ok := named.Underlying().(*types.Struct); ok {
+							_, err := v.pass.file.WriteString(fmt.Sprintf("  %s.%s %s;\n", named.Obj().Pkg().Name(), named.Obj().Name(), fieldName.Name))
+							if err != nil {
+								fmt.Println("Error writing to file:", err)
+							}
+						}
+					}
 				}
 			}
 		}
