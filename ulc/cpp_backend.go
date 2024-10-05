@@ -56,6 +56,13 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 					if err != nil {
 						fmt.Println("Error writing to file:", err)
 					}
+				case *ast.SelectorExpr: // Imported types
+					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
+						_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s.%s> %s;\n", pkgIdent.Name, elt.Sel.Name, fieldName.Name))
+						if err != nil {
+							fmt.Println("Error writing to file:", err)
+						}
+					}
 				}
 			}
 		}
