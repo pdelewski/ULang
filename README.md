@@ -6,28 +6,28 @@ The language currently is a subset of golang which means that it is implemented 
 
 ## Primitvies types
 
-* int8
-* int16
-* int32
-* int64
-* uint8
-* uint16
-* uint32
-* uint64
-* float32
-* float64
+* `int8`
+* `int16`
+* `int32`
+* `int64`
+* `uint8`
+* `uint16`
+* `uint32`
+* `uint64`
+* `float32`
+* `float64`
 
 ## Compound types
 
-* array
-* struct
+* `array`
+* `struct`
 
 Array use COW (copy on write) semantics.
 
 ## Control flow statements
 
-* if
-* for
+* `if`
+* `for`
 
 ## Functions
 
