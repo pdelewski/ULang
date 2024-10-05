@@ -21,3 +21,35 @@ The language currently is a subset of golang which means that it is implemented 
 
 * array
 * struct
+
+Array use COW (copy on write) semantics.
+
+## Control flow statements
+
+* if
+* for
+
+## Functions
+
+All parameters are passed by value except arrays. Changing struct instance means returning new one,
+however that might be implemented using pointers in backend programming language that have them.
+
+```golang
+type A struct {
+  x int
+}
+
+func process(a A) A {
+  a := A{x:2}
+  return a;
+}
+```
+
+## Allowed operations
+
+* primitives
+
+```
+  x := 1 // x inferred as int8
+  x = 2  // mutating x
+```
