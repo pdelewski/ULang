@@ -42,7 +42,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 				if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 					if named, ok := obj.Type().(*types.Named); ok {
 						if _, ok := named.Underlying().(*types.Struct); ok {
-							_, err := v.pass.file.WriteString(fmt.Sprintf("  %s.%s %s;\n", named.Obj().Pkg().Name(), named.Obj().Name(), fieldName.Name))
+							_, err := v.pass.file.WriteString(fmt.Sprintf("  %s::%s %s;\n", named.Obj().Pkg().Name(), named.Obj().Name(), fieldName.Name))
 							if err != nil {
 								fmt.Println("Error writing to file:", err)
 							}
@@ -58,7 +58,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 					}
 				case *ast.SelectorExpr: // Imported types
 					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-						_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s.%s> %s;\n", pkgIdent.Name, elt.Sel.Name, fieldName.Name))
+						_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, elt.Sel.Name, fieldName.Name))
 						if err != nil {
 							fmt.Println("Error writing to file:", err)
 						}
