@@ -8,6 +8,16 @@ import (
 	"os"
 )
 
+var typesMap = map[string]string{
+	"int8":   "std::int8_t",
+	"int16":  "std::int16_t",
+	"int32":  "std::int32_t",
+	"int64":  "std::int64_t",
+	"uint8":  "std::uint8_t",
+	"uint16": "std::uint16_t",
+	"any":    "std::any",
+}
+
 type CppBackend struct {
 	outputFile string
 	file       *os.File
@@ -34,7 +44,11 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 		for _, fieldName := range field.Names {
 			switch typ := field.Type.(type) {
 			case *ast.Ident:
-				_, err := v.pass.file.WriteString(fmt.Sprintf("  %s %s;\n", typ.Name, fieldName.Name))
+				cppType := typ.Name
+				if val, ok := typesMap[typ.Name]; ok {
+					cppType = val
+				}
+				_, err := v.pass.file.WriteString(fmt.Sprintf("  %s %s;\n", cppType, fieldName.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
@@ -42,7 +56,11 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 				if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 					if named, ok := obj.Type().(*types.Named); ok {
 						if _, ok := named.Underlying().(*types.Struct); ok {
-							_, err := v.pass.file.WriteString(fmt.Sprintf("  %s::%s %s;\n", named.Obj().Pkg().Name(), named.Obj().Name(), fieldName.Name))
+							cppType := named.Obj().Name()
+							if val, ok := typesMap[named.Obj().Name()]; ok {
+								cppType = val
+							}
+							_, err := v.pass.file.WriteString(fmt.Sprintf("  %s::%s %s;\n", named.Obj().Pkg().Name(), cppType, fieldName.Name))
 							if err != nil {
 								fmt.Println("Error writing to file:", err)
 							}
@@ -52,13 +70,21 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 			case *ast.ArrayType:
 				switch elt := typ.Elt.(type) {
 				case *ast.Ident:
-					_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s> %s;\n", elt.Name, fieldName.Name))
+					cppType := elt.Name
+					if val, ok := typesMap[elt.Name]; ok {
+						cppType = val
+					}
+					_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s> %s;\n", cppType, fieldName.Name))
 					if err != nil {
 						fmt.Println("Error writing to file:", err)
 					}
 				case *ast.SelectorExpr: // Imported types
 					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-						_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, elt.Sel.Name, fieldName.Name))
+						cppType := elt.Sel.Name
+						if val, ok := typesMap[elt.Sel.Name]; ok {
+							cppType = val
+						}
+						_, err := v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName.Name))
 						if err != nil {
 							fmt.Println("Error writing to file:", err)
 						}
@@ -108,20 +134,32 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
 				switch elt := arrayArg.Elt.(type) {
 				case *ast.Ident:
-					_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", elt.Name))
+					cppType := elt.Name
+					if val, ok := typesMap[elt.Name]; ok {
+						cppType = val
+					}
+					_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", cppType))
 					if err != nil {
 						fmt.Println("Error writing to file:", err)
 					}
 				case *ast.SelectorExpr: // Imported types
 					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, elt.Sel.Name))
+						cppType := elt.Sel.Name
+						if val, ok := typesMap[elt.Sel.Name]; ok {
+							cppType = val
+						}
+						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType))
 						if err != nil {
 							fmt.Println("Error writing to file:", err)
 						}
 					}
 				}
 			} else {
-				_, err := v.pass.file.WriteString(v.inspectType(result.Type))
+				cppType := v.inspectType(result.Type)
+				if val, ok := typesMap[v.inspectType(result.Type)]; ok {
+					cppType = val
+				}
+				_, err := v.pass.file.WriteString(cppType)
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 					return v
@@ -166,20 +204,32 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
 				switch elt := arrayArg.Elt.(type) {
 				case *ast.Ident:
-					_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", elt.Name, argName.Name))
+					cppType := elt.Name
+					if val, ok := typesMap[elt.Name]; ok {
+						cppType = val
+					}
+					_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", cppType, argName.Name))
 					if err != nil {
 						fmt.Println("Error writing to file:", err)
 					}
 				case *ast.SelectorExpr: // Imported types
 					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, elt.Sel.Name, argName.Name))
+						cppType := elt.Sel.Name
+						if val, ok := typesMap[elt.Sel.Name]; ok {
+							cppType = val
+						}
+						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, argName.Name))
 						if err != nil {
 							fmt.Println("Error writing to file:", err)
 						}
 					}
 				}
 			} else {
-				_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", v.inspectType(arg.Type), argName.Name))
+				cppType := v.inspectType(arg.Type)
+				if val, ok := typesMap[v.inspectType(arg.Type)]; ok {
+					cppType = val
+				}
+				_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", cppType, argName.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 					return v
