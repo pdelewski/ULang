@@ -176,10 +176,27 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				}
 			}
 			for _, argName := range arg.Names {
-				_, err := v.pass.file.WriteString(fmt.Sprintf("%s %s", v.inspectType(arg.Type), argName.Name))
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
+				if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
+					switch elt := arrayArg.Elt.(type) {
+					case *ast.Ident:
+						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", elt.Name, argName.Name))
+						if err != nil {
+							fmt.Println("Error writing to file:", err)
+						}
+					case *ast.SelectorExpr: // Imported types
+						if pkgIdent, ok := elt.X.(*ast.Ident); ok {
+							_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, elt.Sel.Name, argName.Name))
+							if err != nil {
+								fmt.Println("Error writing to file:", err)
+							}
+						}
+					}
+				} else {
+					_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", v.inspectType(arg.Type), argName.Name))
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+						return v
+					}
 				}
 			}
 			argIndex++
