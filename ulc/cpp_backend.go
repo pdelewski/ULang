@@ -285,9 +285,17 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				fmt.Println("Error writing to file:", err)
 				return v
 			}
+		} else {
+			// TODO check if array type
+			_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return v
+			}
 		}
 	case *ast.FuncDecl:
 		v.generateFuncDecl(node)
+
 	}
 	return v
 }
