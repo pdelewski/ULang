@@ -69,6 +69,24 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 	}
 }
 
+func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
+	switch t := expr.(type) {
+	case *ast.Ident: // Basic types or local structs
+		return t.Name
+	case *ast.SelectorExpr: // Imported types
+		if pkgIdent, ok := t.X.(*ast.Ident); ok {
+			return fmt.Sprintf("%s.%s", pkgIdent.Name, t.Sel.Name)
+		}
+	case *ast.StarExpr: // Pointer to a type
+		return "*" + v.inspectType(t.X)
+	case *ast.ArrayType: // Array of types
+		return "[]" + v.inspectType(t.Elt)
+	default:
+		return fmt.Sprintf("%T", expr)
+	}
+	return "unknown"
+}
+
 func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 	switch node := node.(type) {
 	case *ast.TypeSpec:
@@ -99,7 +117,90 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				return v
 			}
 		}
+	case *ast.FuncDecl:
+		if node.Type.Results != nil {
+			resultArgIndex := 0
+			if len(node.Type.Results.List) > 0 {
+				_, err := v.pass.file.WriteString("std::tuple<")
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+			for _, result := range node.Type.Results.List {
+				if resultArgIndex > 0 {
+					_, err := v.pass.file.WriteString(",")
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+						return v
+					}
+				}
+				_, err := v.pass.file.WriteString(fmt.Sprintf("%s", v.inspectType(result.Type)))
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+				resultArgIndex++
+			}
+			if len(node.Type.Results.List) > 0 {
+				_, err := v.pass.file.WriteString(">")
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+		} else {
+			_, err := v.pass.file.WriteString("void")
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return v
+			}
+		}
+		_, err := v.pass.file.WriteString(" ")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return v
+		}
+		_, err = v.pass.file.WriteString(node.Name.Name + "(")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return v
+		}
+		argIndex := 0
+		for _, arg := range node.Type.Params.List {
+			if argIndex > 0 {
+				_, err = v.pass.file.WriteString(", ")
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+			for _, argName := range arg.Names {
+				_, err := v.pass.file.WriteString(fmt.Sprintf("%s %s", v.inspectType(arg.Type), argName.Name))
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+			argIndex++
+		}
+		_, err = v.pass.file.WriteString(")\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return v
+		}
+		_, err = v.pass.file.WriteString("{\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return v
+		}
+		_, err = v.pass.file.WriteString("}\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return v
+		}
 	}
+
 	return v
 }
 
