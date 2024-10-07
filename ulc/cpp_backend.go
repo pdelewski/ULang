@@ -87,6 +87,125 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	return "unknown"
 }
 
+func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
+	if node.Type.Results != nil {
+		resultArgIndex := 0
+		if len(node.Type.Results.List) > 0 {
+			_, err := v.pass.file.WriteString("std::tuple<")
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return v
+			}
+		}
+		for _, result := range node.Type.Results.List {
+			if resultArgIndex > 0 {
+				_, err := v.pass.file.WriteString(",")
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
+				switch elt := arrayArg.Elt.(type) {
+				case *ast.Ident:
+					_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", elt.Name))
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+					}
+				case *ast.SelectorExpr: // Imported types
+					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
+						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, elt.Sel.Name))
+						if err != nil {
+							fmt.Println("Error writing to file:", err)
+						}
+					}
+				}
+			} else {
+				_, err := v.pass.file.WriteString(v.inspectType(result.Type))
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+			resultArgIndex++
+		}
+		if len(node.Type.Results.List) > 0 {
+			_, err := v.pass.file.WriteString(">")
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return v
+			}
+		}
+	} else {
+		_, err := v.pass.file.WriteString("void")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return v
+		}
+	}
+	_, err := v.pass.file.WriteString(" ")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return v
+	}
+	_, err = v.pass.file.WriteString(node.Name.Name + "(")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return v
+	}
+	argIndex := 0
+	for _, arg := range node.Type.Params.List {
+		if argIndex > 0 {
+			_, err = v.pass.file.WriteString(", ")
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return v
+			}
+		}
+		for _, argName := range arg.Names {
+			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
+				switch elt := arrayArg.Elt.(type) {
+				case *ast.Ident:
+					_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", elt.Name, argName.Name))
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+					}
+				case *ast.SelectorExpr: // Imported types
+					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
+						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, elt.Sel.Name, argName.Name))
+						if err != nil {
+							fmt.Println("Error writing to file:", err)
+						}
+					}
+				}
+			} else {
+				_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", v.inspectType(arg.Type), argName.Name))
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+		}
+		argIndex++
+	}
+	_, err = v.pass.file.WriteString(")\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return v
+	}
+	_, err = v.pass.file.WriteString("{\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return v
+	}
+	_, err = v.pass.file.WriteString("}\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return v
+	}
+	return v
+}
+
 func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 	switch node := node.(type) {
 	case *ast.TypeSpec:
@@ -118,123 +237,8 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 	case *ast.FuncDecl:
-		if node.Type.Results != nil {
-			resultArgIndex := 0
-			if len(node.Type.Results.List) > 0 {
-				_, err := v.pass.file.WriteString("std::tuple<")
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
-			}
-			for _, result := range node.Type.Results.List {
-				if resultArgIndex > 0 {
-					_, err := v.pass.file.WriteString(",")
-					if err != nil {
-						fmt.Println("Error writing to file:", err)
-						return v
-					}
-				}
-				if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
-					switch elt := arrayArg.Elt.(type) {
-					case *ast.Ident:
-						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", elt.Name))
-						if err != nil {
-							fmt.Println("Error writing to file:", err)
-						}
-					case *ast.SelectorExpr: // Imported types
-						if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-							_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, elt.Sel.Name))
-							if err != nil {
-								fmt.Println("Error writing to file:", err)
-							}
-						}
-					}
-				} else {
-					_, err := v.pass.file.WriteString(v.inspectType(result.Type))
-					if err != nil {
-						fmt.Println("Error writing to file:", err)
-						return v
-					}
-				}
-				resultArgIndex++
-			}
-			if len(node.Type.Results.List) > 0 {
-				_, err := v.pass.file.WriteString(">")
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
-			}
-		} else {
-			_, err := v.pass.file.WriteString("void")
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		}
-		_, err := v.pass.file.WriteString(" ")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
-		_, err = v.pass.file.WriteString(node.Name.Name + "(")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
-		argIndex := 0
-		for _, arg := range node.Type.Params.List {
-			if argIndex > 0 {
-				_, err = v.pass.file.WriteString(", ")
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
-			}
-			for _, argName := range arg.Names {
-				if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
-					switch elt := arrayArg.Elt.(type) {
-					case *ast.Ident:
-						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", elt.Name, argName.Name))
-						if err != nil {
-							fmt.Println("Error writing to file:", err)
-						}
-					case *ast.SelectorExpr: // Imported types
-						if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-							_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, elt.Sel.Name, argName.Name))
-							if err != nil {
-								fmt.Println("Error writing to file:", err)
-							}
-						}
-					}
-				} else {
-					_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", v.inspectType(arg.Type), argName.Name))
-					if err != nil {
-						fmt.Println("Error writing to file:", err)
-						return v
-					}
-				}
-			}
-			argIndex++
-		}
-		_, err = v.pass.file.WriteString(")\n")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
-		_, err = v.pass.file.WriteString("{\n")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
-		_, err = v.pass.file.WriteString("}\n")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
+		v.generateFuncDecl(node)
 	}
-
 	return v
 }
 
