@@ -75,7 +75,7 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 		return t.Name
 	case *ast.SelectorExpr: // Imported types
 		if pkgIdent, ok := t.X.(*ast.Ident); ok {
-			return fmt.Sprintf("%s.%s", pkgIdent.Name, t.Sel.Name)
+			return fmt.Sprintf("%s::%s", pkgIdent.Name, t.Sel.Name)
 		}
 	case *ast.StarExpr: // Pointer to a type
 		return "*" + v.inspectType(t.X)
@@ -135,10 +135,27 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 						return v
 					}
 				}
-				_, err := v.pass.file.WriteString(fmt.Sprintf("%s", v.inspectType(result.Type)))
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
+				if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
+					switch elt := arrayArg.Elt.(type) {
+					case *ast.Ident:
+						_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", elt.Name))
+						if err != nil {
+							fmt.Println("Error writing to file:", err)
+						}
+					case *ast.SelectorExpr: // Imported types
+						if pkgIdent, ok := elt.X.(*ast.Ident); ok {
+							_, err := v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, elt.Sel.Name))
+							if err != nil {
+								fmt.Println("Error writing to file:", err)
+							}
+						}
+					}
+				} else {
+					_, err := v.pass.file.WriteString(v.inspectType(result.Type))
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+						return v
+					}
 				}
 				resultArgIndex++
 			}
