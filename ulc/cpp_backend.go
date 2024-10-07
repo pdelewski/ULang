@@ -250,6 +250,11 @@ func (v *CppBackend) ProLog() {
 		fmt.Println("Error opening file:", err)
 		return
 	}
+	_, err = v.file.WriteString("#include <vector>\n#include <tuple>\n#include <any>\n#include <cstdint>\n\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
 }
 
 func (v *CppBackend) EpiLog() {
