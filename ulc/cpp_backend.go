@@ -286,11 +286,36 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				return v
 			}
 		} else {
-			// TODO check if array type
-			_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
+			// TODO remove redundancy
+			if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
+				switch elt := arrayArg.Elt.(type) {
+				case *ast.Ident:
+					cppType := elt.Name
+					if val, ok := typesMap[elt.Name]; ok {
+						cppType = val
+					}
+					_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s>\n\n", node.Name, cppType))
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+					}
+				case *ast.SelectorExpr: // Imported types
+					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
+						cppType := elt.Sel.Name
+						if val, ok := typesMap[elt.Sel.Name]; ok {
+							cppType = val
+						}
+						_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", node.Name, pkgIdent.Name, cppType))
+						if err != nil {
+							fmt.Println("Error writing to file:", err)
+						}
+					}
+				}
+			} else {
+				_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
 			}
 		}
 	case *ast.FuncDecl:
