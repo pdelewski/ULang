@@ -70,7 +70,10 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 		case ArrayReturn:
 			_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", cppType))
 		case ArrayAlias:
-
+			if len(fieldName) == 0 {
+				panic("expected field")
+			}
+			_, err = v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s>\n\n", fieldName, cppType))
 		}
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
@@ -95,6 +98,10 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			case ArrayReturn:
 				_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType))
 			case ArrayAlias:
+				if len(fieldName) == 0 {
+					panic("expected field")
+				}
+				_, err = v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType))
 			}
 		}
 		if err != nil {
@@ -287,30 +294,8 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				return v
 			}
 		} else {
-			// TODO remove redundancy
 			if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
-				switch elt := arrayArg.Elt.(type) {
-				case *ast.Ident:
-					cppType := elt.Name
-					if val, ok := typesMap[elt.Name]; ok {
-						cppType = val
-					}
-					_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s>\n\n", node.Name, cppType))
-					if err != nil {
-						fmt.Println("Error writing to file:", err)
-					}
-				case *ast.SelectorExpr: // Imported types
-					if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-						cppType := elt.Sel.Name
-						if val, ok := typesMap[elt.Sel.Name]; ok {
-							cppType = val
-						}
-						_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", node.Name, pkgIdent.Name, cppType))
-						if err != nil {
-							fmt.Println("Error writing to file:", err)
-						}
-					}
-				}
+				v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
 			} else {
 				_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
 				if err != nil {
