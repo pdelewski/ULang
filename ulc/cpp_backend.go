@@ -49,8 +49,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 		}
 		if fieldName != "" && structField {
 			_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s> %s;\n", cppType, fieldName))
-		} else if fieldName == "" && structField {
-			_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s>;\n", cppType))
 		} else if fieldName != "" && !structField {
 			_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName))
 		} else {
@@ -67,8 +65,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			}
 			if fieldName != "" && structField {
 				_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName))
-			} else if fieldName == "" && structField {
-				_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s::%s>;\n", pkgIdent.Name, cppType))
 			} else if fieldName != "" && !structField {
 				_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName))
 			} else {
