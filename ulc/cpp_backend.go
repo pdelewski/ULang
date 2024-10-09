@@ -18,6 +18,15 @@ var typesMap = map[string]string{
 	"any":    "std::any",
 }
 
+type ArrayTypeGen int
+
+const (
+	ArrayStructField ArrayTypeGen = iota
+	ArrayArgument
+	ArrayAlias
+	ArrayReturn
+)
+
 type CppBackend struct {
 	outputFile string
 	file       *os.File
@@ -39,7 +48,7 @@ func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
 	return []ast.Visitor{v.visitor}
 }
 
-func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, structField bool) {
+func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, arrayType ArrayTypeGen) {
 	var err error
 	switch elt := typ.Elt.(type) {
 	case *ast.Ident:
@@ -47,12 +56,21 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 		if val, ok := typesMap[elt.Name]; ok {
 			cppType = val
 		}
-		if fieldName != "" && structField {
+		switch arrayType {
+		case ArrayStructField:
+			if len(fieldName) == 0 {
+				panic("expected field")
+			}
 			_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s> %s;\n", cppType, fieldName))
-		} else if fieldName != "" && !structField {
+		case ArrayArgument:
+			if len(fieldName) == 0 {
+				panic("expected field")
+			}
 			_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName))
-		} else {
+		case ArrayReturn:
 			_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", cppType))
+		case ArrayAlias:
+
 		}
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
@@ -63,12 +81,20 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			if val, ok := typesMap[elt.Sel.Name]; ok {
 				cppType = val
 			}
-			if fieldName != "" && structField {
+			switch arrayType {
+			case ArrayStructField:
+				if len(fieldName) == 0 {
+					panic("expected field")
+				}
 				_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName))
-			} else if fieldName != "" && !structField {
+			case ArrayArgument:
+				if len(fieldName) == 0 {
+					panic("expected field")
+				}
 				_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName))
-			} else {
+			case ArrayReturn:
 				_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType))
+			case ArrayAlias:
 			}
 		}
 		if err != nil {
@@ -106,7 +132,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 					}
 				}
 			case *ast.ArrayType:
-				v.generateArrayType(typ, fieldName.Name, true)
+				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
 			}
 		}
 	}
@@ -149,7 +175,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 				}
 			}
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, "", false)
+				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
 				cppType := v.inspectType(result.Type)
 				if val, ok := typesMap[v.inspectType(result.Type)]; ok {
@@ -198,7 +224,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		}
 		for _, argName := range arg.Names {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, argName.Name, false)
+				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
 				cppType := v.inspectType(arg.Type)
 				if val, ok := typesMap[v.inspectType(arg.Type)]; ok {
