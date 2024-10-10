@@ -119,8 +119,7 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 	}
 }
 
-func (v *CppBackendVisitor) generatePrimType(field *ast.Field, pkg string, fieldName string) {
-	cppType := v.inspectType(field.Type)
+func (v *CppBackendVisitor) generatePrimType(cppType string, pkg string, fieldName string) {
 	if val, ok := typesMap[cppType]; ok {
 		cppType = val
 	}
@@ -154,14 +153,9 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 				if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 					if named, ok := obj.Type().(*types.Named); ok {
 						if _, ok := named.Underlying().(*types.Struct); ok {
-							cppType := named.Obj().Name()
-							if val, ok := typesMap[cppType]; ok {
-								cppType = val
-							}
-							err := v.emit(fmt.Sprintf("  %s::%s %s;\n", named.Obj().Pkg().Name(), cppType, fieldName.Name))
-							if err != nil {
-								fmt.Println("Error writing to file:", err)
-							}
+							v.emit("  ")
+							v.generatePrimType(named.Obj().Name(), named.Obj().Pkg().Name(), fieldName.Name)
+							v.emit(";\n")
 						}
 					}
 				}
@@ -211,7 +205,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
-				v.generatePrimType(result, "", "")
+				v.generatePrimType(v.inspectType(result.Type), "", "")
 			}
 			resultArgIndex++
 		}
@@ -252,7 +246,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
-				v.generatePrimType(arg, "", argName.Name)
+				v.generatePrimType(v.inspectType(arg.Type), "", argName.Name)
 			}
 		}
 		argIndex++
