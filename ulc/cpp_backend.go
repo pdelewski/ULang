@@ -274,8 +274,6 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				IsExternal: false,
 				Pkg:        v.pkg.Name,
 			}
-			//fmt.Println("struct", structInfo.Name)
-			//fmt.Println("{")
 			_, err := v.pass.file.WriteString(fmt.Sprintf("struct %s\n", structInfo.Name))
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
@@ -287,7 +285,6 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				return v
 			}
 			v.generateFields(st)
-			//fmt.Println("};")
 			_, err = v.pass.file.WriteString("};\n\n")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
@@ -306,7 +303,6 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 		}
 	case *ast.FuncDecl:
 		v.generateFuncDecl(node)
-
 	}
 	return v
 }
@@ -332,8 +328,6 @@ func (v *CppBackend) EpiLog() {
 
 func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 	cppVisitor := visitor.(*CppBackendVisitor)
-	//fmt.Println("namespace", cppBackend.pkg.Name)
-	//fmt.Println("{")
 	_, err := cppVisitor.pass.file.WriteString(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name))
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -348,7 +342,6 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 
 func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	cppVisitor := visitor.(*CppBackendVisitor)
-	//fmt.Println("} // namespace", cppBackend.pkg.Name)
 	_, err := cppVisitor.pass.file.WriteString(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name))
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
