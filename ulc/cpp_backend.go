@@ -110,6 +110,22 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 	}
 }
 
+func (v *CppBackendVisitor) generatePrimType(field *ast.Field, fieldName string) {
+	cppType := v.inspectType(field.Type)
+	if val, ok := typesMap[v.inspectType(field.Type)]; ok {
+		cppType = val
+	}
+	var err error
+	if fieldName == "" {
+		_, err = v.pass.file.WriteString(cppType)
+	} else {
+		_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", cppType, fieldName))
+	}
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
+
 func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
@@ -184,15 +200,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
-				cppType := v.inspectType(result.Type)
-				if val, ok := typesMap[v.inspectType(result.Type)]; ok {
-					cppType = val
-				}
-				_, err := v.pass.file.WriteString(cppType)
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
+				v.generatePrimType(result, "")
 			}
 			resultArgIndex++
 		}
@@ -233,15 +241,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
-				cppType := v.inspectType(arg.Type)
-				if val, ok := typesMap[v.inspectType(arg.Type)]; ok {
-					cppType = val
-				}
-				_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", cppType, argName.Name))
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
+				v.generatePrimType(arg, argName.Name)
 			}
 		}
 		argIndex++
