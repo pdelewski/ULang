@@ -119,14 +119,16 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 	}
 }
 
-func (v *CppBackendVisitor) generatePrimType(field *ast.Field, fieldName string) {
+func (v *CppBackendVisitor) generatePrimType(field *ast.Field, pkg string, fieldName string) {
 	cppType := v.inspectType(field.Type)
-	if val, ok := typesMap[v.inspectType(field.Type)]; ok {
+	if val, ok := typesMap[cppType]; ok {
 		cppType = val
 	}
 	var err error
 	if fieldName == "" {
 		err = v.emit(cppType)
+	} else if pkg != "" {
+		err = v.emit(fmt.Sprintf("%s::%s %s", pkg, cppType, fieldName))
 	} else {
 		err = v.emit(fmt.Sprintf("%s %s", cppType, fieldName))
 	}
@@ -153,7 +155,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 					if named, ok := obj.Type().(*types.Named); ok {
 						if _, ok := named.Underlying().(*types.Struct); ok {
 							cppType := named.Obj().Name()
-							if val, ok := typesMap[named.Obj().Name()]; ok {
+							if val, ok := typesMap[cppType]; ok {
 								cppType = val
 							}
 							err := v.emit(fmt.Sprintf("  %s::%s %s;\n", named.Obj().Pkg().Name(), cppType, fieldName.Name))
@@ -209,7 +211,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
-				v.generatePrimType(result, "")
+				v.generatePrimType(result, "", "")
 			}
 			resultArgIndex++
 		}
@@ -250,7 +252,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
-				v.generatePrimType(arg, argName.Name)
+				v.generatePrimType(arg, "", argName.Name)
 			}
 		}
 		argIndex++
