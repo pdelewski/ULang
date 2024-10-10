@@ -48,6 +48,15 @@ func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
 	return []ast.Visitor{v.visitor}
 }
 
+func (v *CppBackendVisitor) emit(s string) error {
+	_, err := v.pass.file.WriteString(s)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return err
+	}
+	return nil
+}
+
 func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, arrayType ArrayTypeGen) {
 	var err error
 	switch elt := typ.Elt.(type) {
@@ -61,19 +70,19 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s> %s;\n", cppType, fieldName))
+			err = v.emit(fmt.Sprintf("  std::vector<%s> %s;\n", cppType, fieldName))
 		case ArrayArgument:
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName))
+			err = v.emit(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName))
 		case ArrayReturn:
-			_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s>", cppType))
+			err = v.emit(fmt.Sprintf("std::vector<%s>", cppType))
 		case ArrayAlias:
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			_, err = v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s>\n\n", fieldName, cppType))
+			err = v.emit(fmt.Sprintf("using %s = std::vector<%s>\n\n", fieldName, cppType))
 		}
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
@@ -89,19 +98,19 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				_, err = v.pass.file.WriteString(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName))
+				err = v.emit(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName))
 			case ArrayArgument:
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName))
+				err = v.emit(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName))
 			case ArrayReturn:
-				_, err = v.pass.file.WriteString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType))
+				err = v.emit(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType))
 			case ArrayAlias:
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				_, err = v.pass.file.WriteString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType))
+				err = v.emit(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType))
 			}
 		}
 		if err != nil {
@@ -117,9 +126,9 @@ func (v *CppBackendVisitor) generatePrimType(field *ast.Field, fieldName string)
 	}
 	var err error
 	if fieldName == "" {
-		_, err = v.pass.file.WriteString(cppType)
+		err = v.emit(cppType)
 	} else {
-		_, err = v.pass.file.WriteString(fmt.Sprintf("%s %s", cppType, fieldName))
+		err = v.emit(fmt.Sprintf("%s %s", cppType, fieldName))
 	}
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -135,7 +144,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 				if val, ok := typesMap[typ.Name]; ok {
 					cppType = val
 				}
-				_, err := v.pass.file.WriteString(fmt.Sprintf("  %s %s;\n", cppType, fieldName.Name))
+				err := v.emit(fmt.Sprintf("  %s %s;\n", cppType, fieldName.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
@@ -147,7 +156,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 							if val, ok := typesMap[named.Obj().Name()]; ok {
 								cppType = val
 							}
-							_, err := v.pass.file.WriteString(fmt.Sprintf("  %s::%s %s;\n", named.Obj().Pkg().Name(), cppType, fieldName.Name))
+							err := v.emit(fmt.Sprintf("  %s::%s %s;\n", named.Obj().Pkg().Name(), cppType, fieldName.Name))
 							if err != nil {
 								fmt.Println("Error writing to file:", err)
 							}
@@ -183,7 +192,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	if node.Type.Results != nil {
 		resultArgIndex := 0
 		if len(node.Type.Results.List) > 0 {
-			_, err := v.pass.file.WriteString("std::tuple<")
+			err := v.emit("std::tuple<")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 				return v
@@ -191,7 +200,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		}
 		for _, result := range node.Type.Results.List {
 			if resultArgIndex > 0 {
-				_, err := v.pass.file.WriteString(",")
+				err := v.emit(",")
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 					return v
@@ -205,25 +214,25 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			resultArgIndex++
 		}
 		if len(node.Type.Results.List) > 0 {
-			_, err := v.pass.file.WriteString(">")
+			err := v.emit(">")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 				return v
 			}
 		}
 	} else {
-		_, err := v.pass.file.WriteString("void")
+		err := v.emit("void")
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 			return v
 		}
 	}
-	_, err := v.pass.file.WriteString(" ")
+	err := v.emit(" ")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	_, err = v.pass.file.WriteString(node.Name.Name + "(")
+	err = v.emit(node.Name.Name + "(")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return v
@@ -231,7 +240,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	argIndex := 0
 	for _, arg := range node.Type.Params.List {
 		if argIndex > 0 {
-			_, err = v.pass.file.WriteString(", ")
+			err = v.emit(", ")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 				return v
@@ -246,17 +255,17 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		}
 		argIndex++
 	}
-	_, err = v.pass.file.WriteString(")\n")
+	err = v.emit(")\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	_, err = v.pass.file.WriteString("{\n")
+	err = v.emit("{\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	_, err = v.pass.file.WriteString("}\n")
+	err = v.emit("}\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return v
@@ -274,18 +283,18 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 				IsExternal: false,
 				Pkg:        v.pkg.Name,
 			}
-			_, err := v.pass.file.WriteString(fmt.Sprintf("struct %s\n", structInfo.Name))
+			err := v.emit(fmt.Sprintf("struct %s\n", structInfo.Name))
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 				return v
 			}
-			_, err = v.pass.file.WriteString("{\n")
+			err = v.emit("{\n")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 				return v
 			}
 			v.generateFields(st)
-			_, err = v.pass.file.WriteString("};\n\n")
+			err = v.emit("};\n\n")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 				return v
@@ -294,7 +303,7 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 			if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
 			} else {
-				_, err := v.pass.file.WriteString(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
+				err := v.emit(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 					return v
@@ -328,7 +337,7 @@ func (v *CppBackend) EpiLog() {
 
 func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 	cppVisitor := visitor.(*CppBackendVisitor)
-	_, err := cppVisitor.pass.file.WriteString(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name))
+	err := cppVisitor.emit(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name))
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
@@ -342,7 +351,7 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 
 func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	cppVisitor := visitor.(*CppBackendVisitor)
-	_, err := cppVisitor.pass.file.WriteString(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name))
+	err := cppVisitor.emit(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name))
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
