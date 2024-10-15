@@ -217,6 +217,12 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 				return v
 			}
 		}
+	} else if node.Name.Name == "main" {
+		err := v.emit("int")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return v
+		}
 	} else {
 		err := v.emit("void")
 		if err != nil {
