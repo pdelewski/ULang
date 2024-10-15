@@ -83,7 +83,7 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			err = v.emit(fmt.Sprintf("using %s = std::vector<%s>\n\n", fieldName, cppType))
+			err = v.emit(fmt.Sprintf("using %s = std::vector<%s>;\n\n", fieldName, cppType))
 		}
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
