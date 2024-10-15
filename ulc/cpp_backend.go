@@ -16,6 +16,7 @@ var typesMap = map[string]string{
 	"uint8":  "std::uint8_t",
 	"uint16": "std::uint16_t",
 	"any":    "std::any",
+	"string": "std::string",
 }
 
 type ArrayTypeGen int
@@ -320,7 +321,7 @@ func (v *CppBackend) ProLog() {
 		fmt.Println("Error opening file:", err)
 		return
 	}
-	_, err = v.file.WriteString("#include <vector>\n#include <tuple>\n#include <any>\n#include <cstdint>\n\n")
+	_, err = v.file.WriteString("#include <vector>\n#include <string>\n#include <tuple>\n#include <any>\n#include <cstdint>\n\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
