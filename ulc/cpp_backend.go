@@ -334,6 +334,9 @@ func (v *CppBackend) EpiLog() {
 
 func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 	cppVisitor := visitor.(*CppBackendVisitor)
+	if cppVisitor.pkg.Name == "main" {
+		return
+	}
 	err := cppVisitor.emit(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name))
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -348,6 +351,9 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 
 func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	cppVisitor := visitor.(*CppBackendVisitor)
+	if cppVisitor.pkg.Name == "main" {
+		return
+	}
 	err := cppVisitor.emit(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name))
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
