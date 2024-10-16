@@ -35,8 +35,9 @@ type CppBackend struct {
 }
 
 type CppBackendVisitor struct {
-	pkg  *packages.Package
-	pass *CppBackend
+	pkg   *packages.Package
+	pass  *CppBackend
+	nodes []ast.Node
 }
 
 func (v *CppBackend) Name() string {
@@ -276,46 +277,48 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	return v
 }
 
-func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
-	switch node := node.(type) {
-	case *ast.TypeSpec:
-		if st, ok := node.Type.(*ast.StructType); ok {
-			structInfo := StructInfo{
-				Name:       node.Name.Name,
-				Struct:     nil, // We don't have type info for local structs yet
-				IsExternal: false,
-				Pkg:        v.pkg.Name,
-			}
-			err := v.emit(fmt.Sprintf("struct %s\n", structInfo.Name))
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-			err = v.emit("{\n")
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-			v.generateFields(st)
-			err = v.emit("};\n\n")
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		} else {
-			if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
-			} else {
-				err := v.emit(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
+func (v *CppBackendVisitor) gen() {
+	for _, node := range v.nodes {
+		switch node := node.(type) {
+		case *ast.TypeSpec:
+			if st, ok := node.Type.(*ast.StructType); ok {
+				structInfo := StructInfo{
+					Name:       node.Name.Name,
+					Struct:     nil, // We don't have type info for local structs yet
+					IsExternal: false,
+					Pkg:        v.pkg.Name,
+				}
+				err := v.emit(fmt.Sprintf("struct %s\n", structInfo.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
-					return v
+				}
+				err = v.emit("{\n")
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+				}
+				v.generateFields(st)
+				err = v.emit("};\n\n")
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+				}
+			} else {
+				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
+					v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
+				} else {
+					err := v.emit(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)))
+					if err != nil {
+						fmt.Println("Error writing to file:", err)
+					}
 				}
 			}
+		case *ast.FuncDecl:
+			v.generateFuncDecl(node)
 		}
-	case *ast.FuncDecl:
-		v.generateFuncDecl(node)
 	}
+}
+
+func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
+	v.nodes = append(v.nodes, node)
 	return v
 }
 
@@ -357,6 +360,7 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 
 func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	cppVisitor := visitor.(*CppBackendVisitor)
+	cppVisitor.gen()
 	if cppVisitor.pkg.Name == "main" {
 		return
 	}
