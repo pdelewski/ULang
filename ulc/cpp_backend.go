@@ -19,6 +19,19 @@ var typesMap = map[string]string{
 	"string": "std::string",
 }
 
+var primTypes = map[string]struct{}{
+	"int8":    {},
+	"int16":   {},
+	"int32":   {},
+	"int64":   {},
+	"uint8":   {},
+	"uint16":  {},
+	"uint32":  {},
+	"uint64":  {},
+	"float32": {},
+	"float64": {},
+}
+
 type ArrayTypeGen int
 
 const (
@@ -277,6 +290,50 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	return v
 }
 
+func (v *CppBackendVisitor) buildTypesGraph() map[string]string {
+	typesGraph := make(map[string]string)
+	for _, node := range v.nodes {
+		switch node := node.(type) {
+		case *ast.TypeSpec:
+			if st, ok := node.Type.(*ast.StructType); ok {
+				structType := v.pkg.Name + "::" + node.Name.Name
+				for _, field := range st.Fields.List {
+					switch typ := field.Type.(type) {
+					case *ast.Ident:
+						if _, ok := primTypes[typ.Name]; !ok {
+							fieldType := v.pkg.Name + "::" + typ.Name
+							typesGraph[fieldType] = structType
+						}
+					case *ast.SelectorExpr: // External struct from another package
+						if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
+							if named, ok := obj.Type().(*types.Named); ok {
+								if _, ok := named.Underlying().(*types.Struct); ok {
+									fieldType := named.Obj().Pkg().Name() + "::" + named.Obj().Name()
+									typesGraph[fieldType] = structType
+								}
+							}
+						}
+					case *ast.ArrayType:
+						switch elt := typ.Elt.(type) {
+						case *ast.Ident:
+							fieldType := elt.Name
+							if _, ok := primTypes[fieldType]; !ok {
+								typesGraph[fieldType] = structType
+							}
+						case *ast.SelectorExpr: // Imported types
+							if pkgIdent, ok := elt.X.(*ast.Ident); ok {
+								fieldType := pkgIdent.Name + "::" + elt.Sel.Name
+								typesGraph[fieldType] = structType
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return typesGraph
+}
+
 func (v *CppBackendVisitor) gen() {
 	for _, node := range v.nodes {
 		switch node := node.(type) {
@@ -360,6 +417,10 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 
 func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	cppVisitor := visitor.(*CppBackendVisitor)
+	typesGraph := cppVisitor.buildTypesGraph()
+	for name, val := range typesGraph {
+		fmt.Println("Type:", name, "Parent:", val)
+	}
 	cppVisitor.gen()
 	if cppVisitor.pkg.Name == "main" {
 		return
