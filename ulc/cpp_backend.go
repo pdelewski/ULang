@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
+	"log"
 	"os"
 )
 
@@ -316,7 +317,7 @@ func (v *CppBackendVisitor) buildTypesGraph() map[string]string {
 					case *ast.ArrayType:
 						switch elt := typ.Elt.(type) {
 						case *ast.Ident:
-							fieldType := elt.Name
+							fieldType := v.pkg.Name + "::" + elt.Name
 							if _, ok := primTypes[fieldType]; !ok {
 								typesGraph[fieldType] = structType
 							}
@@ -332,6 +333,67 @@ func (v *CppBackendVisitor) buildTypesGraph() map[string]string {
 		}
 	}
 	return typesGraph
+}
+
+func TopologicalSort(graph map[string]string) ([]string, error) {
+	// Track the state of each node: 0 = unvisited, 1 = visiting, 2 = visited
+	visited := make(map[string]int)
+	result := []string{}
+	var cycleDetected bool
+
+	// Helper function for depth-first search (DFS)
+	var visit func(string)
+	visit = func(node string) {
+		if cycleDetected {
+			return
+		}
+		state := visited[node]
+
+		// If the node is already visited, return
+		if state == 2 {
+			return
+		}
+		// If we find a node in "visiting" state, there is a cycle
+		if state == 1 {
+			cycleDetected = true
+			return
+		}
+
+		// Mark the node as visiting
+		visited[node] = 1
+
+		// Visit the dependency of the current node, if any
+		if dep, exists := graph[node]; exists {
+			visit(dep)
+		}
+
+		// Mark the node as visited and add to the result
+		visited[node] = 2
+		result = append(result, node)
+	}
+
+	// Visit all nodes in the graph
+	for node := range graph {
+		if visited[node] == 0 {
+			visit(node)
+		}
+	}
+
+	if cycleDetected {
+		return nil, fmt.Errorf("cycle detected in the graph")
+	}
+
+	// Reverse the result because nodes are added in post-order
+	reverse(result)
+
+	return result, nil
+}
+
+// reverse reverses a slice of strings in place
+func reverse(arr []string) {
+	for i, j := 0, len(arr)-1; i < j; i, j = i+1, j-1 {
+		arr[i], arr[j] = arr[j], arr[i]
+	}
 }
 
 func (v *CppBackendVisitor) gen() {
@@ -421,11 +483,16 @@ func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{})
 	for name, val := range typesGraph {
 		fmt.Println("Type:", name, "Parent:", val)
 	}
+	sorted, err := TopologicalSort(typesGraph)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+	fmt.Println("Topological Sort:", sorted)
 	cppVisitor.gen()
 	if cppVisitor.pkg.Name == "main" {
 		return
 	}
-	err := cppVisitor.emit(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name))
+	err = cppVisitor.emit(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name))
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
