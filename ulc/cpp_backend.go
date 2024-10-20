@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -291,8 +292,8 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	return v
 }
 
-func (v *CppBackendVisitor) buildTypesGraph() map[string]string {
-	typesGraph := make(map[string]string)
+func (v *CppBackendVisitor) buildTypesGraph() map[string][]string {
+	typesGraph := make(map[string][]string)
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
@@ -303,14 +304,18 @@ func (v *CppBackendVisitor) buildTypesGraph() map[string]string {
 					case *ast.Ident:
 						if _, ok := primTypes[typ.Name]; !ok {
 							fieldType := v.pkg.Name + "::" + typ.Name
-							typesGraph[fieldType] = structType
+							if fieldType != structType {
+								typesGraph[fieldType] = append(typesGraph[fieldType], structType)
+							}
 						}
 					case *ast.SelectorExpr: // External struct from another package
 						if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 							if named, ok := obj.Type().(*types.Named); ok {
 								if _, ok := named.Underlying().(*types.Struct); ok {
 									fieldType := named.Obj().Pkg().Name() + "::" + named.Obj().Name()
-									typesGraph[fieldType] = structType
+									if fieldType != structType {
+										typesGraph[fieldType] = append(typesGraph[fieldType], structType)
+									}
 								}
 							}
 						}
@@ -319,12 +324,16 @@ func (v *CppBackendVisitor) buildTypesGraph() map[string]string {
 						case *ast.Ident:
 							fieldType := v.pkg.Name + "::" + elt.Name
 							if _, ok := primTypes[fieldType]; !ok {
-								typesGraph[fieldType] = structType
+								if fieldType != structType {
+									typesGraph[fieldType] = append(typesGraph[fieldType], structType)
+								}
 							}
 						case *ast.SelectorExpr: // Imported types
 							if pkgIdent, ok := elt.X.(*ast.Ident); ok {
 								fieldType := pkgIdent.Name + "::" + elt.Sel.Name
-								typesGraph[fieldType] = structType
+								if fieldType != structType {
+									typesGraph[fieldType] = append(typesGraph[fieldType], structType)
+								}
 							}
 						}
 					}
@@ -335,52 +344,63 @@ func (v *CppBackendVisitor) buildTypesGraph() map[string]string {
 	return typesGraph
 }
 
-func TopologicalSort(graph map[string]string) ([]string, error) {
+// TopologicalSort performs a topological sort on the given graph.
+// The input graph is a map where keys are nodes and values are slices of their dependencies.
+func TopologicalSort(graph map[string][]string) ([]string, error) {
 	// Track the state of each node: 0 = unvisited, 1 = visiting, 2 = visited
 	visited := make(map[string]int)
 	result := []string{}
-	var cycleDetected bool
 
 	// Helper function for depth-first search (DFS)
-	var visit func(string)
-	visit = func(node string) {
-		if cycleDetected {
-			return
-		}
+	var visit func(string) error
+	visit = func(node string) error {
 		state := visited[node]
 
 		// If the node is already visited, return
 		if state == 2 {
-			return
+			return nil
 		}
 		// If we find a node in "visiting" state, there is a cycle
 		if state == 1 {
-			cycleDetected = true
-			return
+			return errors.New("cycle detected in the graph")
 		}
 
 		// Mark the node as visiting
 		visited[node] = 1
 
-		// Visit the dependency of the current node, if any
-		if dep, exists := graph[node]; exists {
-			visit(dep)
+		// Visit all the dependencies of the current node, if any
+		if deps, exists := graph[node]; exists {
+			for _, dep := range deps {
+				if err := visit(dep); err != nil {
+					return err // propagate the cycle detection error
+				}
+			}
 		}
 
-		// Mark the node as visited and add to the result
+		// Mark the node as visited and add it to the result
 		visited[node] = 2
 		result = append(result, node)
+
+		return nil
 	}
 
-	// Visit all nodes in the graph
+	// Visit all nodes in the graph (including those without dependencies)
 	for node := range graph {
 		if visited[node] == 0 {
-			visit(node)
+			if err := visit(node); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	if cycleDetected {
-		return nil, fmt.Errorf("cycle detected in the graph")
+	// Ensure we include nodes without outgoing edges
+	// For example, in a graph {A -> B}, if C has no dependencies, it should also be in the result.
+	for node := range visited {
+		if visited[node] == 0 {
+			if err := visit(node); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Reverse the result because nodes are added in post-order
@@ -394,6 +414,18 @@ func reverse(arr []string) {
 	for i, j := 0, len(arr)-1; i < j; i, j = i+1, j-1 {
 		arr[i], arr[j] = arr[j], arr[i]
 	}
+}
+
+func SliceToMap(slice []string) map[string]int {
+	// Create a map to store the string and its index
+	result := make(map[string]int)
+
+	// Loop over the slice and fill the map
+	for index, value := range slice {
+		result[value] = index
+	}
+
+	return result
 }
 
 func (v *CppBackendVisitor) gen() {
@@ -477,6 +509,19 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 	}
 }
 
+func (v *CppBackendVisitor) complementPrecedenceMap(sortedTypes map[string]int) {
+	for _, node := range v.nodes {
+		switch node := node.(type) {
+		case *ast.TypeSpec:
+			if _, ok := node.Type.(*ast.StructType); ok {
+				if _, exists := sortedTypes[v.pkg.Name+"::"+node.Name.Name]; !exists {
+					sortedTypes[v.pkg.Name+"::"+node.Name.Name] = len(sortedTypes)
+				}
+			}
+		}
+	}
+}
+
 func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	cppVisitor := visitor.(*CppBackendVisitor)
 	typesGraph := cppVisitor.buildTypesGraph()
@@ -488,6 +533,9 @@ func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{})
 		log.Fatalf("Error: %v", err)
 	}
 	fmt.Println("Topological Sort:", sorted)
+	sortedTypes := SliceToMap(sorted)
+	cppVisitor.complementPrecedenceMap(sortedTypes)
+	fmt.Println("Sorted Types:", sortedTypes)
 	cppVisitor.gen()
 	if cppVisitor.pkg.Name == "main" {
 		return
