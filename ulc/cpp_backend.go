@@ -8,6 +8,8 @@ import (
 	"golang.org/x/tools/go/packages"
 	"log"
 	"os"
+	"sort"
+	"strings"
 )
 
 var typesMap = map[string]string{
@@ -42,6 +44,13 @@ const (
 	ArrayAlias
 	ArrayReturn
 )
+
+type GenStructInfo struct {
+	Name       string
+	Struct     *ast.StructType
+	IsExternal bool // Whether this struct is external or local
+	Pkg        string
+}
 
 type CppBackend struct {
 	outputFile string
@@ -428,31 +437,49 @@ func SliceToMap(slice []string) map[string]int {
 	return result
 }
 
-func (v *CppBackendVisitor) gen() {
+func (v *CppBackendVisitor) gen(precedence map[string]int) {
+	structInfos := make([]GenStructInfo, 0)
+	for i := 0; i < len(v.nodes); i++ {
+		switch node := v.nodes[i].(type) {
+		case *ast.TypeSpec:
+			if st, ok := node.Type.(*ast.StructType); ok {
+				structInfos = append(structInfos, GenStructInfo{
+					Name:       node.Name.Name,
+					Struct:     st, // We don't have type info for local structs yet
+					IsExternal: false,
+					Pkg:        v.pkg.Name,
+				})
+			}
+		}
+	}
+	// Sort structs based on the precedence map
+	sort.Slice(structInfos, func(i, j int) bool {
+		// If the struct name is in the map, use its precedence value
+		// Otherwise, treat it with the highest precedence (e.g., 0 or max int)
+		precI := precedence[v.pkg.Name+"::"+structInfos[i].Name]
+		precJ := precedence[v.pkg.Name+"::"+structInfos[j].Name]
+		return precI < precJ
+	})
+	for i := 0; i < len(structInfos); i++ {
+		err := v.emit(fmt.Sprintf("struct %s\n", structInfos[i].Name))
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+		}
+		err = v.emit("{\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+		}
+		v.generateFields(structInfos[i].Struct)
+		err = v.emit("};\n\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+		}
+	}
+
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
-			if st, ok := node.Type.(*ast.StructType); ok {
-				structInfo := StructInfo{
-					Name:       node.Name.Name,
-					Struct:     nil, // We don't have type info for local structs yet
-					IsExternal: false,
-					Pkg:        v.pkg.Name,
-				}
-				err := v.emit(fmt.Sprintf("struct %s\n", structInfo.Name))
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-				}
-				err = v.emit("{\n")
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-				}
-				v.generateFields(st)
-				err = v.emit("};\n\n")
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-				}
-			} else {
+			if _, ok := node.Type.(*ast.StructType); !ok {
 				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
 					v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
 				} else {
@@ -462,6 +489,11 @@ func (v *CppBackendVisitor) gen() {
 					}
 				}
 			}
+		}
+	}
+
+	for _, node := range v.nodes {
+		switch node := node.(type) {
 		case *ast.FuncDecl:
 			v.generateFuncDecl(node)
 		}
@@ -528,15 +560,20 @@ func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{})
 	for name, val := range typesGraph {
 		fmt.Println("Type:", name, "Parent:", val)
 	}
-	sorted, err := TopologicalSort(typesGraph)
+	typesTopoSorted, err := TopologicalSort(typesGraph)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
-	fmt.Println("Topological Sort:", sorted)
-	sortedTypes := SliceToMap(sorted)
-	cppVisitor.complementPrecedenceMap(sortedTypes)
-	fmt.Println("Sorted Types:", sortedTypes)
-	cppVisitor.gen()
+	fmt.Println("Types Topological Sort:", typesTopoSorted)
+	typesPrecedence := SliceToMap(typesTopoSorted)
+	cppVisitor.complementPrecedenceMap(typesPrecedence)
+	for name, _ := range typesPrecedence {
+		if !strings.HasPrefix(name, cppVisitor.pkg.Name) {
+			delete(typesPrecedence, name)
+		}
+	}
+	fmt.Println("Types precedence:", typesPrecedence)
+	cppVisitor.gen(typesPrecedence)
 	if cppVisitor.pkg.Name == "main" {
 		return
 	}
