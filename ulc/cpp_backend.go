@@ -300,6 +300,10 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
 	assignmentToken := assignStmt.Tok.String()
 	v.emit("  ")
+	if assignmentToken == ":=" {
+		v.emit("auto ")
+		assignmentToken = "="
+	}
 	for _, lhs := range assignStmt.Lhs {
 		if ident, ok := lhs.(*ast.Ident); ok {
 			v.emit(ident.Name)

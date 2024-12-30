@@ -13,6 +13,7 @@ func foo() {
   var a int8
   var b, c int16
   a = 1
+  d := 10
   a = bar()
 }
 
