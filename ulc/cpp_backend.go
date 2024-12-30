@@ -97,7 +97,7 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			err = v.emit(fmt.Sprintf("  std::vector<%s> %s;\n", cppType, fieldName))
+			err = v.emit("  " + fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName))
 		case ArrayArgument:
 			if len(fieldName) == 0 {
 				panic("expected field")
@@ -125,7 +125,7 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				err = v.emit(fmt.Sprintf("  std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName))
+				err = v.emit("  " + fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName))
 			case ArrayArgument:
 				if len(fieldName) == 0 {
 					panic("expected field")
@@ -172,7 +172,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 				if val, ok := typesMap[typ.Name]; ok {
 					cppType = val
 				}
-				err := v.emit(fmt.Sprintf("  %s %s;\n", cppType, fieldName.Name))
+				err := v.emit("  " + fmt.Sprintf("%s %s;\n", cppType, fieldName.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
@@ -387,7 +387,7 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 				if val, ok := typesMap[variable.Type]; ok {
 					cppType = val
 				}
-				err := v.emit(fmt.Sprintf("  %s %s;\n", cppType, variable.Name))
+				err := v.emit("  " + fmt.Sprintf("%s %s;\n", cppType, variable.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
