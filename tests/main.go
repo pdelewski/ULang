@@ -15,6 +15,7 @@ func foo() {
   a = 1
   d := 10
   a = bar()
+  b,c = bar2()
 }
 
 func main() {

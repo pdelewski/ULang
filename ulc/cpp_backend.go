@@ -304,10 +304,22 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
 		v.emit("auto ")
 		assignmentToken = "="
 	}
+	if len(assignStmt.Lhs) > 1 {
+		v.emit("std::tie(")
+	}
+	first := true
 	for _, lhs := range assignStmt.Lhs {
+		if !first {
+			v.emit(", ")
+		}
+		first = false
 		if ident, ok := lhs.(*ast.Ident); ok {
 			v.emit(ident.Name)
 		}
+	}
+
+	if len(assignStmt.Lhs) > 1 {
+		v.emit(")")
 	}
 
 	v.emit(" " + assignmentToken + " ")
