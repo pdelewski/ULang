@@ -314,6 +314,15 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
 	v.emit(";\n")
 }
 
+func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
+	fmt.Println("Return Statement:")
+	for _, result := range retStmt.Results {
+		v.emit("  return ")
+		v.emitExpression(result)
+		v.emit(";\n")
+	}
+}
+
 type Variable struct {
 	Name string
 	Type string
@@ -444,6 +453,8 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			}
 		case *ast.AssignStmt:
 			v.emitAssignment(stmt)
+		case *ast.ReturnStmt:
+			v.emitReturnStmt(stmt)
 		}
 	}
 	err = v.emit("}\n")
