@@ -292,6 +292,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		} else {
 			fmt.Println("<complex call expression>")
 		}
+	case *ast.ParenExpr:
+		v.emitExpression(e.X) // Dump inner expression
 	default:
 		fmt.Println("<unknown expression>")
 	}
