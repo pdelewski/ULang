@@ -316,7 +316,12 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
 
 func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
 	v.emit("  return ")
+	first := true
 	for _, result := range retStmt.Results {
+		if !first {
+			v.emit(", ")
+		}
+		first = false
 		v.emitExpression(result)
 	}
 	v.emit(";\n")
