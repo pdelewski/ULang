@@ -349,10 +349,6 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
 	v.emit(";\n", 0)
 }
 
-func (v *CppBackendVisitor) generateIndent(level int) {
-	v.emit("", 2*level)
-}
-
 func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 	for _, stmt := range block.List {
 		switch stmt := stmt.(type) {
@@ -406,22 +402,18 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 }
 
 func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
-	v.generateIndent(indent)
-	v.emit("if", 0)
+	v.emit("if", indent)
 	v.emitExpression(ifStmt.Cond)
 	v.emit(" {\n", 0)
-	v.emitBlockStmt(ifStmt.Body, indent+1)
-	v.generateIndent(indent)
-	v.emit("}\n", 0)
+	v.emitBlockStmt(ifStmt.Body, indent+2)
+	v.emit("}\n", indent)
 	if ifStmt.Else != nil {
 		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
-			v.emitIfStmt(elseIf, indent+1) // Recursive call for else-if
+			v.emitIfStmt(elseIf, indent+2) // Recursive call for else-if
 		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
-			v.generateIndent(indent)
-			v.emit("else {\n", 0)
-			v.emitBlockStmt(elseBlock, indent+1) // Dump else block
-			v.generateIndent(indent)
-			v.emit("}\n", 0)
+			v.emit("else {\n", indent)
+			v.emitBlockStmt(elseBlock, indent+2) // Dump else block
+			v.emit("}\n", indent)
 		}
 	}
 }
@@ -514,7 +506,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	v.emitBlockStmt(node.Body, 1)
+	v.emitBlockStmt(node.Body, 2)
 	err = v.emit("}\n", 0)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
