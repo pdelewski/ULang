@@ -267,6 +267,53 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr) error {
 	return v.emit(");\n")
 }
 
+func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		v.emit(e.Value) // Basic literals like numbers or strings
+	case *ast.Ident:
+		v.emit(e.Name) // Variables or identifiers
+	case *ast.BinaryExpr:
+		v.emit("(")
+		v.emitExpression(e.X) // Left operand
+		v.emit(" " + e.Op.String() + " ")
+		v.emitExpression(e.Y) // Right operand
+		v.emit(")")
+	case *ast.CallExpr:
+		if fun, ok := e.Fun.(*ast.Ident); ok {
+			v.emit(fun.Name + "(")
+			for i, arg := range e.Args {
+				if i > 0 {
+					v.emit(", ")
+				}
+				v.emitExpression(arg) // Function arguments
+			}
+			v.emit(")")
+		} else {
+			panic("<complex call expression>")
+		}
+	default:
+		panic("<unknown expression>")
+	}
+}
+
+func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
+	assignmentToken := assignStmt.Tok.String()
+	v.emit("  ")
+	for _, lhs := range assignStmt.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			v.emit(ident.Name)
+		}
+	}
+
+	v.emit(" " + assignmentToken + " ")
+
+	for _, rhs := range assignStmt.Rhs {
+		v.emitExpression(rhs)
+	}
+	v.emit(";\n")
+}
+
 type Variable struct {
 	Name string
 	Type string
@@ -395,6 +442,8 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 					return v
 				}
 			}
+		case *ast.AssignStmt:
+			v.emitAssignment(stmt)
 		}
 	}
 	err = v.emit("}\n")
