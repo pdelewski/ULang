@@ -16,7 +16,7 @@ func foo() {
   d := 10
   a = bar()
   b,c = bar2()
-  if a == 1 {
+  if a == 1 && b == 10 {
   }
   if b == 10 {
   }

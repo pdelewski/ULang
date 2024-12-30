@@ -349,6 +349,41 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
 	v.emit(";\n")
 }
 
+func (v *CppBackendVisitor) generateIndent(level int) {
+	v.emit(strings.Repeat("  ", level))
+}
+
+func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
+	for _, stmt := range block.List {
+		switch s := stmt.(type) {
+		case *ast.ExprStmt:
+			v.emitExpression(s.X)
+			if call, ok := s.X.(*ast.CallExpr); ok {
+				v.emitExpression(call)
+			}
+		default:
+			fmt.Printf("<Other statement type>\n")
+		}
+	}
+}
+
+func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
+	v.generateIndent(indent)
+	v.emit("if")
+	v.emitExpression(ifStmt.Cond)
+	v.emit(" {\n")
+	v.emitBlockStmt(ifStmt.Body, indent+1)
+	v.generateIndent(indent)
+	v.emit("}\n")
+	if ifStmt.Else != nil {
+		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
+			v.emitIfStmt(elseIf, indent+1) // Recursive call for else-if
+		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
+			v.emitBlockStmt(elseBlock, indent+1) // Dump else block
+		}
+	}
+}
+
 type Variable struct {
 	Name string
 	Type string
@@ -481,6 +516,8 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			v.emitAssignment(stmt)
 		case *ast.ReturnStmt:
 			v.emitReturnStmt(stmt)
+		case *ast.IfStmt:
+			v.emitIfStmt(stmt, 1)
 		}
 	}
 	err = v.emit("}\n")
