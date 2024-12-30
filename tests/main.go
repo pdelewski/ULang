@@ -17,6 +17,9 @@ func foo() {
   a = bar()
   b,c = bar2()
   if a == 1 && b == 10 {
+    a = 2
+  } else {
+    a = 3
   }
   if b == 10 {
   }

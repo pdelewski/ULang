@@ -355,12 +355,50 @@ func (v *CppBackendVisitor) generateIndent(level int) {
 
 func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 	for _, stmt := range block.List {
-		switch s := stmt.(type) {
+		switch stmt := stmt.(type) {
 		case *ast.ExprStmt:
-			v.emitExpression(s.X)
-			if call, ok := s.X.(*ast.CallExpr); ok {
-				v.emitExpression(call)
+			if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
+				err := v.generateCallExpr(callExpr)
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+				}
 			}
+		case *ast.DeclStmt:
+			var variables []Variable
+			if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
+				for _, spec := range genDecl.Specs {
+					if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+						// Iterate through all variables declared
+						for _, ident := range valueSpec.Names {
+							varType := "inferred"
+							if valueSpec.Type != nil {
+								varType = v.inspectType(valueSpec.Type)
+							}
+							variables = append(variables, Variable{
+								Name: ident.Name,
+								Type: varType,
+							})
+						}
+					}
+				}
+			}
+			for _, variable := range variables {
+				cppType := variable.Type
+				if val, ok := typesMap[variable.Type]; ok {
+					cppType = val
+				}
+				err := v.emit(fmt.Sprintf("  %s %s;\n", cppType, variable.Name))
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+				}
+			}
+		case *ast.AssignStmt:
+			v.emitAssignment(stmt)
+		case *ast.ReturnStmt:
+			v.emitReturnStmt(stmt)
+		case *ast.IfStmt:
+			v.emitIfStmt(stmt, indent)
+
 		default:
 			fmt.Printf("<Other statement type>\n")
 		}
@@ -379,7 +417,11 @@ func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
 			v.emitIfStmt(elseIf, indent+1) // Recursive call for else-if
 		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
+			v.generateIndent(indent)
+			v.emit("else {\n")
 			v.emitBlockStmt(elseBlock, indent+1) // Dump else block
+			v.generateIndent(indent)
+			v.emit("}\n")
 		}
 	}
 }
