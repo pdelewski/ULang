@@ -514,54 +514,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	for _, stmt := range node.Body.List {
-		switch stmt := stmt.(type) {
-		case *ast.ExprStmt:
-			if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
-				err = v.generateCallExpr(callExpr)
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
-			}
-		case *ast.DeclStmt:
-			var variables []Variable
-			if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
-				for _, spec := range genDecl.Specs {
-					if valueSpec, ok := spec.(*ast.ValueSpec); ok {
-						// Iterate through all variables declared
-						for _, ident := range valueSpec.Names {
-							varType := "inferred"
-							if valueSpec.Type != nil {
-								varType = v.inspectType(valueSpec.Type)
-							}
-							variables = append(variables, Variable{
-								Name: ident.Name,
-								Type: varType,
-							})
-						}
-					}
-				}
-			}
-			for _, variable := range variables {
-				cppType := variable.Type
-				if val, ok := typesMap[variable.Type]; ok {
-					cppType = val
-				}
-				err = v.emit(fmt.Sprintf("  %s %s;\n", cppType, variable.Name))
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
-			}
-		case *ast.AssignStmt:
-			v.emitAssignment(stmt)
-		case *ast.ReturnStmt:
-			v.emitReturnStmt(stmt)
-		case *ast.IfStmt:
-			v.emitIfStmt(stmt, 1)
-		}
-	}
+	v.emitBlockStmt(node.Body, 1)
 	err = v.emit("}\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
