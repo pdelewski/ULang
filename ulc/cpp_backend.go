@@ -290,10 +290,10 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 			}
 			v.emit(")")
 		} else {
-			panic("<complex call expression>")
+			fmt.Println("<complex call expression>")
 		}
 	default:
-		panic("<unknown expression>")
+		fmt.Println("<unknown expression>")
 	}
 }
 
@@ -322,7 +322,7 @@ type Variable struct {
 func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	if node.Type.Results != nil {
 		resultArgIndex := 0
-		if len(node.Type.Results.List) > 0 {
+		if len(node.Type.Results.List) > 1 {
 			err := v.emit("std::tuple<")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
@@ -344,7 +344,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 			}
 			resultArgIndex++
 		}
-		if len(node.Type.Results.List) > 0 {
+		if len(node.Type.Results.List) > 1 {
 			err := v.emit(">")
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
