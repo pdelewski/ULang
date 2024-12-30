@@ -210,6 +210,62 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	return "unknown"
 }
 
+func getFunctionName(callExpr *ast.CallExpr) string {
+	switch fun := callExpr.Fun.(type) {
+	case *ast.Ident:
+		// Direct function call, e.g., `foo()`
+		return fun.Name
+	case *ast.SelectorExpr:
+		// Selector expression, e.g., `pkg.Func()`
+		return fun.Sel.Name
+	default:
+		return "<unknown>"
+	}
+}
+
+func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr) error {
+	var err error
+	err = v.emit("  " + getFunctionName(node))
+	if err != nil {
+		return err
+	}
+	err = v.emit("(")
+	if err != nil {
+		return err
+	}
+	for i, arg := range node.Args {
+		if i > 0 {
+			err = v.emit(", ")
+			if err != nil {
+				return err
+			}
+		}
+		switch arg := arg.(type) {
+		case *ast.Ident:
+			err = v.emit(arg.Name)
+			if err != nil {
+				return err
+			}
+		case *ast.BasicLit:
+			err = v.emit(arg.Value)
+			if err != nil {
+				return err
+			}
+		case *ast.SelectorExpr:
+			err = v.emit(arg.Sel.Name)
+			if err != nil {
+				return err
+			}
+		case *ast.CallExpr:
+			err = v.generateCallExpr(arg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return v.emit(");\n")
+}
+
 func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	if node.Type.Results != nil {
 		resultArgIndex := 0
@@ -292,6 +348,12 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return v
+	}
+	for _, stmt := range node.Body.List {
+		switch stmt := stmt.(type) {
+		case *ast.ExprStmt:
+			v.generateCallExpr(stmt.X.(*ast.CallExpr))
+		}
 	}
 	err = v.emit("}\n")
 	if err != nil {
