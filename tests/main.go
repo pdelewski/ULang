@@ -8,6 +8,8 @@ func bar2() (int16,int16) {
   return 10,20
 }
 
+func sink(p int8) {
+}
 
 func foo() {
   var a int8
@@ -19,6 +21,8 @@ func foo() {
   if a == 1 && b == 10 {
     a = 2
     var aa int8
+    aa = bar()
+    sink(aa)
   } else {
     a = 3
   }

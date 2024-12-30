@@ -224,9 +224,9 @@ func getFunctionName(callExpr *ast.CallExpr) string {
 	}
 }
 
-func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr) error {
+func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) error {
 	var err error
-	err = v.emit(getFunctionName(node), 2)
+	err = v.emit(getFunctionName(node), indent)
 	if err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr) error {
 				return err
 			}
 		case *ast.CallExpr:
-			err = v.generateCallExpr(arg)
+			err = v.generateCallExpr(arg, indent+2)
 			if err != nil {
 				return err
 			}
@@ -353,7 +353,7 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 		switch stmt := stmt.(type) {
 		case *ast.ExprStmt:
 			if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
-				err := v.generateCallExpr(callExpr)
+				err := v.generateCallExpr(callExpr, indent)
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
