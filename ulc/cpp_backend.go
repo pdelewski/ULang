@@ -315,12 +315,11 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
 }
 
 func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
-	fmt.Println("Return Statement:")
+	v.emit("  return ")
 	for _, result := range retStmt.Results {
-		v.emit("  return ")
 		v.emitExpression(result)
-		v.emit(";\n")
 	}
+	v.emit(";\n")
 }
 
 type Variable struct {
