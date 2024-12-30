@@ -352,7 +352,13 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	for _, stmt := range node.Body.List {
 		switch stmt := stmt.(type) {
 		case *ast.ExprStmt:
-			v.generateCallExpr(stmt.X.(*ast.CallExpr))
+			if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
+				err = v.generateCallExpr(callExpr)
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
 		}
 	}
 	err = v.emit("}\n")
