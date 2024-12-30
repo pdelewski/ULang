@@ -316,6 +316,9 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
 
 func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
 	v.emit("  return ")
+	if len(retStmt.Results) > 1 {
+		v.emit("std::make_tuple(")
+	}
 	first := true
 	for _, result := range retStmt.Results {
 		if !first {
@@ -323,6 +326,9 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
 		}
 		first = false
 		v.emitExpression(result)
+	}
+	if len(retStmt.Results) > 1 {
+		v.emit(")")
 	}
 	v.emit(";\n")
 }

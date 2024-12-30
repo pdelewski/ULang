@@ -4,6 +4,10 @@ func bar() int8 {
   return 5
 }
 
+func bar2() (int16,int16) {
+  return 10,20
+}
+
 
 func foo() {
   var a int8
