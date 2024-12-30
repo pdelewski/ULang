@@ -16,6 +16,14 @@ func foo() {
   d := 10
   a = bar()
   b,c = bar2()
+  if a == 1 {
+  }
+  if b == 10 {
+  }
+  if c == 20 {
+  }
+  if d == 10 {
+  }
 }
 
 func main() {
