@@ -24,6 +24,9 @@ func foo() {
     var aa int8
     aa = bar()
     sink(aa)
+    if a == 5 {
+      a = 10
+    }
   } else {
     a = 3
   }
