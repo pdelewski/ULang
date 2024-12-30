@@ -297,37 +297,36 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 	}
 }
 
-func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt) {
+func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent int) {
 	assignmentToken := assignStmt.Tok.String()
-	v.emit("", 2)
 	if assignmentToken == ":=" {
-		v.emit("auto ", 0)
+		v.emit("auto ", indent)
 		assignmentToken = "="
 	}
 	if len(assignStmt.Lhs) > 1 {
-		v.emit("std::tie(", 0)
+		v.emit("std::tie(", indent)
 	}
 	first := true
 	for _, lhs := range assignStmt.Lhs {
 		if !first {
-			v.emit(", ", 0)
+			v.emit(", ", indent)
 		}
 		first = false
 		if ident, ok := lhs.(*ast.Ident); ok {
-			v.emit(ident.Name, 0)
+			v.emit(ident.Name, indent)
 		}
 	}
 
 	if len(assignStmt.Lhs) > 1 {
-		v.emit(")", 0)
+		v.emit(")", indent)
 	}
 
-	v.emit(assignmentToken+" ", 1)
+	v.emit(assignmentToken+" ", indent+1)
 
 	for _, rhs := range assignStmt.Rhs {
 		v.emitExpression(rhs)
 	}
-	v.emit(";\n", 0)
+	v.emit(";\n", indent)
 }
 
 func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
@@ -383,13 +382,14 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 				if val, ok := typesMap[variable.Type]; ok {
 					cppType = val
 				}
-				err := v.emit(fmt.Sprintf("%s %s;\n", cppType, variable.Name), 2)
+				err := v.emit(fmt.Sprintf("%s %s;\n", cppType, variable.Name), indent)
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
 			}
 		case *ast.AssignStmt:
-			v.emitAssignment(stmt)
+			v.emit("", indent)
+			v.emitAssignment(stmt, 0)
 		case *ast.ReturnStmt:
 			v.emitReturnStmt(stmt)
 		case *ast.IfStmt:

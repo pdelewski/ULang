@@ -18,6 +18,7 @@ func foo() {
   b,c = bar2()
   if a == 1 && b == 10 {
     a = 2
+    var aa int8
   } else {
     a = 3
   }
