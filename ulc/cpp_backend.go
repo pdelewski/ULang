@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"log"
@@ -266,6 +267,11 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr) error {
 	return v.emit(");\n")
 }
 
+type Variable struct {
+	Name string
+	Type string
+}
+
 func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	if node.Type.Results != nil {
 		resultArgIndex := 0
@@ -354,6 +360,36 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		case *ast.ExprStmt:
 			if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
 				err = v.generateCallExpr(callExpr)
+				if err != nil {
+					fmt.Println("Error writing to file:", err)
+					return v
+				}
+			}
+		case *ast.DeclStmt:
+			var variables []Variable
+			if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
+				for _, spec := range genDecl.Specs {
+					if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+						// Iterate through all variables declared
+						for _, ident := range valueSpec.Names {
+							varType := "inferred"
+							if valueSpec.Type != nil {
+								varType = v.inspectType(valueSpec.Type)
+							}
+							variables = append(variables, Variable{
+								Name: ident.Name,
+								Type: varType,
+							})
+						}
+					}
+				}
+			}
+			for _, variable := range variables {
+				cppType := variable.Type
+				if val, ok := typesMap[variable.Type]; ok {
+					cppType = val
+				}
+				err = v.emit(fmt.Sprintf("  %s %s;\n", cppType, variable.Name))
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 					return v
