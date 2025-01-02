@@ -1,5 +1,9 @@
 package main
 
+type Composite struct {
+  a []int
+}
+
 func bar() int8 {
   var a []int
   return 5
