@@ -42,4 +42,4 @@ jobs:
 
       - name: Run cpp compiler
         working-directory: ulc
-        run: g++ -std=c++11 output.cpp
+        run: g++ -std=c++17 output.cpp
