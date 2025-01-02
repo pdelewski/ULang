@@ -226,7 +226,11 @@ func getFunctionName(callExpr *ast.CallExpr) string {
 
 func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) error {
 	var err error
-	err = v.emit(getFunctionName(node), indent)
+	funName := getFunctionName(node)
+	if funName == "len" {
+		funName = "std::size"
+	}
+	err = v.emit(funName, indent)
 	if err != nil {
 		return err
 	}
@@ -281,7 +285,11 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		v.emit(")", 0)
 	case *ast.CallExpr:
 		if fun, ok := e.Fun.(*ast.Ident); ok {
-			v.emit(fun.Name+"(", 0)
+			funcName := fun.Name
+			if fun.Name == "len" {
+				funcName = "std::size"
+			}
+			v.emit(funcName+"(", 0)
 			for i, arg := range e.Args {
 				if i > 0 {
 					v.emit(", ", 0)
