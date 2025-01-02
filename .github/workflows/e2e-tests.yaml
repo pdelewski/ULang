@@ -33,4 +33,4 @@ jobs:
         run: ls -la
 
       - name: Run Go application
-        run: go run . --source=./../tests
+        run: go run ./ulc --source=./../tests
