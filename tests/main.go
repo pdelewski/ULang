@@ -7,8 +7,6 @@ type Composite struct {
 func bar() int8 {
   var a []int
   c := Composite{}
-  if len(a) == 0 {
-  }
   return 5
 }
 
