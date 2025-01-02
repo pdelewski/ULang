@@ -29,5 +29,8 @@ jobs:
       - name: Tidy Go dependencies
         run: go mod tidy
 
+      - name: Debug current directory
+        run: ls -la
+
       - name: Run Go application
         run: go run . --source=./../tests
