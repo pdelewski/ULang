@@ -464,8 +464,8 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 			v.emit("}\n", indent)
 		case *ast.RangeStmt:
 			v.emit("for (auto ", indent)
-			if stmt.Key != nil {
-				v.emitExpression(stmt.Key)
+			if stmt.Value != nil {
+				v.emitExpression(stmt.Value)
 			}
 			v.emit(" : ", 0)
 			v.emitExpression(stmt.X)
