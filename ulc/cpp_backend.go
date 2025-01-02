@@ -294,6 +294,15 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		}
 	case *ast.ParenExpr:
 		v.emitExpression(e.X) // Dump inner expression
+	case *ast.CompositeLit:
+		switch t := e.Type.(type) {
+		case *ast.Ident:
+			v.emit(fmt.Sprintf("%s()", t.Name), 0)
+		case *ast.SelectorExpr:
+			if pkgIdent, ok := t.X.(*ast.Ident); ok {
+				v.emit(fmt.Sprintf("%s::%s()", pkgIdent.Name, t.Sel.Name), 0)
+			}
+		}
 	default:
 		fmt.Println("<unknown expression>")
 	}
