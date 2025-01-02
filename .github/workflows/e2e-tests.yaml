@@ -32,8 +32,6 @@ jobs:
       - name: Debug current directory
         run: ls -la
 
-      - name: Change dir
-        run: cd ./ulc
-
       - name: Run Go application
+        working-directory: ulc
         run: go run . --source=./../tests
