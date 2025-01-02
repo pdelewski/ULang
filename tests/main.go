@@ -9,6 +9,8 @@ func bar() int8 {
   c := Composite{}
   if len(a) == 0 {
   }
+  if len(c.a) == 0 {
+  }
   return 5
 }
 

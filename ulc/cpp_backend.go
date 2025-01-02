@@ -224,6 +224,18 @@ func getFunctionName(callExpr *ast.CallExpr) string {
 	}
 }
 
+func resolveSelector(selExpr *ast.SelectorExpr) string {
+	var result string
+	switch x := selExpr.X.(type) {
+	case *ast.Ident: // Base case: variable name
+		result = x.Name
+	case *ast.SelectorExpr: // Recursive case: nested selectors
+		result = resolveSelector(x)
+	default:
+		return ""
+	}
+	return fmt.Sprintf("%s.%s", result, selExpr.Sel.Name)
+}
 func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) error {
 	var err error
 	funName := getFunctionName(node)
@@ -253,11 +265,6 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) err
 			}
 		case *ast.BasicLit:
 			err = v.emit(arg.Value, 0)
-			if err != nil {
-				return err
-			}
-		case *ast.SelectorExpr:
-			err = v.emit(arg.Sel.Name, 0)
 			if err != nil {
 				return err
 			}
@@ -311,6 +318,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 				v.emit(fmt.Sprintf("%s::%s()", pkgIdent.Name, t.Sel.Name), 0)
 			}
 		}
+	case *ast.SelectorExpr:
+		v.emit(resolveSelector(e), 0)
 	default:
 		fmt.Println("<unknown expression>")
 	}
