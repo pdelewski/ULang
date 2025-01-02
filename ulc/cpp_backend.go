@@ -204,7 +204,7 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	case *ast.StarExpr: // Pointer to a type
 		return "*" + v.inspectType(t.X)
 	case *ast.ArrayType: // Array of types
-		return "[]" + v.inspectType(t.Elt)
+		return "std::vector<" + v.inspectType(t.Elt) + ">"
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
