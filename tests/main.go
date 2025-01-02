@@ -6,6 +6,7 @@ type Composite struct {
 
 func bar() int8 {
   var a []int
+  c := Composite{}
   return 5
 }
 
