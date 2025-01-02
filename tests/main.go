@@ -15,6 +15,8 @@ func bar() int8 {
   }
   if len(c.a) == 0 {
   }
+  for {
+  }
   return 5
 }
 

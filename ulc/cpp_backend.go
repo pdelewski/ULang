@@ -429,7 +429,22 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 			v.emitReturnStmt(stmt)
 		case *ast.IfStmt:
 			v.emitIfStmt(stmt, indent)
+		case *ast.ForStmt:
+			v.emit("for (", indent)
+			if stmt.Init != nil {
 
+			}
+			v.emit("; ", 0)
+			if stmt.Cond != nil {
+
+			}
+			v.emit("; ", 0)
+			if stmt.Post != nil {
+
+			}
+			v.emit(") {\n", 0)
+			v.emitBlockStmt(stmt.Body, indent+2)
+			v.emit("}\n", indent)
 		default:
 			fmt.Printf("<Other statement type>\n")
 		}
