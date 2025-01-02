@@ -8,6 +8,10 @@ func bar() int8 {
   var a []int
   c := Composite{}
   if len(a) == 0 {
+  } else {
+    if a[0] == 0 {
+      a[0] = 1
+    }
   }
   if len(c.a) == 0 {
   }

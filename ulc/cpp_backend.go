@@ -320,6 +320,11 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		}
 	case *ast.SelectorExpr:
 		v.emit(resolveSelector(e), 0)
+	case *ast.IndexExpr:
+		v.emitExpression(e.X)
+		v.emit("[", 0)
+		v.emitExpression(e.Index)
+		v.emit("]", 0)
 	default:
 		fmt.Println("<unknown expression>")
 	}
@@ -342,6 +347,8 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 		first = false
 		if ident, ok := lhs.(*ast.Ident); ok {
 			v.emit(ident.Name, indent)
+		} else {
+			v.emitExpression(lhs)
 		}
 	}
 
