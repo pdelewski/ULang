@@ -328,6 +328,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 	default:
 		fmt.Println("<unknown expression>")
 	}
+
 }
 
 func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent int) {
@@ -458,6 +459,16 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 					v.emit(incDeclStmt.Tok.String(), 0)
 				}
 			}
+			v.emit(") {\n", 0)
+			v.emitBlockStmt(stmt.Body, indent+2)
+			v.emit("}\n", indent)
+		case *ast.RangeStmt:
+			v.emit("for (auto ", indent)
+			if stmt.Key != nil {
+				v.emitExpression(stmt.Key)
+			}
+			v.emit(" : ", 0)
+			v.emitExpression(stmt.X)
 			v.emit(") {\n", 0)
 			v.emitBlockStmt(stmt.Body, indent+2)
 			v.emit("}\n", indent)
