@@ -1,0 +1,33 @@
+name: E2E Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-go:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Go environment
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23 
+
+      - name: Initialize Go module
+        run: go mod init github.com/pdelewski/ULang
+
+      - name: Tidy Go dependencies
+        run: go mod tidy
+
+      - name: Run Go application
+        run: go run . --source=./../tests
