@@ -1,6 +1,7 @@
 package main
 
 func bar() int8 {
+  var a []int
   return 5
 }
 
