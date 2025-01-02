@@ -361,7 +361,6 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 	for _, rhs := range assignStmt.Rhs {
 		v.emitExpression(rhs)
 	}
-	v.emit(";\n", indent)
 }
 
 func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
@@ -425,11 +424,43 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 		case *ast.AssignStmt:
 			v.emit("", indent)
 			v.emitAssignment(stmt, 0)
+			v.emit(";\n", 0)
 		case *ast.ReturnStmt:
 			v.emitReturnStmt(stmt)
 		case *ast.IfStmt:
 			v.emitIfStmt(stmt, indent)
-
+		case *ast.ForStmt:
+			v.emit("for (", indent)
+			if stmt.Init != nil {
+				if assignStmt, ok := stmt.Init.(*ast.AssignStmt); ok {
+					v.emitAssignment(assignStmt, 0)
+					v.emit(";", 0)
+				} else if exprStmt, ok := stmt.Init.(*ast.ExprStmt); ok {
+					v.emitExpression(exprStmt.X)
+					v.emit("; ", 0)
+				} else {
+					v.emit("; ", 0)
+				}
+			} else {
+				v.emit("; ", 0)
+			}
+			if stmt.Cond != nil {
+				v.emitExpression(stmt.Cond)
+				v.emit("; ", 0)
+			} else {
+				v.emit("; ", 0)
+			}
+			if stmt.Post != nil {
+				if postExpr, ok := stmt.Post.(*ast.ExprStmt); ok {
+					v.emitExpression(postExpr.X)
+				} else if incDeclStmt, ok := stmt.Post.(*ast.IncDecStmt); ok {
+					v.emitExpression(incDeclStmt.X)
+					v.emit(incDeclStmt.Tok.String(), 0)
+				}
+			}
+			v.emit(") {\n", 0)
+			v.emitBlockStmt(stmt.Body, indent+2)
+			v.emit("}\n", indent)
 		default:
 			fmt.Printf("<Other statement type>\n")
 		}
