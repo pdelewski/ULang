@@ -17,7 +17,7 @@ func bar() int8 {
   }
   for x:=0; x<10;x++ {
   }
-  for x := range a {
+  for _,x := range a {
   }
   return 5
 }
