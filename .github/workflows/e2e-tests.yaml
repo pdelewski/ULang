@@ -32,6 +32,14 @@ jobs:
       - name: Debug current directory
         run: ls -la
 
+      - name: Install GCC/G++
+        run: sudo apt-get install -y g++
+
       - name: Run Go application
         working-directory: ulc
-        run: go run . --source=./../tests
+        run: |
+          go run . --source=./../tests
+
+      - name: Run cpp compiler
+        working-directory: ulc
+        run: g++ -std=c++11 output.cpp
