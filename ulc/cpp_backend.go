@@ -486,7 +486,8 @@ func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 	v.emit("}\n", indent)
 	if ifStmt.Else != nil {
 		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
-			v.emitIfStmt(elseIf, indent+2) // Recursive call for else-if
+			v.emit("else", indent)
+			v.emitIfStmt(elseIf, indent) // Recursive call for else-if
 		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
 			v.emit("else {\n", indent)
 			v.emitBlockStmt(elseBlock, indent+2) // Dump else block
