@@ -364,8 +364,8 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 	}
 }
 
-func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt) {
-	v.emit("return ", 2)
+func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) {
+	v.emit("return ", indent)
 	if len(retStmt.Results) > 1 {
 		v.emit("std::make_tuple(", 0)
 	}
@@ -427,7 +427,7 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 			v.emitAssignment(stmt, 0)
 			v.emit(";\n", 0)
 		case *ast.ReturnStmt:
-			v.emitReturnStmt(stmt)
+			v.emitReturnStmt(stmt, indent)
 		case *ast.IfStmt:
 			v.emitIfStmt(stmt, indent)
 		case *ast.ForStmt:
