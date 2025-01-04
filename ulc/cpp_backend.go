@@ -232,7 +232,7 @@ func resolveSelector(selExpr *ast.SelectorExpr) string {
 	case *ast.SelectorExpr: // Recursive case: nested selectors
 		result = resolveSelector(x)
 	default:
-		return ""
+		return "unknown_expr"
 	}
 	return fmt.Sprintf("%s.%s", result, selExpr.Sel.Name)
 }
@@ -304,6 +304,9 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 				v.emitExpression(arg) // Function arguments
 			}
 			v.emit(")", 0)
+		} else if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
+			v.emit(" ", 0)
+			v.emitExpression(sel)
 		} else {
 			fmt.Println("<complex call expression>")
 		}
@@ -316,6 +319,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		case *ast.SelectorExpr:
 			if pkgIdent, ok := t.X.(*ast.Ident); ok {
 				v.emit(fmt.Sprintf("%s::%s()", pkgIdent.Name, t.Sel.Name), 0)
+			} else {
+				v.emit("<unknown composite literal/selector_expr>", 0)
 			}
 		}
 	case *ast.SelectorExpr:
