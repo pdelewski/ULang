@@ -307,6 +307,14 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		} else if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
 			v.emit(" ", 0)
 			v.emitExpression(sel)
+			v.emit("(", 0)
+			for i, arg := range e.Args {
+				if i > 0 {
+					v.emit(", ", 0)
+				}
+				v.emitExpression(arg) // Function arguments
+			}
+			v.emit(")", 0)
 		} else {
 			fmt.Println("<complex call expression>")
 		}
