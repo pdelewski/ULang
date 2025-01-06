@@ -338,6 +338,9 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		v.emit("[", 0)
 		v.emitExpression(e.Index)
 		v.emit("]", 0)
+	case *ast.UnaryExpr:
+		v.emit(e.Op.String(), 0)
+		v.emitExpression(e.X)
 	default:
 		fmt.Println("<unknown expression>")
 	}
