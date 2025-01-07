@@ -22,6 +22,8 @@ func bar() int8 {
   }
   for _, x := range a {
   }
+  b := false
+  if !b {}
   return 5
 }
 
