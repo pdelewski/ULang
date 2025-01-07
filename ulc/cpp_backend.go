@@ -237,45 +237,34 @@ func resolveSelector(selExpr *ast.SelectorExpr) string {
 	return fmt.Sprintf("%s.%s", result, selExpr.Sel.Name)
 }
 func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) error {
-	var err error
-	funName := getFunctionName(node)
-	if funName == "len" {
-		funName = "std::size"
-	}
-	err = v.emit(funName, indent)
-	if err != nil {
-		return err
-	}
-	err = v.emit("(", 0)
-	if err != nil {
-		return err
-	}
-	for i, arg := range node.Args {
-		if i > 0 {
-			err = v.emit(", ", 0)
-			if err != nil {
-				return err
-			}
+	if fun, ok := node.Fun.(*ast.Ident); ok {
+		funcName := fun.Name
+		if fun.Name == "len" {
+			funcName = "std::size"
 		}
-		switch arg := arg.(type) {
-		case *ast.Ident:
-			err = v.emit(arg.Name, 0)
-			if err != nil {
-				return err
+		v.emit(funcName+"(", indent)
+		for i, arg := range node.Args {
+			if i > 0 {
+				v.emit(", ", 0)
 			}
-		case *ast.BasicLit:
-			err = v.emit(arg.Value, 0)
-			if err != nil {
-				return err
-			}
-		case *ast.CallExpr:
-			err = v.generateCallExpr(arg, indent+2)
-			if err != nil {
-				return err
-			}
+			v.emitExpression(arg) // Function arguments
 		}
+		v.emit(")", 0)
+	} else if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
+		v.emit(" ", 0)
+		v.emitExpression(sel)
+		v.emit("(", 0)
+		for i, arg := range node.Args {
+			if i > 0 {
+				v.emit(", ", 0)
+			}
+			v.emitExpression(arg) // Function arguments
+		}
+		v.emit(")", 0)
+	} else {
+		fmt.Println("<complex call expression>")
 	}
-	return v.emit(");\n", 0)
+	return nil
 }
 
 func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
@@ -407,6 +396,7 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 		case *ast.ExprStmt:
 			if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
 				err := v.generateCallExpr(callExpr, indent)
+				v.emit(";\n", 0)
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
