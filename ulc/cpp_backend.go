@@ -280,7 +280,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		v.emitExpression(e.Y, indent) // Right operand
 		v.emit(")", 0)
 	case *ast.CallExpr:
-		v.generateCallExpr(e, indent)
+		v.generateCallExpr(e, 0)
 	case *ast.ParenExpr:
 		v.emitExpression(e.X, indent) // Dump inner expression
 	case *ast.CompositeLit:
