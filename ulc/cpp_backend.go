@@ -251,7 +251,7 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) err
 		}
 		v.emit(")", 0)
 	} else if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
-		v.emit(" ", 0)
+		v.emit("", indent)
 		v.emitExpression(sel, indent)
 		v.emit("(", 0)
 		for i, arg := range node.Args {
@@ -280,7 +280,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		v.emitExpression(e.Y, indent) // Right operand
 		v.emit(")", 0)
 	case *ast.CallExpr:
-		v.generateCallExpr(e, 0)
+		v.generateCallExpr(e, indent)
 	case *ast.ParenExpr:
 		v.emitExpression(e.X, indent) // Dump inner expression
 	case *ast.CompositeLit:
@@ -304,7 +304,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 	case *ast.UnaryExpr:
 		v.emit("(", 0)
 		v.emit(e.Op.String(), 0)
-		v.emitExpression(e.X, indent)
+		v.emitExpression(e.X, 0)
 		v.emit(")", 0)
 	default:
 		fmt.Println("<unknown expression>")
@@ -462,7 +462,7 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 
 func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 	v.emit("if", indent)
-	v.emitExpression(ifStmt.Cond, indent)
+	v.emitExpression(ifStmt.Cond, 1)
 	v.emit(" {\n", 0)
 	v.emitBlockStmt(ifStmt.Body, indent+2)
 	v.emit("}\n", indent)
