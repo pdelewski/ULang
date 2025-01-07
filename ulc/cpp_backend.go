@@ -247,18 +247,18 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) err
 			if i > 0 {
 				v.emit(", ", 0)
 			}
-			v.emitExpression(arg) // Function arguments
+			v.emitExpression(arg, indent) // Function arguments
 		}
 		v.emit(")", 0)
 	} else if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
 		v.emit(" ", 0)
-		v.emitExpression(sel)
+		v.emitExpression(sel, indent)
 		v.emit("(", 0)
 		for i, arg := range node.Args {
 			if i > 0 {
 				v.emit(", ", 0)
 			}
-			v.emitExpression(arg) // Function arguments
+			v.emitExpression(arg, indent) // Function arguments
 		}
 		v.emit(")", 0)
 	} else {
@@ -267,7 +267,7 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) err
 	return nil
 }
 
-func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
+func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
 		v.emit(e.Value, 0) // Basic literals like numbers or strings
@@ -275,14 +275,14 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 		v.emit(e.Name, 0) // Variables or identifiers
 	case *ast.BinaryExpr:
 		v.emit("(", 0)
-		v.emitExpression(e.X) // Left operand
+		v.emitExpression(e.X, indent) // Left operand
 		v.emit(e.Op.String()+" ", 1)
-		v.emitExpression(e.Y) // Right operand
+		v.emitExpression(e.Y, indent) // Right operand
 		v.emit(")", 0)
 	case *ast.CallExpr:
 		v.generateCallExpr(e, 0)
 	case *ast.ParenExpr:
-		v.emitExpression(e.X) // Dump inner expression
+		v.emitExpression(e.X, indent) // Dump inner expression
 	case *ast.CompositeLit:
 		switch t := e.Type.(type) {
 		case *ast.Ident:
@@ -297,14 +297,14 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr) {
 	case *ast.SelectorExpr:
 		v.emit(resolveSelector(e), 0)
 	case *ast.IndexExpr:
-		v.emitExpression(e.X)
+		v.emitExpression(e.X, indent)
 		v.emit("[", 0)
-		v.emitExpression(e.Index)
+		v.emitExpression(e.Index, indent)
 		v.emit("]", 0)
 	case *ast.UnaryExpr:
 		v.emit("(", 0)
 		v.emit(e.Op.String(), 0)
-		v.emitExpression(e.X)
+		v.emitExpression(e.X, indent)
 		v.emit(")", 0)
 	default:
 		fmt.Println("<unknown expression>")
@@ -330,7 +330,7 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 		if ident, ok := lhs.(*ast.Ident); ok {
 			v.emit(ident.Name, indent)
 		} else {
-			v.emitExpression(lhs)
+			v.emitExpression(lhs, indent)
 		}
 	}
 
@@ -341,7 +341,7 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 	v.emit(assignmentToken+" ", indent+1)
 
 	for _, rhs := range assignStmt.Rhs {
-		v.emitExpression(rhs)
+		v.emitExpression(rhs, indent)
 	}
 }
 
@@ -356,7 +356,7 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) 
 			v.emit(", ", 0)
 		}
 		first = false
-		v.emitExpression(result)
+		v.emitExpression(result, indent)
 	}
 	if len(retStmt.Results) > 1 {
 		v.emit(")", 0)
@@ -419,7 +419,7 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 					v.emitAssignment(assignStmt, 0)
 					v.emit(";", 0)
 				} else if exprStmt, ok := stmt.Init.(*ast.ExprStmt); ok {
-					v.emitExpression(exprStmt.X)
+					v.emitExpression(exprStmt.X, indent)
 					v.emit("; ", 0)
 				} else {
 					v.emit("; ", 0)
@@ -428,16 +428,16 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 				v.emit("; ", 0)
 			}
 			if stmt.Cond != nil {
-				v.emitExpression(stmt.Cond)
+				v.emitExpression(stmt.Cond, indent)
 				v.emit("; ", 0)
 			} else {
 				v.emit("; ", 0)
 			}
 			if stmt.Post != nil {
 				if postExpr, ok := stmt.Post.(*ast.ExprStmt); ok {
-					v.emitExpression(postExpr.X)
+					v.emitExpression(postExpr.X, indent)
 				} else if incDeclStmt, ok := stmt.Post.(*ast.IncDecStmt); ok {
-					v.emitExpression(incDeclStmt.X)
+					v.emitExpression(incDeclStmt.X, indent)
 					v.emit(incDeclStmt.Tok.String(), 0)
 				}
 			}
@@ -447,10 +447,10 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 		case *ast.RangeStmt:
 			v.emit("for (auto ", indent)
 			if stmt.Value != nil {
-				v.emitExpression(stmt.Value)
+				v.emitExpression(stmt.Value, indent)
 			}
 			v.emit(" : ", 0)
-			v.emitExpression(stmt.X)
+			v.emitExpression(stmt.X, indent)
 			v.emit(") {\n", 0)
 			v.emitBlockStmt(stmt.Body, indent+2)
 			v.emit("}\n", indent)
@@ -462,7 +462,7 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 
 func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 	v.emit("if", indent)
-	v.emitExpression(ifStmt.Cond)
+	v.emitExpression(ifStmt.Cond, indent)
 	v.emit(" {\n", 0)
 	v.emitBlockStmt(ifStmt.Body, indent+2)
 	v.emit("}\n", indent)
