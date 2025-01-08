@@ -364,99 +364,121 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) 
 	v.emit(";\n", 0)
 }
 
-func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
-	for _, stmt := range block.List {
-		switch stmt := stmt.(type) {
-		case *ast.ExprStmt:
-			if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
-				err := v.generateCallExpr(callExpr, indent)
-				v.emit(";\n", 0)
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-				}
+func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
+	switch stmt := stmt.(type) {
+	case *ast.ExprStmt:
+		if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
+			err := v.generateCallExpr(callExpr, indent)
+			v.emit(";\n", 0)
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
 			}
-		case *ast.DeclStmt:
-			var variables []Variable
-			if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
-				for _, spec := range genDecl.Specs {
-					if valueSpec, ok := spec.(*ast.ValueSpec); ok {
-						// Iterate through all variables declared
-						for _, ident := range valueSpec.Names {
-							varType := "inferred"
-							if valueSpec.Type != nil {
-								varType = v.inspectType(valueSpec.Type)
-							}
-							variables = append(variables, Variable{
-								Name: ident.Name,
-								Type: varType,
-							})
+		}
+	case *ast.DeclStmt:
+		var variables []Variable
+		if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
+			for _, spec := range genDecl.Specs {
+				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+					// Iterate through all variables declared
+					for _, ident := range valueSpec.Names {
+						varType := "inferred"
+						if valueSpec.Type != nil {
+							varType = v.inspectType(valueSpec.Type)
 						}
+						variables = append(variables, Variable{
+							Name: ident.Name,
+							Type: varType,
+						})
 					}
 				}
 			}
-			for _, variable := range variables {
-				cppType := variable.Type
-				if val, ok := typesMap[variable.Type]; ok {
-					cppType = val
-				}
-				err := v.emit(fmt.Sprintf("%s %s;\n", cppType, variable.Name), indent)
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-				}
-			}
-		case *ast.AssignStmt:
-			v.emit("", indent)
-			v.emitAssignment(stmt, 0)
-			v.emit(";\n", 0)
-		case *ast.ReturnStmt:
-			v.emitReturnStmt(stmt, indent)
-		case *ast.IfStmt:
-			v.emitIfStmt(stmt, indent)
-		case *ast.ForStmt:
-			v.emit("for (", indent)
-			if stmt.Init != nil {
-				if assignStmt, ok := stmt.Init.(*ast.AssignStmt); ok {
-					v.emitAssignment(assignStmt, 0)
-					v.emit(";", 0)
-				} else if exprStmt, ok := stmt.Init.(*ast.ExprStmt); ok {
-					v.emitExpression(exprStmt.X, indent)
-					v.emit("; ", 0)
-				} else {
-					v.emit("; ", 0)
-				}
-			} else {
-				v.emit("; ", 0)
-			}
-			if stmt.Cond != nil {
-				v.emitExpression(stmt.Cond, indent)
-				v.emit("; ", 0)
-			} else {
-				v.emit("; ", 0)
-			}
-			if stmt.Post != nil {
-				if postExpr, ok := stmt.Post.(*ast.ExprStmt); ok {
-					v.emitExpression(postExpr.X, indent)
-				} else if incDeclStmt, ok := stmt.Post.(*ast.IncDecStmt); ok {
-					v.emitExpression(incDeclStmt.X, indent)
-					v.emit(incDeclStmt.Tok.String(), 0)
-				}
-			}
-			v.emit(") {\n", 0)
-			v.emitBlockStmt(stmt.Body, indent+2)
-			v.emit("}\n", indent)
-		case *ast.RangeStmt:
-			v.emit("for (auto ", indent)
-			if stmt.Value != nil {
-				v.emitExpression(stmt.Value, indent)
-			}
-			v.emit(" : ", 0)
-			v.emitExpression(stmt.X, indent)
-			v.emit(") {\n", 0)
-			v.emitBlockStmt(stmt.Body, indent+2)
-			v.emit("}\n", indent)
-		default:
-			fmt.Printf("<Other statement type>\n")
 		}
+		for _, variable := range variables {
+			cppType := variable.Type
+			if val, ok := typesMap[variable.Type]; ok {
+				cppType = val
+			}
+			err := v.emit(fmt.Sprintf("%s %s;\n", cppType, variable.Name), indent)
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+			}
+		}
+	case *ast.AssignStmt:
+		v.emit("", indent)
+		v.emitAssignment(stmt, 0)
+		v.emit(";\n", 0)
+	case *ast.ReturnStmt:
+		v.emitReturnStmt(stmt, indent)
+	case *ast.IfStmt:
+		v.emitIfStmt(stmt, indent)
+	case *ast.ForStmt:
+		v.emit("for (", indent)
+		if stmt.Init != nil {
+			if assignStmt, ok := stmt.Init.(*ast.AssignStmt); ok {
+				v.emitAssignment(assignStmt, 0)
+				v.emit(";", 0)
+			} else if exprStmt, ok := stmt.Init.(*ast.ExprStmt); ok {
+				v.emitExpression(exprStmt.X, indent)
+				v.emit("; ", 0)
+			} else {
+				v.emit("; ", 0)
+			}
+		} else {
+			v.emit("; ", 0)
+		}
+		if stmt.Cond != nil {
+			v.emitExpression(stmt.Cond, indent)
+			v.emit("; ", 0)
+		} else {
+			v.emit("; ", 0)
+		}
+		if stmt.Post != nil {
+			if postExpr, ok := stmt.Post.(*ast.ExprStmt); ok {
+				v.emitExpression(postExpr.X, indent)
+			} else if incDeclStmt, ok := stmt.Post.(*ast.IncDecStmt); ok {
+				v.emitExpression(incDeclStmt.X, indent)
+				v.emit(incDeclStmt.Tok.String(), 0)
+			}
+		}
+		v.emit(") {\n", 0)
+		v.emitBlockStmt(stmt.Body, indent+2)
+		v.emit("}\n", indent)
+	case *ast.RangeStmt:
+		v.emit("for (auto ", indent)
+		if stmt.Value != nil {
+			v.emitExpression(stmt.Value, indent)
+		}
+		v.emit(" : ", 0)
+		v.emitExpression(stmt.X, indent)
+		v.emit(") {\n", 0)
+		v.emitBlockStmt(stmt.Body, indent+2)
+		v.emit("}\n", indent)
+	case *ast.SwitchStmt:
+		v.emit("switch (", indent)
+		v.emitExpression(stmt.Tag, indent)
+		v.emit(") {\n", 0)
+		for _, stmt := range stmt.Body.List {
+			if caseClause, ok := stmt.(*ast.CaseClause); ok {
+				for _, expr := range caseClause.List {
+					v.emit("case ", indent+2)
+					v.emitExpression(expr, indent+2)
+					v.emit(":\n", 0)
+				}
+				for _, innerStmt := range caseClause.Body {
+					v.emitStmt(innerStmt, indent+4)
+				}
+			}
+		}
+		v.emit("}\n", indent)
+	default:
+		fmt.Printf("<Other statement type>\n")
+
+	}
+}
+
+func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
+	for _, stmt := range block.List {
+		v.emitStmt(stmt, indent)
 	}
 }
 
