@@ -87,32 +87,30 @@ func DumpTokens(tokens []Token) {
 }
 
 func DumpTokenString(token Token) string {
-	var builder strings.Builder
+	var result string
 
 	// Append token type to the string
-	builder.WriteString(fmt.Sprintf("Token type: %d ", token.Type))
+	result += fmt.Sprintf("Token type: %d ", token.Type)
 
 	// Append representation to the string
 	for _, b := range token.Representation {
 		switch b {
 		case ' ':
-			builder.WriteString(" ")
+			result += " "
 		case '\t':
-			builder.WriteString("\t")
+			result += "\t"
 		case '\n':
-			builder.WriteString("\n")
+			result += "\n"
 		case '.':
-			builder.WriteString(".")
+			result += "."
 		default:
-			builder.WriteString(fmt.Sprintf("%c", b))
+			result += fmt.Sprintf("%c", b)
 		}
 	}
 
-	// Add a newline after each token
-	builder.WriteString("\n")
-
+	result += "\n"
 	// Return the constructed string
-	return builder.String()
+	return result
 }
 
 func DumpTokensString(tokens []Token) string {

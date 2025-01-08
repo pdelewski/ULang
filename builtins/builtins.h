@@ -22,3 +22,7 @@ std::string string_format(const std::string fmt, ...) {
     }
     return str;
 }
+
+void println() {
+  printf("\n");
+}

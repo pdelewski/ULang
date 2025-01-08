@@ -237,6 +237,20 @@ func resolveSelector(selExpr *ast.SelectorExpr) string {
 	return fmt.Sprintf("%s.%s", result, selExpr.Sel.Name)
 }
 
+func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
+	switch selector {
+	case "fmt.Sprintf":
+		return "string_format"
+	case "fmt.Println":
+		return "println"
+	case "fmt.Printf":
+		return "printf"
+	case "fmt.Print":
+		return "printf"
+	}
+	return selector
+}
+
 func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
 	v.emit("(", 0)
 	for i, arg := range node.Args {
@@ -294,7 +308,9 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			}
 		}
 	case *ast.SelectorExpr:
-		v.emit(resolveSelector(e), 0)
+		selector := resolveSelector(e)
+		selector = v.lowerToBuiltins(selector)
+		v.emit(selector, 0)
 	case *ast.IndexExpr:
 		v.emitExpression(e.X, indent)
 		v.emit("[", 0)
