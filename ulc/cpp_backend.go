@@ -236,31 +236,30 @@ func resolveSelector(selExpr *ast.SelectorExpr) string {
 	}
 	return fmt.Sprintf("%s.%s", result, selExpr.Sel.Name)
 }
+
+func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
+	v.emit("(", 0)
+	for i, arg := range node.Args {
+		if i > 0 {
+			v.emit(", ", 0)
+		}
+		v.emitExpression(arg, indent) // Function arguments
+	}
+	v.emit(")", 0)
+}
+
 func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) error {
 	if fun, ok := node.Fun.(*ast.Ident); ok {
 		funcName := fun.Name
 		if fun.Name == "len" {
 			funcName = "std::size"
 		}
-		v.emit(funcName+"(", indent)
-		for i, arg := range node.Args {
-			if i > 0 {
-				v.emit(", ", 0)
-			}
-			v.emitExpression(arg, indent) // Function arguments
-		}
-		v.emit(")", 0)
+		v.emit(funcName, indent)
+		v.emitArgs(node, indent)
 	} else if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
 		v.emit("", indent)
 		v.emitExpression(sel, indent)
-		v.emit("(", 0)
-		for i, arg := range node.Args {
-			if i > 0 {
-				v.emit(", ", 0)
-			}
-			v.emitExpression(arg, indent) // Function arguments
-		}
-		v.emit(")", 0)
+		v.emitArgs(node, indent)
 	} else {
 		fmt.Println("<complex call expression>")
 	}
