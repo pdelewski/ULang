@@ -62,5 +62,6 @@ func foo() {
 }
 
 func main() {
+  fmt.Print("Hello\n")
   foo()
 }
