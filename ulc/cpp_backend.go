@@ -791,8 +791,29 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 			fmt.Println("Error writing to file:", err)
 		}
 	}
-
 	for _, node := range v.nodes {
+		if genDecl, ok := node.(*ast.GenDecl); ok && genDecl.Tok == token.CONST {
+			for _, spec := range genDecl.Specs {
+				valueSpec := spec.(*ast.ValueSpec)
+				for i, name := range valueSpec.Names {
+					v.emit(fmt.Sprintf("constexpr auto %s = ", name.Name), 0)
+					if valueSpec.Values != nil {
+						if i < len(valueSpec.Values) {
+							value := valueSpec.Values[i]
+							switch val := value.(type) {
+							case *ast.BasicLit:
+								v.emit(val.Value, 0)
+								v.emit(";\n", 0)
+							default:
+								log.Printf("Unhandled value type: %T", v)
+							}
+						}
+					}
+				}
+			}
+			v.emit("\n", 0)
+		}
+
 		switch node := node.(type) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
