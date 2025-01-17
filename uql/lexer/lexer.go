@@ -5,12 +5,12 @@ import (
 )
 
 const (
-	TokenTypeIdentifier = iota
-	TokenTypeOperator
-	TokenTypeNumber
-	TokenTypeWhitespace
-	TokenTypeDot // Added for the dot operator
-	TokenTypeSemicolon
+	TokenTypeIdentifier = 1
+	TokenTypeOperator   = 2
+	TokenTypeNumber     = 3
+	TokenTypeWhitespace = 4
+	TokenTypeDot        = 5 // Added for the dot operator
+	TokenTypeSemicolon  = 6
 )
 
 type Token struct {
