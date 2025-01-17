@@ -1,28 +1,55 @@
 #pragma once
 
-#include <stdarg.h>  // For va_start, etc.
+#include <initializer_list>
+#include <stdarg.h> // For va_start, etc.
+#include <vector>
 
 std::string string_format(const std::string fmt, ...) {
-    int size = ((int)fmt.size()) * 2 + 50;   // Use a rubric appropriate for your code
-    std::string str;
-    va_list ap;
-    while (1) {     // Maximum two passes on a POSIX system...
-        str.resize(size);
-        va_start(ap, fmt);
-        int n = vsnprintf((char *)str.data(), size, fmt.c_str(), ap);
-        va_end(ap);
-        if (n > -1 && n < size) {  // Everything worked
-            str.resize(n);
-            return str;
-        }
-        if (n > -1)  // Needed size returned
-            size = n + 1;   // For null char
-        else
-            size *= 2;      // Guess at a larger size (OS specific)
+  int size =
+      ((int)fmt.size()) * 2 + 50; // Use a rubric appropriate for your code
+  std::string str;
+  va_list ap;
+  while (1) { // Maximum two passes on a POSIX system...
+    str.resize(size);
+    va_start(ap, fmt);
+    int n = vsnprintf((char *)str.data(), size, fmt.c_str(), ap);
+    va_end(ap);
+    if (n > -1 && n < size) { // Everything worked
+      str.resize(n);
+      return str;
     }
-    return str;
+    if (n > -1)     // Needed size returned
+      size = n + 1; // For null char
+    else
+      size *= 2; // Guess at a larger size (OS specific)
+  }
+  return str;
 }
 
-void println() {
-  printf("\n");
+void println() { printf("\n"); }
+
+// Function to mimic Go's append behavior for std::vector
+template <typename T>
+std::vector<T> append(const std::vector<T> &vec,
+                      const std::initializer_list<T> &elements) {
+  std::vector<T> result = vec;           // Create a copy of the original vector
+  result.insert(result.end(), elements); // Append the elements
+  return result;                         // Return the new vector
+}
+
+// Overload to allow appending another vector
+template <typename T>
+std::vector<T> append(const std::vector<T> &vec,
+                      const std::vector<T> &elements) {
+  std::vector<T> result = vec; // Create a copy of the original vector
+  result.insert(result.end(), elements.begin(),
+                elements.end()); // Append the elements
+  return result;                 // Return the new vector
+}
+
+template <typename T>
+std::vector<T> append(const std::vector<T> &vec, const T &element) {
+  std::vector<T> result = vec; // Create a copy of the original vector
+  result.push_back(element);   // Append the single element
+  return result;               // Return the new vector
 }
