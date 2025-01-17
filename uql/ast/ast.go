@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	StatementTypeFrom = iota
-	StatementTypeWhere
-	StatementTypeSelect
+	StatementTypeFrom   = 1
+	StatementTypeWhere  = 2
+	StatementTypeSelect = 3
 )
 
 type Statement struct {
