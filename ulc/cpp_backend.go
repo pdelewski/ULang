@@ -285,7 +285,12 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 	case *ast.BasicLit:
 		v.emit(e.Value, 0) // Basic literals like numbers or strings
 	case *ast.Ident:
-		v.emit(e.Name, 0) // Variables or identifiers
+		name := e.Name
+		if name == "nil" {
+			v.emit("{}", 0)
+		} else {
+			v.emit(e.Name, 0) // Variables or identifiers
+		}
 	case *ast.BinaryExpr:
 		v.emit("(", 0)
 		v.emitExpression(e.X, indent) // Left operand
