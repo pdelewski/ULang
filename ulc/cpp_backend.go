@@ -313,6 +313,35 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		v.emit(e.Op.String(), 0)
 		v.emitExpression(e.X, 0)
 		v.emit(")", 0)
+	case *ast.SliceExpr:
+		v.emit("std::vector<std::remove_reference<decltype(", indent)
+		v.emitExpression(e.X, 0)
+		v.emit("[0]", 0)
+		v.emit(")>::type>(", 0)
+		// Check and print Low, High, and Max
+		v.emitExpression(e.X, indent)
+		v.emit(".begin() ", 0)
+		if e.Low != nil {
+			v.emit("+ ", 0)
+			v.emitExpression(e.Low, indent)
+		} else {
+			log.Println("Low index: <nil>")
+		}
+		v.emit(", ", 0)
+		v.emitExpression(e.X, indent)
+		v.emit(".begin() ", 0)
+		if e.High != nil {
+			v.emit("+ ", 0)
+			v.emitExpression(e.High, indent)
+		} else {
+			log.Println("High index: <nil>")
+		}
+		if e.Slice3 && e.Max != nil {
+			v.emitExpression(e.Max, indent)
+		} else if e.Slice3 {
+			log.Println("Max index: <nil>")
+		}
+		v.emit(")", 0)
 	default:
 		fmt.Println("<unknown expression>")
 	}
