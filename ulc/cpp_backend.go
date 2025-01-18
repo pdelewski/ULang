@@ -211,19 +211,6 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	return "unknown"
 }
 
-func getFunctionName(callExpr *ast.CallExpr) string {
-	switch fun := callExpr.Fun.(type) {
-	case *ast.Ident:
-		// Direct function call, e.g., `foo()`
-		return fun.Name
-	case *ast.SelectorExpr:
-		// Selector expression, e.g., `pkg.Func()`
-		return fun.Sel.Name
-	default:
-		return "<unknown>"
-	}
-}
-
 func resolveSelector(selExpr *ast.SelectorExpr) string {
 	var result string
 	switch x := selExpr.X.(type) {
