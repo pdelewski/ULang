@@ -340,12 +340,12 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		}
 		v.emit(", ", 0)
 		v.emitExpression(e.X, indent)
-		v.emit(".begin() ", 0)
 		if e.High != nil {
+			v.emit(".begin() ", 0)
 			v.emit("+ ", 0)
 			v.emitExpression(e.High, indent)
 		} else {
-			log.Println("High index: <nil>")
+			v.emit(".end() ", 0)
 		}
 		if e.Slice3 && e.Max != nil {
 			v.emitExpression(e.Max, indent)
