@@ -298,6 +298,17 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			} else {
 				v.emit("<unknown composite literal/selector_expr>", 0)
 			}
+		case *ast.ArrayType:
+			v.emit("std::vector<", 0)
+			v.emitExpression(t.Elt, 0)
+			v.emit(">{", 0)
+			for i, elt := range e.Elts {
+				if i > 0 {
+					v.emit(", ", 0)
+				}
+				v.emitExpression(elt, indent)
+			}
+			v.emit("}", 0)
 		}
 	case *ast.SelectorExpr:
 		selector := resolveSelector(e)
