@@ -641,6 +641,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
+	v.emit("\n", 0)
 	return v
 }
 
