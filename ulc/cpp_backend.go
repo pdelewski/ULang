@@ -188,6 +188,8 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 				}
 			case *ast.ArrayType:
 				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
+			case *ast.FuncType:
+				v.emit(fmt.Sprintf("std::function<%s> %s;\n", v.inspectType(typ), fieldName.Name), 2)
 			}
 		}
 	}
