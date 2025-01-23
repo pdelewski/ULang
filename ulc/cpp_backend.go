@@ -163,7 +163,7 @@ func (v *CppBackendVisitor) generatePrimType(cppType string, pkg string, fieldNa
 	}
 }
 
-func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
+func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
 			switch typ := field.Type.(type) {
@@ -172,7 +172,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 				if val, ok := typesMap[typ.Name]; ok {
 					cppType = val
 				}
-				err := v.emit(fmt.Sprintf("%s %s;\n", cppType, fieldName.Name), 2)
+				err := v.emit(fmt.Sprintf("%s %s;\n", cppType, fieldName.Name), indent)
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
@@ -189,7 +189,23 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType) {
 			case *ast.ArrayType:
 				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
 			case *ast.FuncType:
-				v.emit(fmt.Sprintf("std::function<%s> %s;\n", v.inspectType(typ), fieldName.Name), 2)
+				v.emit("std::function<", indent)
+				for i, result := range typ.Results.List {
+					if i > 0 {
+						v.emit(", ", 0)
+					}
+					v.emitExpression(result.Type, indent)
+				}
+				v.emit("(", 0)
+				for i, param := range typ.Params.List {
+					if i > 0 {
+						v.emit(", ", 0)
+					}
+					v.emitExpression(param.Type, indent)
+				}
+				v.emit(")", 0)
+				//v.emit(fmt.Sprintf("%s", v.inspectType(typ)), 0)
+				v.emit(fmt.Sprintf("> %s;\n", fieldName.Name), 0)
 			}
 		}
 	}
@@ -278,7 +294,11 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		if name == "nil" {
 			v.emit("{}", 0)
 		} else {
-			v.emit(e.Name, 0) // Variables or identifiers
+			if n, ok := typesMap[e.Name]; ok {
+				v.emit(n, 0)
+			} else {
+				v.emit(e.Name, 0) // Variables or identifiers
+			}
 		}
 	case *ast.BinaryExpr:
 		v.emit("(", 0)
@@ -815,7 +835,7 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 		}
-		v.generateFields(structInfos[i].Struct)
+		v.generateFields(structInfos[i].Struct, 2)
 		err = v.emit("};\n\n", 0)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
