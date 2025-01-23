@@ -574,7 +574,7 @@ type Variable struct {
 	Type string
 }
 
-func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
+func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
 	if node.Type.Results != nil {
 		resultArgIndex := 0
 		if len(node.Type.Results.List) > 1 {
@@ -647,11 +647,18 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		}
 		argIndex++
 	}
-	err = v.emit(")\n", 0)
+	err = v.emit(")", 0)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
+	return v
+}
+
+func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
+	var err error
+	v.generateFuncDeclSignature(node)
+	v.emit("\n", 0)
 	err = v.emit("{\n", 0)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -879,6 +886,16 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 		}
 	}
 
+	// Generate forward function declarations
+	v.emit("// Forward declarations\n", 0)
+	for _, node := range v.nodes {
+		switch node := node.(type) {
+		case *ast.FuncDecl:
+			v.generateFuncDeclSignature(node)
+			v.emit(";\n", 0)
+		}
+	}
+	v.emit("\n", 0)
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.FuncDecl:
