@@ -11,10 +11,10 @@ const (
 )
 
 type Statement struct {
-	Type   int8
-	From   From
-	Where  Where
-	Select Select
+	Type    int8
+	FromF   From
+	WhereF  Where
+	SelectF Select
 }
 
 type AST []Statement
