@@ -383,13 +383,13 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 
 func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent int) {
 	assignmentToken := assignStmt.Tok.String()
-	if assignmentToken == ":=" {
+	if assignmentToken == ":=" && len(assignStmt.Lhs) == 1 {
 		v.emit("auto ", indent)
-		assignmentToken = "="
 	}
 	if len(assignStmt.Lhs) > 1 {
 		v.emit("std::tie(", indent)
 	}
+	assignmentToken = "="
 	first := true
 	for _, lhs := range assignStmt.Lhs {
 		if !first {
