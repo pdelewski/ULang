@@ -94,11 +94,11 @@ func main() {
 		fmt.Println(statement.Type)
 		switch statement.Type {
 		case ast.StatementTypeFrom:
-			state = ast.WalkFrom(statement.From, state, visitor)
+			state = ast.WalkFrom(statement.FromF, state, visitor)
 		case ast.StatementTypeWhere:
-			state = ast.WalkWhere(statement.Where, state, visitor)
+			state = ast.WalkWhere(statement.WhereF, state, visitor)
 		case ast.StatementTypeSelect:
-			state = ast.WalkSelect(statement.Select, state, visitor)
+			state = ast.WalkSelect(statement.SelectF, state, visitor)
 		}
 	}
 }

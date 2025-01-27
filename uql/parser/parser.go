@@ -171,21 +171,21 @@ func Parse(text string) (ast.AST, int8) {
 		if lexer.IsFrom(token) {
 			var from ast.From
 			from, tokens = parseFrom(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeFrom, From: from})
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeFrom, FromF: from})
 			continue
 		}
 
 		if lexer.IsWhere(token) {
 			var where ast.Where
 			where, tokens = parseWhere(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeWhere, Where: where})
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeWhere, WhereF: where})
 			continue
 		}
 
 		if lexer.IsSelect(token) {
 			var project ast.Select
 			project, tokens = parseSelect(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeSelect, Select: project})
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeSelect, SelectF: project})
 			token, tokens = lexer.GetNextToken(tokens)
 			continue
 		}
