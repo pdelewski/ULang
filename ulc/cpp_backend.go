@@ -554,6 +554,11 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 			}
 		}
 		v.emit("}\n", indent)
+	case *ast.BranchStmt:
+		switch stmt.Tok {
+		case token.BREAK:
+			v.emit("break;\n", indent)
+		}
 	default:
 		fmt.Printf("<Other statement type>\n")
 
