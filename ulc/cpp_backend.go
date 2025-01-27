@@ -301,15 +301,15 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			}
 		}
 	case *ast.BinaryExpr:
-		v.emit("(", 0)
 		v.emitExpression(e.X, indent) // Left operand
 		v.emit(e.Op.String()+" ", 1)
 		v.emitExpression(e.Y, indent) // Right operand
-		v.emit(")", 0)
 	case *ast.CallExpr:
 		v.generateCallExpr(e, indent)
 	case *ast.ParenExpr:
+		v.emit("(", 0)
 		v.emitExpression(e.X, indent) // Dump inner expression
+		v.emit(")", 0)
 	case *ast.CompositeLit:
 		switch t := e.Type.(type) {
 		case *ast.Ident:
@@ -556,7 +556,9 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 
 func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 	v.emit("if", indent)
+	v.emit(" (", 0)
 	v.emitExpression(ifStmt.Cond, 1)
+	v.emit(") ", 0)
 	v.emit(" {\n", 0)
 	v.emitBlockStmt(ifStmt.Body, indent+2)
 	v.emit("}\n", indent)
