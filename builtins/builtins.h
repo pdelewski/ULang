@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <vector>
+#include <iostream>
 
 using int8 = int8_t;
 using int16 = int16_t;
@@ -37,6 +38,8 @@ std::string string_format(const std::string fmt, ...) {
 }
 
 void println() { printf("\n"); }
+template<typename T>
+void println(const T& val) { std::cout << val << std::endl;}
 
 // Function to mimic Go's append behavior for std::vector
 template <typename T>
