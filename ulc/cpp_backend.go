@@ -294,7 +294,13 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) err
 func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		v.emit(e.Value, 0) // Basic literals like numbers or strings
+		if e.Kind == token.STRING {
+			e.Value = strings.Replace(e.Value, "\"", "", -1)
+			e.Value = strings.Replace(e.Value, "`", "", -1)
+			v.emit(fmt.Sprintf("R\"(%s)\"", e.Value), 0)
+		} else {
+			v.emit(e.Value, 0)
+		}
 	case *ast.Ident:
 		name := e.Name
 		if name == "nil" {
