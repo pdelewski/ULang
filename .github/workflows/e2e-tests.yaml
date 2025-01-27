@@ -44,6 +44,10 @@ jobs:
         working-directory: ulc
         run: g++ -std=c++17 output.cpp
 
+      - name: Cleanup
+        working-directory: ulc
+        run: rm ./output.cpp
+
       - name: Run uql application
         working-directory: ulc
         run: |
