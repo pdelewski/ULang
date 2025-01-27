@@ -5,65 +5,57 @@ import (
 	"uql/lexer"
 )
 
-func sliceToInt64(slice []int8) int64 {
-	var result int64
-	for i, b := range slice {
-		result |= int64(b) << (8 * i)
-	}
-	return result
-}
-
-func precedence(operator []int8) int8 {
-	if operator[0] == '&' && operator[1] == '&' {
+func precedence(op []int8) int8 {
+	if op[0] == '&' && op[1] == '&' {
 		return 1
 	}
-	if operator[0] == '|' && operator[1] == '|' {
+	if op[0] == '|' && op[1] == '|' {
 		return 1
 	}
-	if operator[0] == '>' {
+	if op[0] == '>' {
 		return 2
 	}
-	if operator[0] == '<' {
+	if op[0] == '<' {
 		return 2
 	}
-	if operator[0] == '>' && operator[1] == '=' {
+	if op[0] == '>' && op[1] == '=' {
 		return 2
 	}
-	if operator[0] == '<' && operator[1] == '=' {
+	if op[0] == '<' && op[1] == '=' {
 		return 2
 	}
-	if operator[0] == '=' && operator[1] == '=' {
+	if op[0] == '=' && op[1] == '=' {
 		return 2
 	}
-	if operator[0] == '!' && operator[1] == '=' {
+	if op[0] == '!' && op[1] == '=' {
 		return 2
 	}
 	return -1
 }
 
-func associativity(operator []int8) int8 {
-	if operator[0] == '&' && operator[1] == '&' {
+func associativity(op []int8) int8 {
+	if op[0] == '&' && op[1] == '&' {
 		return 'L'
 	}
-	if operator[0] == '|' && operator[1] == '|' {
+	if op[0] == '|' && op[1] == '|' {
 		return 'L'
 	}
-	if operator[0] == '>' {
+	if op[0] == '>' {
 		return 'L'
 	}
-	if operator[0] == '<' {
+	if op[0] == '<' {
 		return 'L'
 	}
-	if operator[0] == '>' && operator[1] == '=' {
+	if op[0] == '>' && op[1] == '=' {
 		return 'L'
 	}
-	if operator[0] == '<' && operator[1] == '=' {
+	if op[0] == '<' && op[1] == '=' {
 		return 'L'
 	}
-	if operator[0] == '=' && operator[1] == '=' {
+	if op[0] == '=' && op[1] == '=' {
 		return 'L'
 	}
-	if operator[0] == '!' && operator[1] == '=' {
+	if op[0] == '!' && op[1] == '=' {
 		return 'L'
 	}
 	return 'L'
