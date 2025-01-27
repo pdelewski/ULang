@@ -940,7 +940,13 @@ func (v *CppBackend) ProLog() {
 		fmt.Println("Error opening file:", err)
 		return
 	}
-	_, err = v.file.WriteString("#include <vector>\n#include <string>\n#include <tuple>\n#include <any>\n#include <cstdint>\n#include <functional>\n#include \"../builtins/builtins.h\"\n\n")
+	_, err = v.file.WriteString("#include <vector>\n" +
+		"#include <string>\n" +
+		"#include <tuple>\n" +
+		"#include <any>\n" +
+		"#include <cstdint>\n" +
+		"#include <functional>\n" +
+		"#include \"../builtins/builtins.h\"\n\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
