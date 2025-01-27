@@ -37,6 +37,8 @@ var primTypes = map[string]struct{}{
 	"float64": {},
 }
 
+var namespaces = map[string]struct{}{}
+
 type ArrayTypeGen int
 
 const (
@@ -239,7 +241,11 @@ func resolveSelector(selExpr *ast.SelectorExpr) string {
 	default:
 		return "unknown_expr"
 	}
-	return fmt.Sprintf("%s.%s", result, selExpr.Sel.Name)
+	scopeOperator := "."
+	if _, found := namespaces[result]; found {
+		scopeOperator = "::"
+	}
+	return fmt.Sprintf("%s%s%s", result, scopeOperator, selExpr.Sel.Name)
 }
 
 func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
@@ -915,6 +921,7 @@ func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
 }
 
 func (v *CppBackend) ProLog() {
+	namespaces = make(map[string]struct{})
 	v.outputFile = "./output.cpp"
 	var err error
 	v.file, err = os.Create(v.outputFile)
@@ -938,6 +945,7 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 	if cppVisitor.pkg.Name == "main" {
 		return
 	}
+	namespaces[cppVisitor.pkg.Name] = struct{}{}
 	err := cppVisitor.emit(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name), 0)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
