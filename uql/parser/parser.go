@@ -155,17 +155,17 @@ func Parse(text string) (ast.AST, int8) {
 		token, tokens = lexer.GetNextToken(tokens)
 
 		if !lexer.IsAlpha(token.Representation[0]) {
-			return nil, -1
+			return ast.AST{}, -1
 		}
 		lhs := token
 		token, tokens = lexer.GetNextToken(tokens)
 		if !lexer.IsEqual(token.Representation[0]) {
-			return nil, -1
+			return ast.AST{}, -1
 		}
 
 		token, tokens = lexer.GetNextToken(tokens)
 		if !lexer.IsFrom(token) && !lexer.IsWhere(token) && !lexer.IsSelect(token) {
-			return nil, -1
+			return ast.AST{}, -1
 		}
 
 		if lexer.IsFrom(token) {
