@@ -385,8 +385,9 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 	assignmentToken := assignStmt.Tok.String()
 	if assignmentToken == ":=" && len(assignStmt.Lhs) == 1 {
 		v.emit("auto ", indent)
-	}
-	if len(assignStmt.Lhs) > 1 {
+	} else if assignmentToken == ":=" && len(assignStmt.Lhs) > 1 {
+		v.emit("auto [", indent)
+	} else if assignmentToken == "=" && len(assignStmt.Lhs) > 1 {
 		v.emit("std::tie(", indent)
 	}
 	assignmentToken = "="
@@ -403,7 +404,9 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 		}
 	}
 
-	if len(assignStmt.Lhs) > 1 {
+	if assignStmt.Tok.String() == ":=" && len(assignStmt.Lhs) > 1 {
+		v.emit("]", indent)
+	} else if assignStmt.Tok.String() == "=" && len(assignStmt.Lhs) > 1 {
 		v.emit(")", indent)
 	}
 
