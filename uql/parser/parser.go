@@ -13,16 +13,34 @@ func sliceToInt64(slice []int8) int64 {
 	return result
 }
 
-var precedence = map[int64]int8{
-	sliceToInt64([]int8{'&', '&'}): 1,
-	sliceToInt64([]int8{'|', '|'}): 1,
-	sliceToInt64([]int8{'>'}):      2,
-	sliceToInt64([]int8{'<'}):      2,
-	sliceToInt64([]int8{'>', '='}): 2,
-	sliceToInt64([]int8{'<', '='}): 2,
-	sliceToInt64([]int8{'=', '='}): 2,
-	sliceToInt64([]int8{'!', '='}): 2,
+func precedence(operator []int8) int8 {
+	if operator[0] == '&' && operator[1] == '&' {
+		return 1
+	}
+	if operator[0] == '|' && operator[1] == '|' {
+		return 1
+	}
+	if operator[0] == '>' {
+		return 2
+	}
+	if operator[0] == '<' {
+		return 2
+	}
+	if operator[0] == '>' && operator[1] == '=' {
+		return 2
+	}
+	if operator[0] == '<' && operator[1] == '=' {
+		return 2
+	}
+	if operator[0] == '=' && operator[1] == '=' {
+		return 2
+	}
+	if operator[0] == '!' && operator[1] == '=' {
+		return 2
+	}
+	return -1
 }
+
 var associativity = map[int64]int8{
 	sliceToInt64([]int8{'&', '&'}): 'L',
 	sliceToInt64([]int8{'|', '|'}): 'L',
@@ -47,9 +65,9 @@ func parseExpression(tokens []lexer.Token, minPrecedence int8) (ast.LogicalExpr,
 	i := 1
 	for i < len(tokens) {
 		token := tokens[i]
-		tokenPrecedence, exists := precedence[sliceToInt64(token.Representation)]
+		tokenPrecedence := precedence(token.Representation)
 
-		if !exists || tokenPrecedence < minPrecedence {
+		if tokenPrecedence == -1 || tokenPrecedence < minPrecedence {
 			break
 		}
 
