@@ -309,12 +309,16 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		v.emitExpression(e.X, indent) // Dump inner expression
 		v.emit(")", 0)
 	case *ast.CompositeLit:
+		isArray := false
+		isLeftBrace := false
 		switch t := e.Type.(type) {
 		case *ast.Ident:
-			v.emit(fmt.Sprintf("%s()", t.Name), 0)
+			v.emit(fmt.Sprintf("%s{", t.Name), 0)
+			isLeftBrace = true
 		case *ast.SelectorExpr:
 			if pkgIdent, ok := t.X.(*ast.Ident); ok {
-				v.emit(fmt.Sprintf("%s::%s()", pkgIdent.Name, t.Sel.Name), 0)
+				v.emit(fmt.Sprintf("%s::%s{", pkgIdent.Name, t.Sel.Name), 0)
+				isLeftBrace = true
 			} else {
 				v.emit("<unknown composite literal/selector_expr>", 0)
 			}
@@ -323,12 +327,18 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			v.emitExpression(t.Elt, 0)
 			v.emit(">", 0)
 			v.emit("{", 0)
-			for i, elt := range e.Elts {
-				if i > 0 {
-					v.emit(", ", 0)
-				}
-				v.emitExpression(elt, indent)
+			isArray = true
+		}
+		for i, elt := range e.Elts {
+			if i > 0 {
+				v.emit(", ", 0)
 			}
+			v.emitExpression(elt, indent)
+		}
+		if isArray {
+			v.emit("}", 0)
+		}
+		if isLeftBrace {
 			v.emit("}", 0)
 		}
 	case *ast.SelectorExpr:
@@ -391,9 +401,30 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		}
 		v.emit(")", 0)
 	case *ast.KeyValueExpr:
+		v.emit(".", 0)
 		v.emitExpression(e.Key, indent)
-		v.emit(": ", 0)
+		v.emit("= ", 0)
 		v.emitExpression(e.Value, indent)
+		v.emit("\n", 0)
+	case *ast.FuncLit:
+		v.emit("[&](", indent)
+		for i, param := range e.Type.Params.List {
+			if i > 0 {
+				v.emit(", ", 0)
+			}
+			v.emitExpression(param.Type, indent)
+		}
+		v.emit(")", 0)
+		v.emit("->", 0)
+		for i, result := range e.Type.Results.List {
+			if i > 0 {
+				v.emit(", ", 0)
+			}
+			v.emitExpression(result.Type, indent)
+		}
+		v.emit("{", 0)
+		v.emit("return 0;", 0)
+		v.emit("}", 0)
 	default:
 		fmt.Println("<unknown expression>")
 	}

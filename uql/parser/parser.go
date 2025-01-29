@@ -129,7 +129,7 @@ func parseWhere(tokens []lexer.Token, lhs lexer.Token) (ast.Where, []lexer.Token
 			break
 		}
 	}
-	return ast.Where{ResultTableExpr: lhs, Expr: expr}, tokens
+	return ast.Where{Expr: expr, ResultTableExpr: lhs}, tokens
 }
 
 func parseSelect(tokens []lexer.Token, lhs lexer.Token) (ast.Select, []lexer.Token) {
