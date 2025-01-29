@@ -191,21 +191,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 			case *ast.ArrayType:
 				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
 			case *ast.FuncType:
-				v.emit("std::function<", indent)
-				for i, result := range typ.Results.List {
-					if i > 0 {
-						v.emit(", ", 0)
-					}
-					v.emitExpression(result.Type, indent)
-				}
-				v.emit("(", 0)
-				for i, param := range typ.Params.List {
-					if i > 0 {
-						v.emit(", ", 0)
-					}
-					v.emitExpression(param.Type, indent)
-				}
-				v.emit(")", 0)
+				v.emitExpression(typ, 0)
 				//v.emit(fmt.Sprintf("%s", v.inspectType(typ)), 0)
 				v.emit(fmt.Sprintf("> %s;\n", fieldName.Name), 0)
 			}
@@ -335,7 +321,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		case *ast.ArrayType:
 			v.emit("std::vector<", 0)
 			v.emitExpression(t.Elt, 0)
-			v.emit(">{", 0)
+			v.emit(">", 0)
+			v.emit("{", 0)
 			for i, elt := range e.Elts {
 				if i > 0 {
 					v.emit(", ", 0)
@@ -385,6 +372,22 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			v.emitExpression(e.Max, indent)
 		} else if e.Slice3 {
 			log.Println("Max index: <nil>")
+		}
+		v.emit(")", 0)
+	case *ast.FuncType:
+		v.emit("std::function<", indent)
+		for i, result := range e.Results.List {
+			if i > 0 {
+				v.emit(", ", 0)
+			}
+			v.emitExpression(result.Type, indent)
+		}
+		v.emit("(", 0)
+		for i, param := range e.Params.List {
+			if i > 0 {
+				v.emit(", ", 0)
+			}
+			v.emitExpression(param.Type, indent)
 		}
 		v.emit(")", 0)
 	default:
