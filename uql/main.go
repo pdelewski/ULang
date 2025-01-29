@@ -22,11 +22,16 @@ func main() {
 		PostVisitFrom: func(state any, from ast.From) any {
 			newState := state.(State)
 			fmt.Println("From:")
-			var builder strings.Builder
-			indent := strings.Repeat("  ", int(newState.depth))
-			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(from.ResultTableExpr)))
-			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(from.TableExpr[0])))
-			fmt.Print(builder.String())
+			var result string
+			var indent string
+			for i := 0; i < int(newState.depth); i++ {
+				indent += "  "
+			}
+			result += indent
+			result += lexer.DumpTokenString(from.ResultTableExpr)
+			result += indent
+			result += lexer.DumpTokenString(from.TableExpr[0])
+			fmt.Print(result)
 			newState.depth--
 			return newState
 		},
