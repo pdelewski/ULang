@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"uql/ast"
 	"uql/lexer"
 	"uql/parser"
@@ -39,10 +38,16 @@ func main() {
 			newState := state.(State)
 			newState.depth++
 			fmt.Println("Where:")
-			var builder strings.Builder
-			indent := strings.Repeat("  ", int(newState.depth))
-			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(where.ResultTableExpr)))
-			fmt.Print(builder.String())
+			var result string
+			var indent string
+			for i := 0; i < int(newState.depth); i++ {
+				indent += "  "
+			}
+			result += indent
+			result += lexer.DumpTokenString(where.ResultTableExpr)
+			result += indent
+			result += lexer.DumpTokenString(where.ResultTableExpr)
+			fmt.Print(result)
 			newState.depth--
 			return newState
 		},
@@ -54,11 +59,16 @@ func main() {
 			newState := state.(State)
 			newState.depth++
 			fmt.Println("Select:")
-			var builder strings.Builder
-			indent := strings.Repeat("  ", int(newState.depth))
-			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(project.ResultTableExpr)))
-			builder.WriteString(fmt.Sprintf("%s%s", indent, lexer.DumpTokenString(project.Fields[0])))
-			fmt.Print(builder.String())
+			var result string
+			var indent string
+			for i := 0; i < int(newState.depth); i++ {
+				indent += "  "
+			}
+			result += indent
+			result += lexer.DumpTokenString(project.ResultTableExpr)
+			result += indent
+			result += lexer.DumpTokenString(project.Fields[0])
+			fmt.Print(result)
 			newState.depth--
 			return newState
 		},
@@ -70,11 +80,16 @@ func main() {
 		PreVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
 			newState := state.(State)
 			newState.depth++
-			var builder strings.Builder
-			indent := strings.Repeat("  ", int(newState.depth))
-			builder.WriteString(fmt.Sprintf("%sValue:", indent))
-			builder.WriteString(lexer.DumpTokensString([]lexer.Token{expr.Value}))
-			fmt.Print(builder.String())
+
+			var result string
+			var indent string
+			for i := 0; i < int(newState.depth); i++ {
+				indent += "  "
+			}
+			result += indent
+			result += fmt.Sprintf("%sValue:", indent)
+			result += lexer.DumpTokensString([]lexer.Token{expr.Value})
+			fmt.Print(result)
 			return newState
 		},
 		PostVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
