@@ -41,6 +41,9 @@ void println() { printf("\n"); }
 template<typename T>
 void println(const T& val) { std::cout << val << std::endl;}
 
+template<typename T>
+void printf(const T& val) { std::cout << val;}
+
 // Function to mimic Go's append behavior for std::vector
 template <typename T>
 std::vector<T> append(const std::vector<T> &vec,
