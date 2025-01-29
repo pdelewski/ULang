@@ -87,7 +87,6 @@ func main() {
 				indent += "  "
 			}
 			result += indent
-			result += fmt.Sprintf("%sValue:", indent)
 			result += lexer.DumpTokensString([]lexer.Token{expr.Value})
 			fmt.Print(result)
 			return newState
