@@ -413,6 +413,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 				v.emit(", ", 0)
 			}
 			v.emitExpression(param.Type, indent)
+			v.emit(" ", 0)
+			v.emit(param.Names[0].Name, indent)
 		}
 		v.emit(")", 0)
 		v.emit("->", 0)
@@ -422,9 +424,15 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			}
 			v.emitExpression(result.Type, indent)
 		}
-		v.emit("{", 0)
-		v.emit("return 0;", 0)
+		v.emit("{\n", 0)
+		v.emitBlockStmt(e.Body, indent+2)
 		v.emit("}", 0)
+	case *ast.TypeAssertExpr:
+		v.emit("std::any_cast<", indent)
+		v.emitExpression(e.Type, indent)
+		v.emit(">(std::any(", 0)
+		v.emitExpression(e.X, indent)
+		v.emit("))", 0)
 	default:
 		fmt.Println("<unknown expression>")
 	}
