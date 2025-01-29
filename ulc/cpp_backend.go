@@ -390,6 +390,10 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			v.emitExpression(param.Type, indent)
 		}
 		v.emit(")", 0)
+	case *ast.KeyValueExpr:
+		v.emitExpression(e.Key, indent)
+		v.emit(": ", 0)
+		v.emitExpression(e.Value, indent)
 	default:
 		fmt.Println("<unknown expression>")
 	}
