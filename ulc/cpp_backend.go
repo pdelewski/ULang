@@ -282,8 +282,12 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 	case *ast.BasicLit:
 		if e.Kind == token.STRING {
 			e.Value = strings.Replace(e.Value, "\"", "", -1)
-			e.Value = strings.Replace(e.Value, "`", "", -1)
-			v.emit(fmt.Sprintf("R\"(%s)\"", e.Value), 0)
+			if e.Value[0] == '`' {
+				e.Value = strings.Replace(e.Value, "`", "", -1)
+				v.emit(fmt.Sprintf("R\"(%s)\"", e.Value), 0)
+			} else {
+				v.emit(fmt.Sprintf("\"%s\"", e.Value), 0)
+			}
 		} else {
 			v.emit(e.Value, 0)
 		}
