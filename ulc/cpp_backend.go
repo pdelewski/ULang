@@ -597,6 +597,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 				for _, innerStmt := range caseClause.Body {
 					v.emitStmt(innerStmt, indent+4)
 				}
+				v.emit("break;\n", indent+4)
 			}
 		}
 		v.emit("}\n", indent)
