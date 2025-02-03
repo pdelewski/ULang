@@ -448,7 +448,9 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 	} else if assignmentToken == "=" && len(assignStmt.Lhs) > 1 {
 		v.emit("std::tie(", indent)
 	}
-	assignmentToken = "="
+	if assignmentToken != "+=" {
+		assignmentToken = "="
+	}
 	first := true
 	for _, lhs := range assignStmt.Lhs {
 		if !first {
