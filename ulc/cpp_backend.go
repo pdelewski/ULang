@@ -596,6 +596,9 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 					v.emitExpression(expr, indent+2)
 					v.emit(":\n", 0)
 				}
+				if len(caseClause.List) == 0 {
+					v.emit("default:\n", indent+2)
+				}
 				for _, innerStmt := range caseClause.Body {
 					v.emitStmt(innerStmt, indent+4)
 				}
