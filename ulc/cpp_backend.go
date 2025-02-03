@@ -617,6 +617,11 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 		case token.CONTINUE:
 			v.emit("continue;\n", indent)
 		}
+	case *ast.IncDecStmt:
+		v.emit("", indent)
+		v.emitExpression(stmt.X, indent)
+		v.emit(stmt.Tok.String(), 0)
+		v.emit(";\n", 0)
 	default:
 		fmt.Printf("<Other statement type>\n")
 
