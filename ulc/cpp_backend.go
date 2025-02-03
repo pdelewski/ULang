@@ -604,6 +604,8 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 		switch stmt.Tok {
 		case token.BREAK:
 			v.emit("break;\n", indent)
+		case token.CONTINUE:
+			v.emit("continue;\n", indent)
 		}
 	default:
 		fmt.Printf("<Other statement type>\n")
