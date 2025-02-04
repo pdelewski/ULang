@@ -38,6 +38,9 @@ std::string string_format(const std::string fmt, ...) {
 }
 
 void println() { printf("\n"); }
+
+void println(std::int8_t val) { printf("%d\n", val); }
+
 template<typename T>
 void println(const T& val) { std::cout << val << std::endl;}
 
