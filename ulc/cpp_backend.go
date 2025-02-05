@@ -214,7 +214,7 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
-	return "unknown"
+	panic(fmt.Sprintf("unsupported expression type: %T", expr))
 }
 
 func resolveSelector(selExpr *ast.SelectorExpr) string {
@@ -225,7 +225,7 @@ func resolveSelector(selExpr *ast.SelectorExpr) string {
 	case *ast.SelectorExpr: // Recursive case: nested selectors
 		result = resolveSelector(x)
 	default:
-		return "unknown_expr"
+		panic(fmt.Sprintf("unsupported expression type: %T", selExpr))
 	}
 	scopeOperator := "."
 	if _, found := namespaces[result]; found {
@@ -324,7 +324,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 				v.emit(fmt.Sprintf("%s::%s{", pkgIdent.Name, t.Sel.Name), 0)
 				isLeftBrace = true
 			} else {
-				v.emit("<unknown composite literal/selector_expr>", 0)
+				panic(fmt.Sprintf("unsupported expression type: %T", expr))
 			}
 		case *ast.ArrayType:
 			v.emit("std::vector<", 0)
@@ -438,7 +438,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		v.emitExpression(e.X, indent)
 		v.emit("))", 0)
 	default:
-		fmt.Println("<unknown expression>")
+		panic(fmt.Sprintf("unsupported expression type: %T", e))
 	}
 
 }
