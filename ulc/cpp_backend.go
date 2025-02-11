@@ -86,6 +86,19 @@ func (v *CppBackendVisitor) emit(s string, indent int) error {
 	return nil
 }
 
+func (v *CppBackendVisitor) emitToFile(s string) error {
+	_, err := v.pass.file.WriteString(s)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return err
+	}
+	return nil
+}
+
+func (v *CppBackendVisitor) emitAsString(s string, indent int) string {
+	return strings.Repeat(" ", indent) + s
+}
+
 func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, arrayType ArrayTypeGen) {
 	var err error
 	switch elt := typ.Elt.(type) {
@@ -286,66 +299,81 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 			e.Value = strings.Replace(e.Value, "\"", "", -1)
 			if e.Value[0] == '`' {
 				e.Value = strings.Replace(e.Value, "`", "", -1)
-				v.emit(fmt.Sprintf("R\"(%s)\"", e.Value), 0)
+				str := v.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0)
+				v.emitToFile(str)
 			} else {
-				v.emit(fmt.Sprintf("\"%s\"", e.Value), 0)
+				str := v.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0)
+				v.emitToFile(str)
 			}
 		} else {
-			v.emit(e.Value, 0)
+			str := v.emitAsString(e.Value, 0)
+			v.emitToFile(str)
 		}
 	case *ast.Ident:
 		name := e.Name
 		if name == "nil" {
-			v.emit("{}", 0)
+			str := v.emitAsString("{}", 0)
+			v.emitToFile(str)
 		} else {
 			if n, ok := typesMap[e.Name]; ok {
-				v.emit(n, 0)
+				str := v.emitAsString(n, 0)
+				v.emitToFile(str)
 			} else {
-				v.emit(e.Name, 0) // Variables or identifiers
+				str := v.emitAsString(e.Name, 0)
+				v.emitToFile(str)
 			}
 		}
 	case *ast.BinaryExpr:
 		v.emitExpression(e.X, indent) // Left operand
-		v.emit(e.Op.String()+" ", 1)
+		str := v.emitAsString(e.Op.String()+" ", 1)
+		v.emitToFile(str)
 		v.emitExpression(e.Y, indent) // Right operand
 	case *ast.CallExpr:
 		v.generateCallExpr(e, indent)
 	case *ast.ParenExpr:
-		v.emit("(", 0)
+		str := v.emitAsString("(", 0)
+		v.emitToFile(str)
 		v.emitExpression(e.X, indent) // Dump inner expression
-		v.emit(")", 0)
+		str = v.emitAsString(")", 0)
+		v.emitToFile(str)
 	case *ast.CompositeLit:
 		isArray := false
 		isLeftBrace := false
 		switch t := e.Type.(type) {
 		case *ast.Ident:
-			v.emit(fmt.Sprintf("%s{", t.Name), 0)
+			str := v.emitAsString(fmt.Sprintf("%s{", t.Name), 0)
+			v.emitToFile(str)
 			isLeftBrace = true
 		case *ast.SelectorExpr:
 			if pkgIdent, ok := t.X.(*ast.Ident); ok {
-				v.emit(fmt.Sprintf("%s::%s{", pkgIdent.Name, t.Sel.Name), 0)
+				str := v.emitAsString(fmt.Sprintf("%s::%s{", pkgIdent.Name, t.Sel.Name), 0)
+				v.emitToFile(str)
 				isLeftBrace = true
 			} else {
 				panic(fmt.Sprintf("unsupported expression type: %T", expr))
 			}
 		case *ast.ArrayType:
-			v.emit("std::vector<", 0)
+			str := v.emitAsString("std::vector<", 0)
+			v.emitToFile(str)
 			v.emitExpression(t.Elt, 0)
-			v.emit(">", 0)
-			v.emit("{", 0)
+			str = v.emitAsString(">{", 0)
+			v.emitToFile(str)
 			isArray = true
 		}
 		for i, elt := range e.Elts {
 			if i > 0 {
-				v.emit(", ", 0)
+				str := v.emitAsString(", ", 0)
+				v.emitToFile(str)
 			}
 			v.emitExpression(elt, indent)
 		}
 		if isArray {
-			v.emit("}", 0)
+			str := v.emitAsString("}", 0)
+			v.emitToFile(str)
 		}
 		if isLeftBrace {
-			v.emit("}", 0)
+			str := v.emitAsString("}", 0)
+			v.emitToFile(str)
 		}
 	case *ast.SelectorExpr:
 		selector := resolveSelector(e)
@@ -353,92 +381,127 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) {
 		v.emit(selector, 0)
 	case *ast.IndexExpr:
 		v.emitExpression(e.X, indent)
-		v.emit("[", 0)
+		str := v.emitAsString("[", 0)
+		v.emitToFile(str)
 		v.emitExpression(e.Index, indent)
-		v.emit("]", 0)
+		str = v.emitAsString("]", 0)
+		v.emitToFile(str)
 	case *ast.UnaryExpr:
-		v.emit("(", 0)
-		v.emit(e.Op.String(), 0)
+		str := v.emitAsString("(", 0)
+		v.emitToFile(str)
+		str = v.emitAsString(e.Op.String(), 0)
+		v.emitToFile(str)
 		v.emitExpression(e.X, 0)
-		v.emit(")", 0)
+		str = v.emitAsString(")", 0)
+		v.emitToFile(str)
 	case *ast.SliceExpr:
-		v.emit("std::vector<std::remove_reference<decltype(", indent)
+		str := v.emitAsString("std::vector<std::remove_reference<decltype(", indent)
+		v.emitToFile(str)
 		v.emitExpression(e.X, 0)
-		v.emit("[0]", 0)
-		v.emit(")>::type>(", 0)
+		str = v.emitAsString("[0]", 0)
+		v.emitToFile(str)
+		str = v.emitAsString(")>::type>(", 0)
+		v.emitToFile(str)
 		// Check and print Low, High, and Max
 		v.emitExpression(e.X, indent)
-		v.emit(".begin() ", 0)
+		str = v.emitAsString(".begin() ", 0)
+		v.emitToFile(str)
 		if e.Low != nil {
-			v.emit("+ ", 0)
+			str = v.emitAsString("+ ", 0)
+			v.emitToFile(str)
 			v.emitExpression(e.Low, indent)
 		} else {
 			log.Println("Low index: <nil>")
 		}
-		v.emit(", ", 0)
+		str = v.emitAsString(", ", 0)
+		v.emitToFile(str)
 		v.emitExpression(e.X, indent)
 		if e.High != nil {
-			v.emit(".begin() ", 0)
-			v.emit("+ ", 0)
+			str = v.emitAsString(".begin() ", 0)
+			v.emitToFile(str)
+			str = v.emitAsString("+ ", 0)
+			v.emitToFile(str)
 			v.emitExpression(e.High, indent)
 		} else {
-			v.emit(".end() ", 0)
+			str = v.emitAsString(".end() ", 0)
+			v.emitToFile(str)
 		}
 		if e.Slice3 && e.Max != nil {
 			v.emitExpression(e.Max, indent)
 		} else if e.Slice3 {
 			log.Println("Max index: <nil>")
 		}
-		v.emit(")", 0)
+		str = v.emitAsString(")", 0)
+		v.emitToFile(str)
 	case *ast.FuncType:
-		v.emit("std::function<", indent)
+		str := v.emitAsString("std::function<", indent)
+		v.emitToFile(str)
 		for i, result := range e.Results.List {
 			if i > 0 {
-				v.emit(", ", 0)
+				str = v.emitAsString(", ", 0)
+				v.emitToFile(str)
 			}
 			v.emitExpression(result.Type, indent)
 		}
-		v.emit("(", 0)
+		str = v.emitAsString("(", 0)
+		v.emitToFile(str)
 		for i, param := range e.Params.List {
 			if i > 0 {
-				v.emit(", ", 0)
+				str = v.emitAsString(", ", 0)
+				v.emitToFile(str)
 			}
 			v.emitExpression(param.Type, indent)
 		}
-		v.emit(")", 0)
+		str = v.emitAsString(")", 0)
+		v.emitToFile(str)
 	case *ast.KeyValueExpr:
-		v.emit(".", 0)
+		str := v.emitAsString(".", 0)
+		v.emitToFile(str)
 		v.emitExpression(e.Key, indent)
-		v.emit("= ", 0)
+		str = v.emitAsString("= ", 0)
+		v.emitToFile(str)
 		v.emitExpression(e.Value, indent)
-		v.emit("\n", 0)
+		str = v.emitAsString("\n", 0)
+		v.emitToFile(str)
 	case *ast.FuncLit:
-		v.emit("[&](", indent)
+		str := v.emitAsString("[&](", indent)
+		v.emitToFile(str)
 		for i, param := range e.Type.Params.List {
 			if i > 0 {
-				v.emit(", ", 0)
+				str = v.emitAsString(", ", 0)
+				v.emitToFile(str)
 			}
 			v.emitExpression(param.Type, indent)
-			v.emit(" ", 0)
-			v.emit(param.Names[0].Name, indent)
+			str = v.emitAsString(" ", 0)
+			v.emitToFile(str)
+			str = v.emitAsString(param.Names[0].Name, indent)
+			v.emitToFile(str)
 		}
-		v.emit(")", 0)
-		v.emit("->", 0)
+		str = v.emitAsString(")", 0)
+		v.emitToFile(str)
+		str = v.emitAsString("->", 0)
+		v.emitToFile(str)
 		for i, result := range e.Type.Results.List {
 			if i > 0 {
-				v.emit(", ", 0)
+				str = v.emitAsString(", ", 0)
+				v.emitToFile(str)
 			}
 			v.emitExpression(result.Type, indent)
 		}
-		v.emit("{\n", 0)
+		str = v.emitAsString("{\n", 0)
+		v.emitToFile(str)
 		v.emitBlockStmt(e.Body, indent+2)
-		v.emit("}", 0)
+		str = v.emitAsString("}", 0)
+		v.emitToFile(str)
 	case *ast.TypeAssertExpr:
-		v.emit("std::any_cast<", indent)
+		str := v.emitAsString("std::any_cast<", indent)
+		v.emitToFile(str)
 		v.emitExpression(e.Type, indent)
-		v.emit(">(std::any(", 0)
+		str = v.emitAsString(">(std::any(", 0)
+		v.emitToFile(str)
 		v.emitExpression(e.X, indent)
-		v.emit("))", 0)
+		str = v.emitAsString("))", 0)
+		v.emitToFile(str)
 	default:
 		panic(fmt.Sprintf("unsupported expression type: %T", e))
 	}
