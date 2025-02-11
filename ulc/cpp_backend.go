@@ -211,6 +211,8 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 		return "*" + v.inspectType(t.X)
 	case *ast.ArrayType: // Array of types
 		return "std::vector<" + v.inspectType(t.Elt) + ">"
+	case *ast.FuncType:
+		return "std::function<>"
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
