@@ -45,3 +45,49 @@ type ColumnStats struct {
 	MaxValue  interface{} `json:"max_value"`  // Maximum value
 	NullCount int64       `json:"null_count"` // Number of null values
 }
+
+// ManifestList represents an Iceberg manifest list file
+type ManifestList struct {
+	Version       int32          `json:"version"`
+	ManifestFiles []ManifestFile `json:"manifest_files"`
+	CreatedAt     int64          `json:"created_at"`
+}
+
+// MetadataFile represents the Iceberg metadata.json file
+type MetadataFile struct {
+	FormatVersion     int             `json:"format-version"`
+	TableUUID         string          `json:"table-uuid"`
+	Location          string          `json:"location"`
+	LastUpdatedMs     int64           `json:"last-updated-ms"`
+	CurrentSnapshotID int64           `json:"current-snapshot-id,omitempty"`
+	Snapshots         []ManifestList  `json:"snapshots,omitempty"`
+	PartitionSpecs    []PartitionSpec `json:"partition-specs"`
+	Schemas           []Schema        `json:"schemas"`
+}
+
+// Schema defines the schema structure in Iceberg
+type Schema struct {
+	SchemaID int32   `json:"schema-id"`
+	Fields   []Field `json:"fields"`
+}
+
+// Field represents a column in the schema
+type Field struct {
+	ID       int32  `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Required bool   `json:"required"`
+}
+
+// PartitionSpec defines partitioning rules
+type PartitionSpec struct {
+	SpecID int32            `json:"spec-id"`
+	Fields []PartitionField `json:"fields"`
+}
+
+// PartitionField defines a partition field
+type PartitionField struct {
+	SourceID  int32  `json:"source-id"`
+	Transform string `json:"transform"`
+	Name      string `json:"name"`
+}
