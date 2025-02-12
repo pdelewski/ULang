@@ -57,6 +57,10 @@ jobs:
         working-directory: ulc
         run: g++ -std=c++17 output.cpp
 
+      - name: Cleanup
+        working-directory: ulc
+        run: rm ./output.cpp
+
       - name: Run iceberg application
         working-directory: ulc
         run: |
