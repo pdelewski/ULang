@@ -26,7 +26,7 @@ type Partition struct {
 type ManifestEntry struct {
 	Status     int32    `json:"status"`      // 0 = existing, 1 = added, 2 = deleted
 	SnapshotID int64    `json:"snapshot_id"` // Snapshot that added this file
-	DataFile   DataFile `json:"data_file"`   // Associated data file
+	DataFileF  DataFile `json:"data_file"`   // Associated data file
 }
 
 // DataFile represents a data file in the manifest.
@@ -36,7 +36,7 @@ type DataFile struct {
 	Partition       []interface{} `json:"partition"`       // Partition values
 	RecordCount     int64         `json:"record_count"`    // Number of records
 	FileSizeInBytes int64         `json:"file_size_bytes"` // File size in bytes
-	ColumnStats     []ColumnStats `json:"column_stats"`    // Statistics per column
+	ColumnStatsF    []ColumnStats `json:"column_stats"`    // Statistics per column
 }
 
 // ColumnStats represents statistics for a single column.
