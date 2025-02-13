@@ -77,15 +77,6 @@ func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
 	return []ast.Visitor{v.visitor}
 }
 
-func (v *CppBackendVisitor) emit(s string, indent int) error {
-	_, err := v.pass.file.WriteString(strings.Repeat(" ", indent) + s)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return err
-	}
-	return nil
-}
-
 func (v *CppBackendVisitor) emitToFile(s string) error {
 	_, err := v.pass.file.WriteString(s)
 	if err != nil {
@@ -112,19 +103,23 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			err = v.emit(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), 2)
+			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), 2)
+			err = v.emitToFile(str)
 		case ArrayArgument:
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			err = v.emit(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName), 0)
+			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName), 0)
+			err = v.emitToFile(str)
 		case ArrayReturn:
-			err = v.emit(fmt.Sprintf("std::vector<%s>", cppType), 0)
+			str := v.emitAsString(fmt.Sprintf("std::vector<%s>", cppType), 0)
+			err = v.emitToFile(str)
 		case ArrayAlias:
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			err = v.emit(fmt.Sprintf("using %s = std::vector<%s>;\n\n", fieldName, cppType), 0)
+			str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s>;\n\n", fieldName, cppType), 0)
+			err = v.emitToFile(str)
 		}
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
@@ -140,19 +135,23 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				err = v.emit(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), 2)
+				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), 2)
+				err = v.emitToFile(str)
 			case ArrayArgument:
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				err = v.emit(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName), 0)
+				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName), 0)
+				err = v.emitToFile(str)
 			case ArrayReturn:
-				err = v.emit(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType), 0)
+				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType), 0)
+				err = v.emitToFile(str)
 			case ArrayAlias:
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				err = v.emit(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType), 0)
+				str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType), 0)
+				err = v.emitToFile(str)
 			}
 		}
 		if err != nil {
@@ -167,11 +166,14 @@ func (v *CppBackendVisitor) generatePrimType(cppType string, pkg string, fieldNa
 	}
 	var err error
 	if fieldName == "" {
-		err = v.emit(cppType, 0)
+		str := v.emitAsString(cppType, 0)
+		err = v.emitToFile(str)
 	} else if pkg != "" {
-		err = v.emit(fmt.Sprintf("%s::%s %s", pkg, cppType, fieldName), 0)
+		str := v.emitAsString(fmt.Sprintf("%s::%s %s", pkg, cppType, fieldName), 0)
+		err = v.emitToFile(str)
 	} else {
-		err = v.emit(fmt.Sprintf("%s %s", cppType, fieldName), 0)
+		str := v.emitAsString(fmt.Sprintf("%s %s", cppType, fieldName), 0)
+		err = v.emitToFile(str)
 	}
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -187,7 +189,8 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 				if val, ok := typesMap[typ.Name]; ok {
 					cppType = val
 				}
-				err := v.emit(fmt.Sprintf("%s %s;\n", cppType, fieldName.Name), indent)
+				str := v.emitAsString(fmt.Sprintf("%s %s;\n", cppType, fieldName.Name), indent)
+				err := v.emitToFile(str)
 				if err != nil {
 					fmt.Println("Error writing to file:", err)
 				}
@@ -195,9 +198,11 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 				if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 					if named, ok := obj.Type().(*types.Named); ok {
 						if _, ok := named.Underlying().(*types.Struct); ok {
-							v.emit("", 2)
+							str := v.emitAsString("", 2)
+							v.emitToFile(str)
 							v.generatePrimType(named.Obj().Name(), named.Obj().Pkg().Name(), fieldName.Name)
-							v.emit(";\n", 0)
+							str = v.emitAsString(";\n", 0)
+							v.emitToFile(str)
 						}
 					}
 				}
@@ -205,8 +210,8 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
 			case *ast.FuncType:
 				v.emitExpression(typ, 0)
-				//v.emit(fmt.Sprintf("%s", v.inspectType(typ)), 0)
-				v.emit(fmt.Sprintf("> %s;\n", fieldName.Name), 0)
+				str := v.emitAsString(fmt.Sprintf("> %s;\n", fieldName.Name), 0)
+				v.emitToFile(str)
 			}
 		}
 	}
@@ -386,7 +391,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 	case *ast.SelectorExpr:
 		selector := resolveSelector(e)
 		selector = v.lowerToBuiltins(selector)
-		v.emit(selector, 0)
+		str := v.emitAsString(selector, 0)
+		v.emitToFile(str)
 	case *ast.IndexExpr:
 		v.emitExpression(e.X, indent)
 		str = v.emitAsString("[", 0)
@@ -519,11 +525,14 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent int) {
 	assignmentToken := assignStmt.Tok.String()
 	if assignmentToken == ":=" && len(assignStmt.Lhs) == 1 {
-		v.emit("auto ", indent)
+		str := v.emitAsString("auto ", indent)
+		v.emitToFile(str)
 	} else if assignmentToken == ":=" && len(assignStmt.Lhs) > 1 {
-		v.emit("auto [", indent)
+		str := v.emitAsString("auto [", indent)
+		v.emitToFile(str)
 	} else if assignmentToken == "=" && len(assignStmt.Lhs) > 1 {
-		v.emit("std::tie(", indent)
+		str := v.emitAsString("std::tie(", indent)
+		v.emitToFile(str)
 	}
 	if assignmentToken != "+=" {
 		assignmentToken = "="
@@ -531,46 +540,55 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 	first := true
 	for _, lhs := range assignStmt.Lhs {
 		if !first {
-			v.emit(", ", indent)
+			str := v.emitAsString(", ", indent)
+			v.emitToFile(str)
 		}
 		first = false
 		if ident, ok := lhs.(*ast.Ident); ok {
-			v.emit(ident.Name, indent)
+			str := v.emitAsString(ident.Name, indent)
+			v.emitToFile(str)
 		} else {
 			v.emitExpression(lhs, indent)
 		}
 	}
 
 	if assignStmt.Tok.String() == ":=" && len(assignStmt.Lhs) > 1 {
-		v.emit("]", indent)
+		str := v.emitAsString("]", indent)
+		v.emitToFile(str)
 	} else if assignStmt.Tok.String() == "=" && len(assignStmt.Lhs) > 1 {
-		v.emit(")", indent)
+		str := v.emitAsString(")", indent)
+		v.emitToFile(str)
 	}
 
-	v.emit(assignmentToken+" ", indent+1)
-
+	str := v.emitAsString(assignmentToken+" ", indent+1)
+	v.emitToFile(str)
 	for _, rhs := range assignStmt.Rhs {
 		v.emitExpression(rhs, indent)
 	}
 }
 
 func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) {
-	v.emit("return ", indent)
+	str := v.emitAsString("return ", indent)
+	v.emitToFile(str)
 	if len(retStmt.Results) > 1 {
-		v.emit("std::make_tuple(", 0)
+		str := v.emitAsString("std::make_tuple(", 0)
+		v.emitToFile(str)
 	}
 	first := true
 	for _, result := range retStmt.Results {
 		if !first {
-			v.emit(", ", 0)
+			str := v.emitAsString(", ", 0)
+			v.emitToFile(str)
 		}
 		first = false
 		v.emitExpression(result, indent)
 	}
 	if len(retStmt.Results) > 1 {
-		v.emit(")", 0)
+		str := v.emitAsString(")", 0)
+		v.emitToFile(str)
 	}
-	v.emit(";\n", 0)
+	str = v.emitAsString(";\n", 0)
+	v.emitToFile(str)
 }
 
 func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
@@ -608,7 +626,8 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 			if val, ok := typesMap[variable.Type]; ok {
 				cppType = val
 			}
-			err := v.emit(fmt.Sprintf("%s %s;\n", cppType, variable.Name), indent)
+			str := v.emitAsString(fmt.Sprintf("%s %s;\n", cppType, variable.Name), indent)
+			err := v.emitToFile(str)
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 			}
@@ -1153,7 +1172,8 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 		return
 	}
 	namespaces[cppVisitor.pkg.Name] = struct{}{}
-	err := cppVisitor.emit(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name), 0)
+	str := cppVisitor.emitAsString(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name), 0)
+	err := cppVisitor.emitToFile(str)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
@@ -1201,7 +1221,8 @@ func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{})
 	if cppVisitor.pkg.Name == "main" {
 		return
 	}
-	err = cppVisitor.emit(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name), 0)
+	str := cppVisitor.emitAsString(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name), 0)
+	err = cppVisitor.emitToFile(str)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
