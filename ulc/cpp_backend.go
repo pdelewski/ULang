@@ -479,21 +479,17 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		v.emitToFile(str)
 	case *ast.FuncLit:
 		str = v.emitAsString("[&](", indent)
-		v.emitToFile(str)
 		for i, param := range e.Type.Params.List {
 			if i > 0 {
-				str = v.emitAsString(", ", 0)
-				v.emitToFile(str)
+				str += v.emitAsString(", ", 0)
 			}
+			v.emitToFile(str)
 			v.emitExpression(param.Type, indent)
 			str = v.emitAsString(" ", 0)
-			v.emitToFile(str)
-			str = v.emitAsString(param.Names[0].Name, indent)
-			v.emitToFile(str)
+			str += v.emitAsString(param.Names[0].Name, indent)
 		}
-		str = v.emitAsString(")", 0)
-		v.emitToFile(str)
-		str = v.emitAsString("->", 0)
+		str += v.emitAsString(")", 0)
+		str += v.emitAsString("->", 0)
 		v.emitToFile(str)
 		for i, result := range e.Type.Results.List {
 			if i > 0 {
