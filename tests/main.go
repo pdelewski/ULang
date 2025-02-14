@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Composite struct {
   a []int
 }
@@ -16,11 +18,12 @@ func bar() int8 {
   if len(c.a) == 0 {
   }
   for x:=0; x<10;x++ {
-    if !len(a) == 0 {
+    if !(len(a) == 0) {
     } else if len(a) == 0 {
     }
   }
   for _, x := range a {
+    if x == 0 {}
   }
   b := false
   if !b {}
@@ -28,6 +31,9 @@ func bar() int8 {
 }
 
 func bar2() (int16,int16) {
+  x := []func(int){}
+  if len(x) == 0 {
+  }
   return 10,20
 }
 
