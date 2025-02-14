@@ -1,4 +1,4 @@
-package main
+package ulangstd
 
 import "fmt"
 
@@ -66,9 +66,8 @@ func PrintTree(t BinaryTree) {
 	for len(queue) > 0 {
 		index := queue[0]
 		queue = queue[1:]
-
 		node := t.nodes[index]
-		fmt.Printf("%d ", node.value)
+		fmt.Printf("%d:", node.value)
 
 		if node.left != -1 {
 			queue = append(queue, node.left)
@@ -82,45 +81,44 @@ func PrintTree(t BinaryTree) {
 
 // Remove removes a node by value in the binary tree and returns the modified tree
 func RemoveFromTree(t BinaryTree, value int) BinaryTree {
-/*
-	if t.root == -1 {
-		fmt.Println("The tree is empty.")
-		return t
-	}
-
-	// Find the index of the node to remove
-	indexToRemove := -1
-	for i := 0; i < len(t.nodes); i++ {
-		if t.nodes[i].value == value {
-			indexToRemove = i
-			break
+	/*
+		if t.root == -1 {
+			fmt.Println("The tree is empty.")
+			return t
 		}
-	}
 
-	if indexToRemove == -1 {
-		fmt.Println("Value not found in the tree.")
-		return t
-	}
-
-	// Swap the node to be removed with the last node in the array
-	lastNodeIndex := len(t.nodes) - 1
-	t.nodes[indexToRemove], t.nodes[lastNodeIndex] = t.nodes[lastNodeIndex], t.nodes[indexToRemove]
-
-	// Remove the last node from the array
-	t.nodes = t.nodes[:lastNodeIndex]
-
-	// If the removed node had children, we need to fix the parent-child relationships
-	if indexToRemove < len(t.nodes) {
-		parentIndex := (indexToRemove - 1) / 2
-		if indexToRemove%2 == 1 {
-			// Update parent's left child index
-			t.nodes[parentIndex].left = indexToRemove
-		} else {
-			// Update parent's right child index
-			t.nodes[parentIndex].right = indexToRemove
+		// Find the index of the node to remove
+		indexToRemove := -1
+		for i := 0; i < len(t.nodes); i++ {
+			if t.nodes[i].value == value {
+				indexToRemove = i
+				break
+			}
 		}
-	}
-*/
+
+		if indexToRemove == -1 {
+			fmt.Println("Value not found in the tree.")
+			return t
+		}
+
+		// Swap the node to be removed with the last node in the array
+		lastNodeIndex := len(t.nodes) - 1
+		t.nodes[indexToRemove], t.nodes[lastNodeIndex] = t.nodes[lastNodeIndex], t.nodes[indexToRemove]
+
+		// Remove the last node from the array
+		t.nodes = t.nodes[:lastNodeIndex]
+
+		// If the removed node had children, we need to fix the parent-child relationships
+		if indexToRemove < len(t.nodes) {
+			parentIndex := (indexToRemove - 1) / 2
+			if indexToRemove%2 == 1 {
+				// Update parent's left child index
+				t.nodes[parentIndex].left = indexToRemove
+			} else {
+				// Update parent's right child index
+				t.nodes[parentIndex].right = indexToRemove
+			}
+		}
+	*/
 	return t
-
 }

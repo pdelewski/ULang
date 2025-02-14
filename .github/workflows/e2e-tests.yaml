@@ -73,7 +73,7 @@ jobs:
       - name: Run iceberg application
         working-directory: ulc
         run: |
-          go run . --source=./../std
+          go run . --source=./../lib
 
 
       - name: Run cpp compiler
