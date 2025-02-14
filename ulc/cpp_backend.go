@@ -565,11 +565,10 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 
 func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) {
 	str := v.emitAsString("return ", indent)
-	v.emitToFile(str)
 	if len(retStmt.Results) > 1 {
-		str := v.emitAsString("std::make_tuple(", 0)
-		v.emitToFile(str)
+		str += v.emitAsString("std::make_tuple(", 0)
 	}
+	v.emitToFile(str)
 	first := true
 	for _, result := range retStmt.Results {
 		if !first {
@@ -580,10 +579,9 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) 
 		v.emitExpression(result, indent)
 	}
 	if len(retStmt.Results) > 1 {
-		str := v.emitAsString(")", 0)
-		v.emitToFile(str)
+		str = v.emitAsString(")", 0)
 	}
-	str = v.emitAsString(";\n", 0)
+	str += v.emitAsString(";\n", 0)
 	v.emitToFile(str)
 }
 
