@@ -38,7 +38,9 @@ func bar2() (int16, int16) {
 			fmt.Println(a)
 		},
 	}
-	x[0](10)
+	f := x[0]
+	f(10)
+	x[0](20)
 	if len(x) == 0 {
 	}
 	return 10, 20
