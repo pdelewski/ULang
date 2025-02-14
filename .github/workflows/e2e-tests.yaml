@@ -66,6 +66,16 @@ jobs:
         run: |
           go run . --source=./../iceberg
 
+      - name: Cleanup
+        working-directory: ulc
+        run: rm ./output.cpp
+
+      - name: Run iceberg application
+        working-directory: ulc
+        run: |
+          go run . --source=./../std
+
+
       - name: Run cpp compiler
         working-directory: ulc
         run: g++ -std=c++17 output.cpp
