@@ -237,15 +237,15 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	panic(fmt.Sprintf("unsupported expression type: %T", expr))
 }
 
-func resolveSelector(selExpr *ast.SelectorExpr) string {
+func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
 	var result string
 	switch x := selExpr.X.(type) {
 	case *ast.Ident: // Base case: variable name
 		result = x.Name
 	case *ast.SelectorExpr: // Recursive case: nested selectors
-		result = resolveSelector(x)
+		result = v.resolveSelector(x)
 	default:
-		panic(fmt.Sprintf("unsupported expression type: %T", selExpr))
+		v.emitExpression(selExpr.X, 0)
 	}
 	scopeOperator := "."
 	if _, found := namespaces[result]; found {
@@ -389,7 +389,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			v.emitToFile(str)
 		}
 	case *ast.SelectorExpr:
-		selector := resolveSelector(e)
+		selector := v.resolveSelector(e)
 		selector = v.lowerToBuiltins(selector)
 		str := v.emitAsString(selector, 0)
 		v.emitToFile(str)
