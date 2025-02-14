@@ -297,7 +297,8 @@ func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) err
 		v.emitExpression(sel, indent)
 		v.emitArgs(node, indent)
 	} else {
-		fmt.Println("<complex call expression>")
+		v.emitExpression(node.Fun, indent+2)
+		v.emitArgs(node, indent)
 	}
 	return nil
 }
