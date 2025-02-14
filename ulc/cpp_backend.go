@@ -210,7 +210,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
 			case *ast.FuncType:
 				v.emitExpression(typ, 0)
-				str := v.emitAsString(fmt.Sprintf("> %s;\n", fieldName.Name), 0)
+				str := v.emitAsString(fmt.Sprintf(" %s;\n", fieldName.Name), 0)
 				v.emitToFile(str)
 			}
 		}
@@ -450,12 +450,17 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 	case *ast.FuncType:
 		str = v.emitAsString("std::function<", indent)
 		v.emitToFile(str)
-		for i, result := range e.Results.List {
-			if i > 0 {
-				str = v.emitAsString(", ", 0)
-				v.emitToFile(str)
+		if e.Results != nil {
+			for i, result := range e.Results.List {
+				if i > 0 {
+					str = v.emitAsString(", ", 0)
+					v.emitToFile(str)
+				}
+				v.emitExpression(result.Type, indent)
 			}
-			v.emitExpression(result.Type, indent)
+		} else {
+			str = v.emitAsString("void", 0)
+			v.emitToFile(str)
 		}
 		str = v.emitAsString("(", 0)
 		v.emitToFile(str)
@@ -466,7 +471,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			}
 			v.emitExpression(param.Type, indent)
 		}
-		str = v.emitAsString(")", 0)
+		str = v.emitAsString(")>", 0)
 		v.emitToFile(str)
 	case *ast.KeyValueExpr:
 		str = v.emitAsString(".", 0)
