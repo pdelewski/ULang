@@ -229,8 +229,6 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 		return "*" + v.inspectType(t.X)
 	case *ast.ArrayType: // Array of types
 		return "std::vector<" + v.inspectType(t.Elt) + ">"
-	case *ast.FuncType:
-		return "std::function<>"
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
@@ -496,12 +494,17 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str += v.emitAsString(")", 0)
 		str += v.emitAsString("->", 0)
 		v.emitToFile(str)
-		for i, result := range e.Type.Results.List {
-			if i > 0 {
-				str = v.emitAsString(", ", 0)
-				v.emitToFile(str)
+		if e.Type.Results != nil {
+			for i, result := range e.Type.Results.List {
+				if i > 0 {
+					str = v.emitAsString(", ", 0)
+					v.emitToFile(str)
+				}
+				v.emitExpression(result.Type, indent)
 			}
-			v.emitExpression(result.Type, indent)
+		} else {
+			str = v.emitAsString("void", 0)
+			v.emitToFile(str)
 		}
 		str = v.emitAsString("{\n", 0)
 		v.emitToFile(str)
