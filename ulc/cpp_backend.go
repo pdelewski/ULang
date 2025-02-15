@@ -599,13 +599,11 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) 
 func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
-		if callExpr, ok := stmt.X.(*ast.CallExpr); ok {
-			err := v.generateCallExpr(callExpr, indent)
-			str := v.emitAsString(";\n", 0)
-			err = v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-			}
+		v.emitExpression(stmt.X, indent)
+		str := v.emitAsString(";\n", 0)
+		err := v.emitToFile(str)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
 		}
 	case *ast.DeclStmt:
 		var variables []Variable
