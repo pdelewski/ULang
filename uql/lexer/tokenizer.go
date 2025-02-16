@@ -10,6 +10,9 @@ const (
 	TokenSymbol           = 3
 	TokenLeftParenthesis  = 4
 	TokenRightParenthesis = 5
+	TokenPipe             = 6
+	TokenGreater          = 7
+	TokenLess             = 8
 )
 
 func IsLetter(b int8) bool {
@@ -30,6 +33,18 @@ func IsLeftParenthesis(b int8) bool {
 
 func IsRightParenthesis(b int8) bool {
 	return b == ')'
+}
+
+func IsPipe(b int8) bool {
+	return b == '|'
+}
+
+func IsGreater(b int8) bool {
+	return b == '>'
+}
+
+func IsLess(b int8) bool {
+	return b == '<'
 }
 
 // Tokenize splits the input text into categorized tokens.
@@ -65,6 +80,12 @@ func Tokenize(text string) []Token {
 			tokenType = TokenLeftParenthesis
 		} else if IsRightParenthesis(c) {
 			tokenType = TokenRightParenthesis
+		} else if IsPipe(c) {
+			tokenType = TokenPipe
+		} else if IsGreater(c) {
+			tokenType = TokenGreater
+		} else if IsLess(c) {
+			tokenType = TokenLess
 		} else {
 			tokenType = TokenSymbol
 		}
