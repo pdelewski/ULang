@@ -1,19 +1,35 @@
 package lexer
 
+import "fmt"
+
 // Token types as constants
 const (
-	TokenLetter = 0
-	TokenDigit  = 1
-	TokenSpace  = 2
-	TokenSymbol = 3
+	TokenLetter           = 0
+	TokenDigit            = 1
+	TokenSpace            = 2
+	TokenSymbol           = 3
+	TokenLeftParenthesis  = 4
+	TokenRightParenthesis = 5
 )
 
 func IsLetter(b int8) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }
 
+func IsAlphaNumeric(b int8) bool {
+	return IsLetter(b) || IsDigit(b) || b == '_'
+}
+
 func IsSpace(b int8) bool {
 	return b == ' '
+}
+
+func IsLeftParenthesis(b int8) bool {
+	return b == '('
+}
+
+func IsRightParenthesis(b int8) bool {
+	return b == ')'
 }
 
 // Tokenize splits the input text into categorized tokens.
@@ -39,12 +55,16 @@ func Tokenize(text string) []Token {
 		var tokenType int8
 
 		// Determine the type of character
-		if IsLetter(c) {
+		if IsAlphaNumeric(c) {
 			tokenType = TokenLetter
 		} else if IsDigit(c) {
 			tokenType = TokenDigit
 		} else if IsSpace(c) {
 			tokenType = TokenSpace
+		} else if IsLeftParenthesis(c) {
+			tokenType = TokenLeftParenthesis
+		} else if IsRightParenthesis(c) {
+			tokenType = TokenRightParenthesis
 		} else {
 			tokenType = TokenSymbol
 		}
@@ -63,4 +83,15 @@ func Tokenize(text string) []Token {
 	addToken()
 
 	return tokens
+}
+
+func TokenizeTest() {
+	tokens1 := Tokenize("Select * from table1 where field1 > 10;")
+	for _, token := range tokens1 {
+		fmt.Println(DumpTokenString(token))
+	}
+	tokens2 := Tokenize("(Select * from table1 where field1 > 10)")
+	for _, token := range tokens2 {
+		fmt.Println(DumpTokenString(token))
+	}
 }
