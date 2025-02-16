@@ -120,4 +120,8 @@ func main() {
 			state = ast.WalkSelect(statement.SelectF, state, visitor)
 		}
 	}
+	tokens := lexer.Tokenize("Select * from table1 where field1 > 10")
+	for _, token := range tokens {
+		fmt.Println(lexer.DumpTokenString(token))
+	}
 }
