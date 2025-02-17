@@ -121,4 +121,6 @@ func main() {
 		}
 	}
 	lexer.TokenizeTest()
+	root := parser.ParsePipeSql("Select * from table1 where field1 > 10;")
+	parser.TraverseTree(root)
 }
