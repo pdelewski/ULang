@@ -44,6 +44,10 @@ void println(std::int8_t val) { printf("%d\n", val); }
 template<typename T>
 void println(const T& val) { std::cout << val << std::endl;}
 
+void printf(const signed char c) {
+  std::cout << (int)c;
+}
+
 template<typename T>
 void printf(const T& val) { std::cout << val;}
 
