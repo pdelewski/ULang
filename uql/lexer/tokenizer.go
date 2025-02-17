@@ -107,12 +107,18 @@ func Tokenize(text string) []Token {
 }
 
 func TokenizeTest() {
-	tokens1 := Tokenize("Select * from table1 where field1 > 10;")
-	for _, token := range tokens1 {
-		fmt.Println(DumpTokenString(token))
-	}
-	tokens2 := Tokenize("(Select * from table1 where field1 > 10)")
-	for _, token := range tokens2 {
-		fmt.Println(DumpTokenString(token))
+	sqlStatement := []string{
+		"Select * from table1 where field1 > 10;",
+		"(Select * from table1 where field1 > 10)",
+		"from table1 |> select *"}
+
+	for _, statement := range sqlStatement {
+		fmt.Println()
+		fmt.Print("Tokenize:")
+		fmt.Println(statement)
+		tokens1 := Tokenize(statement)
+		for _, token := range tokens1 {
+			fmt.Print(DumpTokenString(token))
+		}
 	}
 }
