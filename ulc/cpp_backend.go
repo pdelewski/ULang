@@ -207,6 +207,8 @@ func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
 		return "printf"
 	case "fmt.Print":
 		return "printf"
+	case "len":
+		return "std::size"
 	}
 	return selector
 }
@@ -225,27 +227,6 @@ func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) string {
 	str = v.emitAsString(")", 0)
 	v.emitToFile(str)
 	return str
-}
-
-func (v *CppBackendVisitor) generateCallExpr(node *ast.CallExpr, indent int) error {
-	if fun, ok := node.Fun.(*ast.Ident); ok {
-		funcName := fun.Name
-		if fun.Name == "len" {
-			funcName = "std::size"
-		}
-		str := v.emitAsString(funcName, indent)
-		v.emitToFile(str)
-		v.emitArgs(node, indent)
-	} else if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
-		str := v.emitAsString("", indent)
-		v.emitToFile(str)
-		v.emitExpression(sel, indent)
-		v.emitArgs(node, indent)
-	} else {
-		v.emitExpression(node.Fun, indent+2)
-		v.emitArgs(node, indent)
-	}
-	return nil
 }
 
 func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
@@ -268,15 +249,16 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		}
 	case *ast.Ident:
 		name := e.Name
+		name = v.lowerToBuiltins(name)
 		if name == "nil" {
 			str = v.emitAsString("{}", indent)
 			v.emitToFile(str)
 		} else {
-			if n, ok := typesMap[e.Name]; ok {
+			if n, ok := typesMap[name]; ok {
 				str = v.emitAsString(n, indent)
 				v.emitToFile(str)
 			} else {
-				str = v.emitAsString(e.Name, indent)
+				str = v.emitAsString(name, indent)
 				v.emitToFile(str)
 			}
 		}
@@ -286,7 +268,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		v.emitToFile(str)
 		v.emitExpression(e.Y, indent) // Right operand
 	case *ast.CallExpr:
-		v.generateCallExpr(e, indent)
+		v.emitExpression(e.Fun, indent)
+		v.emitArgs(e, indent)
 	case *ast.ParenExpr:
 		str = v.emitAsString("(", 0)
 		v.emitToFile(str)
