@@ -218,14 +218,8 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 }
 
 func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
-	switch t := expr.(type) {
-	case *ast.Ident: // Basic types or local structs
-		return t.Name
-	default:
-		v.emitExpression(t, 0)
-		return ""
-	}
-	panic(fmt.Sprintf("unsupported expression type: %T", expr))
+	v.emitExpression(expr, 0)
+	return ""
 }
 
 func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
@@ -583,33 +577,18 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 			fmt.Println("Error writing to file:", err)
 		}
 	case *ast.DeclStmt:
-		var variables []Variable
 		if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
 			for _, spec := range genDecl.Specs {
 				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
 					// Iterate through all variables declared
 					for _, ident := range valueSpec.Names {
-						varType := "inferred"
-						if valueSpec.Type != nil {
-							varType = v.inspectType(valueSpec.Type)
-						}
-						variables = append(variables, Variable{
-							Name: ident.Name,
-							Type: varType,
-						})
+						v.emitExpression(valueSpec.Type, indent)
+						str := v.emitAsString(" ", 0)
+						v.emitToFile(str)
+						v.emitExpression(ident, 0)
+						v.emitToFile(";\n")
 					}
 				}
-			}
-		}
-		for _, variable := range variables {
-			cppType := variable.Type
-			if val, ok := typesMap[variable.Type]; ok {
-				cppType = val
-			}
-			str := v.emitAsString(fmt.Sprintf("%s %s;\n", cppType, variable.Name), indent)
-			err := v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
 			}
 		}
 	case *ast.AssignStmt:
