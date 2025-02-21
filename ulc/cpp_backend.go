@@ -185,15 +185,10 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 		for _, fieldName := range field.Names {
 			switch typ := field.Type.(type) {
 			case *ast.Ident:
-				cppType := typ.Name
-				if val, ok := typesMap[typ.Name]; ok {
-					cppType = val
-				}
-				str := v.emitAsString(fmt.Sprintf("%s %s;\n", cppType, fieldName.Name), indent)
-				err := v.emitToFile(str)
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-				}
+				v.emitExpression(typ, indent)
+				v.emitToFile(" ")
+				v.emitExpression(fieldName, 0)
+				v.emitToFile(";\n")
 			case *ast.SelectorExpr: // External struct from another package
 				if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
 					if named, ok := obj.Type().(*types.Named); ok {
