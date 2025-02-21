@@ -353,7 +353,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		isLeftBrace := false
 		switch t := e.Type.(type) {
 		case *ast.Ident:
-			str = v.emitAsString(fmt.Sprintf("%s{", t.Name), 0)
+			v.emitExpression(t, 0)
+			str = v.emitAsString("{", 0)
 			v.emitToFile(str)
 			isLeftBrace = true
 		case *ast.SelectorExpr:
@@ -368,9 +369,13 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			str = v.emitAsString("std::vector<", 0)
 			v.emitToFile(str)
 			v.emitExpression(t.Elt, 0)
-			str = v.emitAsString(">{", 0)
+			str = v.emitAsString(">", 0)
 			v.emitToFile(str)
 			isArray = true
+		}
+		if isArray {
+			str = v.emitAsString("{", 0)
+			v.emitToFile(str)
 		}
 		for i, elt := range e.Elts {
 			if i > 0 {
