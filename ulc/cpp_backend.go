@@ -184,29 +184,17 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
 			switch typ := field.Type.(type) {
-			case *ast.Ident:
-				v.emitExpression(typ, indent)
-				v.emitToFile(" ")
-				v.emitExpression(fieldName, 0)
-				v.emitToFile(";\n")
-			case *ast.SelectorExpr: // External struct from another package
-				if obj := v.pkg.TypesInfo.Uses[typ.Sel]; obj != nil {
-					if named, ok := obj.Type().(*types.Named); ok {
-						if _, ok := named.Underlying().(*types.Struct); ok {
-							str := v.emitAsString("", 2)
-							v.emitToFile(str)
-							v.generatePrimType(named.Obj().Name(), named.Obj().Pkg().Name(), fieldName.Name)
-							str = v.emitAsString(";\n", 0)
-							v.emitToFile(str)
-						}
-					}
-				}
 			case *ast.ArrayType:
 				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
 			case *ast.FuncType:
 				v.emitExpression(typ, 0)
 				str := v.emitAsString(fmt.Sprintf(" %s;\n", fieldName.Name), 0)
 				v.emitToFile(str)
+			default:
+				v.emitExpression(typ, indent)
+				v.emitToFile(" ")
+				v.emitExpression(fieldName, 0)
+				v.emitToFile(";\n")
 			}
 		}
 	}
@@ -347,7 +335,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 	case *ast.SelectorExpr:
 		selector := v.resolveSelector(e)
 		selector = v.lowerToBuiltins(selector)
-		str := v.emitAsString(selector, 0)
+		str := v.emitAsString(selector, indent)
 		v.emitToFile(str)
 	case *ast.IndexExpr:
 		v.emitExpression(e.X, indent)
@@ -482,6 +470,9 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str = v.emitAsString("*", 0)
 		v.emitToFile(str)
 		v.emitExpression(e.X, indent)
+	case *ast.InterfaceType:
+		str = v.emitAsString("std::any", indent)
+		v.emitToFile(str)
 	default:
 		panic(fmt.Sprintf("unsupported expression type: %T", e))
 	}
@@ -758,7 +749,6 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
 				v.emitExpression(result.Type, 0)
-				v.generatePrimType("", "", "")
 			}
 			resultArgIndex++
 		}
@@ -812,7 +802,8 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
 				v.emitExpression(arg.Type, 0)
-				v.generatePrimType("", "", argName.Name)
+				v.emitToFile(" ")
+				v.emitToFile(argName.Name)
 			}
 		}
 		argIndex++
