@@ -470,6 +470,9 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str = v.emitAsString("*", 0)
 		v.emitToFile(str)
 		v.emitExpression(e.X, indent)
+	case *ast.InterfaceType:
+		str = v.emitAsString("std::any", indent)
+		v.emitToFile(str)
 	default:
 		panic(fmt.Sprintf("unsupported expression type: %T", e))
 	}
