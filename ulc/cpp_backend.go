@@ -220,8 +220,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident: // Basic types or local structs
-		v.emitExpression(t, 0)
-		return ""
+		return t.Name
 	case *ast.SelectorExpr: // Imported types
 		v.emitExpression(t, 0)
 		return ""
