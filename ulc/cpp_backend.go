@@ -221,16 +221,9 @@ func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident: // Basic types or local structs
 		return t.Name
-	case *ast.SelectorExpr: // Imported types
-		if pkgIdent, ok := t.X.(*ast.Ident); ok {
-			return fmt.Sprintf("%s::%s", pkgIdent.Name, t.Sel.Name)
-		}
-	case *ast.StarExpr: // Pointer to a type
-		return "*" + v.inspectType(t.X)
-	case *ast.ArrayType: // Array of types
-		return "std::vector<" + v.inspectType(t.Elt) + ">"
 	default:
-		return fmt.Sprintf("%T", expr)
+		v.emitExpression(t, 0)
+		return ""
 	}
 	panic(fmt.Sprintf("unsupported expression type: %T", expr))
 }
@@ -501,6 +494,10 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		v.emitExpression(e.X, indent)
 		str = v.emitAsString("))", 0)
 		v.emitToFile(str)
+	case *ast.StarExpr:
+		str = v.emitAsString("*", 0)
+		v.emitToFile(str)
+		v.emitExpression(e.X, indent)
 	default:
 		panic(fmt.Sprintf("unsupported expression type: %T", e))
 	}
