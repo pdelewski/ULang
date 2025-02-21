@@ -349,18 +349,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str = v.emitAsString(")", 0)
 		v.emitToFile(str)
 	case *ast.CompositeLit:
-		switch t := e.Type.(type) {
-		case *ast.Ident:
-			v.emitExpression(t, 0)
-		case *ast.SelectorExpr:
-			v.emitExpression(t, 0)
-		case *ast.ArrayType:
-			str = v.emitAsString("std::vector<", 0)
-			v.emitToFile(str)
-			v.emitExpression(t.Elt, 0)
-			str = v.emitAsString(">", 0)
-			v.emitToFile(str)
-		}
+		v.emitExpression(e.Type, indent)
 		str = v.emitAsString("{", 0)
 		v.emitToFile(str)
 		for i, elt := range e.Elts {
@@ -371,6 +360,12 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			v.emitExpression(elt, indent)
 		}
 		str = v.emitAsString("}", 0)
+		v.emitToFile(str)
+	case *ast.ArrayType:
+		str = v.emitAsString("std::vector<", 0)
+		v.emitToFile(str)
+		v.emitExpression(e.Elt, 0)
+		str = v.emitAsString(">", 0)
 		v.emitToFile(str)
 	case *ast.SelectorExpr:
 		selector := v.resolveSelector(e)
