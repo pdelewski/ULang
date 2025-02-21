@@ -767,7 +767,8 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
-				v.generatePrimType(v.inspectType(result.Type), "", "")
+				v.emitExpression(result.Type, 0)
+				v.generatePrimType("", "", "")
 			}
 			resultArgIndex++
 		}
@@ -820,7 +821,8 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
-				v.generatePrimType(v.inspectType(arg.Type), "", argName.Name)
+				v.emitExpression(arg.Type, 0)
+				v.generatePrimType("", "", argName.Name)
 			}
 		}
 		argIndex++
