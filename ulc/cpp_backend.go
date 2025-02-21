@@ -700,11 +700,6 @@ func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 	}
 }
 
-type Variable struct {
-	Name string
-	Type string
-}
-
 func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
 	if node.Type.Results != nil {
 		resultArgIndex := 0
