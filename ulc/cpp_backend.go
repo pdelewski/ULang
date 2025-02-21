@@ -160,26 +160,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 	}
 }
 
-func (v *CppBackendVisitor) generatePrimType(cppType string, pkg string, fieldName string) {
-	if val, ok := typesMap[cppType]; ok {
-		cppType = val
-	}
-	var err error
-	if fieldName == "" {
-		str := v.emitAsString(cppType, 0)
-		err = v.emitToFile(str)
-	} else if pkg != "" {
-		str := v.emitAsString(fmt.Sprintf("%s::%s %s", pkg, cppType, fieldName), 0)
-		err = v.emitToFile(str)
-	} else {
-		str := v.emitAsString(fmt.Sprintf("%s %s", cppType, fieldName), 0)
-		err = v.emitToFile(str)
-	}
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
-}
-
 func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
