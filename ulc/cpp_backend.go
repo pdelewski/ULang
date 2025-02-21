@@ -311,14 +311,14 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 	case *ast.Ident:
 		name := e.Name
 		if name == "nil" {
-			str = v.emitAsString("{}", 0)
+			str = v.emitAsString("{}", indent)
 			v.emitToFile(str)
 		} else {
 			if n, ok := typesMap[e.Name]; ok {
-				str = v.emitAsString(n, 0)
+				str = v.emitAsString(n, indent)
 				v.emitToFile(str)
 			} else {
-				str = v.emitAsString(e.Name, 0)
+				str = v.emitAsString(e.Name, indent)
 				v.emitToFile(str)
 			}
 		}
