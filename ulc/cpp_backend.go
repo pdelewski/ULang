@@ -358,13 +358,10 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			v.emitToFile(str)
 			isLeftBrace = true
 		case *ast.SelectorExpr:
-			if pkgIdent, ok := t.X.(*ast.Ident); ok {
-				str = v.emitAsString(fmt.Sprintf("%s::%s{", pkgIdent.Name, t.Sel.Name), 0)
-				v.emitToFile(str)
-				isLeftBrace = true
-			} else {
-				panic(fmt.Sprintf("unsupported expression type: %T", expr))
-			}
+			v.emitExpression(t, 0)
+			str = v.emitAsString("{", 0)
+			v.emitToFile(str)
+			isLeftBrace = true
 		case *ast.ArrayType:
 			str = v.emitAsString("std::vector<", 0)
 			v.emitToFile(str)
