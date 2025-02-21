@@ -217,11 +217,6 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
-	v.emitExpression(expr, 0)
-	return ""
-}
-
 func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
 	var result string
 	switch x := selExpr.X.(type) {
@@ -767,7 +762,8 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
-				v.generatePrimType(v.inspectType(result.Type), "", "")
+				v.emitExpression(result.Type, 0)
+				v.generatePrimType("", "", "")
 			}
 			resultArgIndex++
 		}
@@ -820,7 +816,8 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
 				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
-				v.generatePrimType(v.inspectType(arg.Type), "", argName.Name)
+				v.emitExpression(arg.Type, 0)
+				v.generatePrimType("", "", argName.Name)
 			}
 		}
 		argIndex++
@@ -1063,8 +1060,11 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
 					v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
 				} else {
-					str := v.emitAsString(fmt.Sprintf("using %s = %s;\n\n", node.Name.Name, v.inspectType(node.Type)), 0)
+					str := v.emitAsString(fmt.Sprintf("using %s = ", node.Name.Name), 0)
 					err := v.emitToFile(str)
+					v.emitExpression(node.Type, 0)
+					str = v.emitAsString(";\n\n", 0)
+					err = v.emitToFile(str)
 					if err != nil {
 						fmt.Println("Error writing to file:", err)
 					}
