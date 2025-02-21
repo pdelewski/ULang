@@ -749,7 +749,6 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				v.generateArrayType(arrayArg, "", ArrayReturn)
 			} else {
 				v.emitExpression(result.Type, 0)
-				v.generatePrimType("", "", "")
 			}
 			resultArgIndex++
 		}
