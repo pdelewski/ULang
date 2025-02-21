@@ -802,7 +802,8 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
 			} else {
 				v.emitExpression(arg.Type, 0)
-				v.generatePrimType("", "", argName.Name)
+				v.emitToFile(" ")
+				v.emitToFile(argName.Name)
 			}
 		}
 		argIndex++
