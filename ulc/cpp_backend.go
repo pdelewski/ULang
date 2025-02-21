@@ -349,31 +349,20 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str = v.emitAsString(")", 0)
 		v.emitToFile(str)
 	case *ast.CompositeLit:
-		isArray := false
-		isLeftBrace := false
 		switch t := e.Type.(type) {
 		case *ast.Ident:
 			v.emitExpression(t, 0)
-			str = v.emitAsString("{", 0)
-			v.emitToFile(str)
-			isLeftBrace = true
 		case *ast.SelectorExpr:
 			v.emitExpression(t, 0)
-			str = v.emitAsString("{", 0)
-			v.emitToFile(str)
-			isLeftBrace = true
 		case *ast.ArrayType:
 			str = v.emitAsString("std::vector<", 0)
 			v.emitToFile(str)
 			v.emitExpression(t.Elt, 0)
 			str = v.emitAsString(">", 0)
 			v.emitToFile(str)
-			isArray = true
 		}
-		if isArray {
-			str = v.emitAsString("{", 0)
-			v.emitToFile(str)
-		}
+		str = v.emitAsString("{", 0)
+		v.emitToFile(str)
 		for i, elt := range e.Elts {
 			if i > 0 {
 				str = v.emitAsString(", ", 0)
@@ -381,14 +370,8 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			}
 			v.emitExpression(elt, indent)
 		}
-		if isArray {
-			str = v.emitAsString("}", 0)
-			v.emitToFile(str)
-		}
-		if isLeftBrace {
-			str = v.emitAsString("}", 0)
-			v.emitToFile(str)
-		}
+		str = v.emitAsString("}", 0)
+		v.emitToFile(str)
 	case *ast.SelectorExpr:
 		selector := v.resolveSelector(e)
 		selector = v.lowerToBuiltins(selector)
