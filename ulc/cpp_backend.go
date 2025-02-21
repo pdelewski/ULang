@@ -220,15 +220,16 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 func (v *CppBackendVisitor) inspectType(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident: // Basic types or local structs
-		return t.Name
+		v.emitExpression(t, 0)
+		return ""
 	case *ast.SelectorExpr: // Imported types
-		if pkgIdent, ok := t.X.(*ast.Ident); ok {
-			return fmt.Sprintf("%s::%s", pkgIdent.Name, t.Sel.Name)
-		}
+		v.emitExpression(t, 0)
+		return ""
 	case *ast.StarExpr: // Pointer to a type
 		return "*" + v.inspectType(t.X)
 	case *ast.ArrayType: // Array of types
-		return "std::vector<" + v.inspectType(t.Elt) + ">"
+		v.emitExpression(t, 0)
+		return ""
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
