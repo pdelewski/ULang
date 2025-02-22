@@ -44,7 +44,6 @@ type ArrayTypeGen int
 const (
 	ArrayStructField ArrayTypeGen = iota
 	ArrayAlias
-	ArrayReturn
 )
 
 type GenStructInfo struct {
@@ -104,9 +103,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			}
 			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), indent)
 			err = v.emitToFile(str)
-		case ArrayReturn:
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s>", cppType), indent)
-			err = v.emitToFile(str)
 		case ArrayAlias:
 			if len(fieldName) == 0 {
 				panic("expected field")
@@ -129,9 +125,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 					panic("expected field")
 				}
 				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), indent)
-				err = v.emitToFile(str)
-			case ArrayReturn:
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType), indent)
 				err = v.emitToFile(str)
 			case ArrayAlias:
 				if len(fieldName) == 0 {
@@ -687,7 +680,7 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				}
 			}
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, "", ArrayReturn, 0)
+				v.emitExpression(arrayArg, 0)
 			} else {
 				v.emitExpression(result.Type, 0)
 			}
