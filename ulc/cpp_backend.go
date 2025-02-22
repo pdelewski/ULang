@@ -39,12 +39,6 @@ var primTypes = map[string]struct{}{
 
 var namespaces = map[string]struct{}{}
 
-type ArrayTypeGen int
-
-const (
-	ArrayAlias = 1
-)
-
 type GenStructInfo struct {
 	Name       string
 	Struct     *ast.StructType
@@ -85,46 +79,6 @@ func (v *CppBackendVisitor) emitToFile(s string) error {
 
 func (v *CppBackendVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
-}
-
-func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, arrayType ArrayTypeGen, indent int) {
-	var err error
-	switch elt := typ.Elt.(type) {
-	case *ast.Ident:
-		cppType := elt.Name
-		if val, ok := typesMap[elt.Name]; ok {
-			cppType = val
-		}
-		switch arrayType {
-		case ArrayAlias:
-			if len(fieldName) == 0 {
-				panic("expected field")
-			}
-			str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s>;\n\n", fieldName, cppType), indent)
-			err = v.emitToFile(str)
-		}
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-	case *ast.SelectorExpr: // Imported types
-		if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-			cppType := elt.Sel.Name
-			if val, ok := typesMap[elt.Sel.Name]; ok {
-				cppType = val
-			}
-			switch arrayType {
-			case ArrayAlias:
-				if len(fieldName) == 0 {
-					panic("expected field")
-				}
-				str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType), indent)
-				err = v.emitToFile(str)
-			}
-		}
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-	}
 }
 
 func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
@@ -962,7 +916,11 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
 				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
-					v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias, 0)
+					v.emitToFile(fmt.Sprintf("using "))
+					v.emitExpression(node.Name, 0)
+					v.emitToFile(" = ")
+					v.emitExpression(arrayArg, 0)
+					v.emitToFile(";\n\n")
 				} else {
 					str := v.emitAsString(fmt.Sprintf("using %s = ", node.Name.Name), 0)
 					err := v.emitToFile(str)
