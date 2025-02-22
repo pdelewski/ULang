@@ -166,10 +166,6 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 			switch typ := field.Type.(type) {
 			case *ast.ArrayType:
 				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
-			case *ast.FuncType:
-				v.emitExpression(typ, 0)
-				str := v.emitAsString(fmt.Sprintf(" %s;\n", fieldName.Name), 0)
-				v.emitToFile(str)
 			default:
 				v.emitExpression(typ, indent)
 				v.emitToFile(" ")
