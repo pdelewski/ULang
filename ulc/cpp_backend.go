@@ -43,7 +43,6 @@ type ArrayTypeGen int
 
 const (
 	ArrayStructField ArrayTypeGen = iota
-	ArrayArgument
 	ArrayAlias
 	ArrayReturn
 )
@@ -105,12 +104,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			}
 			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), indent)
 			err = v.emitToFile(str)
-		case ArrayArgument:
-			if len(fieldName) == 0 {
-				panic("expected field")
-			}
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName), indent)
-			err = v.emitToFile(str)
 		case ArrayReturn:
 			str := v.emitAsString(fmt.Sprintf("std::vector<%s>", cppType), indent)
 			err = v.emitToFile(str)
@@ -136,12 +129,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 					panic("expected field")
 				}
 				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), indent)
-				err = v.emitToFile(str)
-			case ArrayArgument:
-				if len(fieldName) == 0 {
-					panic("expected field")
-				}
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName), indent)
 				err = v.emitToFile(str)
 			case ArrayReturn:
 				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType), indent)
@@ -753,7 +740,9 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 		}
 		for _, argName := range arg.Names {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, argName.Name, ArrayArgument, 0)
+				v.emitExpression(arrayArg, 0)
+				v.emitToFile(" ")
+				v.emitExpression(argName, 0)
 			} else {
 				v.emitExpression(arg.Type, 0)
 				v.emitToFile(" ")
