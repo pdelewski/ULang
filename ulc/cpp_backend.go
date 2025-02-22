@@ -90,7 +90,7 @@ func (v *CppBackendVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
-func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, arrayType ArrayTypeGen) {
+func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, arrayType ArrayTypeGen, indent int) {
 	var err error
 	switch elt := typ.Elt.(type) {
 	case *ast.Ident:
@@ -103,22 +103,22 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), 2)
+			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), indent)
 			err = v.emitToFile(str)
 		case ArrayArgument:
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName), 0)
+			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName), indent)
 			err = v.emitToFile(str)
 		case ArrayReturn:
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s>", cppType), 0)
+			str := v.emitAsString(fmt.Sprintf("std::vector<%s>", cppType), indent)
 			err = v.emitToFile(str)
 		case ArrayAlias:
 			if len(fieldName) == 0 {
 				panic("expected field")
 			}
-			str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s>;\n\n", fieldName, cppType), 0)
+			str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s>;\n\n", fieldName, cppType), indent)
 			err = v.emitToFile(str)
 		}
 		if err != nil {
@@ -135,22 +135,22 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), 2)
+				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), indent)
 				err = v.emitToFile(str)
 			case ArrayArgument:
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName), 0)
+				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName), indent)
 				err = v.emitToFile(str)
 			case ArrayReturn:
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType), 0)
+				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType), indent)
 				err = v.emitToFile(str)
 			case ArrayAlias:
 				if len(fieldName) == 0 {
 					panic("expected field")
 				}
-				str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType), 0)
+				str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType), indent)
 				err = v.emitToFile(str)
 			}
 		}
@@ -165,7 +165,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 		for _, fieldName := range field.Names {
 			switch typ := field.Type.(type) {
 			case *ast.ArrayType:
-				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
+				v.generateArrayType(typ, fieldName.Name, ArrayStructField, 2)
 			default:
 				v.emitExpression(typ, indent)
 				v.emitToFile(" ")
@@ -700,7 +700,7 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				}
 			}
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, "", ArrayReturn)
+				v.generateArrayType(arrayArg, "", ArrayReturn, 0)
 			} else {
 				v.emitExpression(result.Type, 0)
 			}
@@ -753,7 +753,7 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 		}
 		for _, argName := range arg.Names {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
+				v.generateArrayType(arrayArg, argName.Name, ArrayArgument, 0)
 			} else {
 				v.emitExpression(arg.Type, 0)
 				v.emitToFile(" ")
@@ -998,7 +998,7 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
 				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
-					v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
+					v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias, 0)
 				} else {
 					str := v.emitAsString(fmt.Sprintf("using %s = ", node.Name.Name), 0)
 					err := v.emitToFile(str)
