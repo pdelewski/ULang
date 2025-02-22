@@ -42,8 +42,7 @@ var namespaces = map[string]struct{}{}
 type ArrayTypeGen int
 
 const (
-	ArrayStructField ArrayTypeGen = iota
-	ArrayAlias
+	ArrayAlias = 1
 )
 
 type GenStructInfo struct {
@@ -97,12 +96,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 			cppType = val
 		}
 		switch arrayType {
-		case ArrayStructField:
-			if len(fieldName) == 0 {
-				panic("expected field")
-			}
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), indent)
-			err = v.emitToFile(str)
 		case ArrayAlias:
 			if len(fieldName) == 0 {
 				panic("expected field")
@@ -120,12 +113,6 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 				cppType = val
 			}
 			switch arrayType {
-			case ArrayStructField:
-				if len(fieldName) == 0 {
-					panic("expected field")
-				}
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), indent)
-				err = v.emitToFile(str)
 			case ArrayAlias:
 				if len(fieldName) == 0 {
 					panic("expected field")
@@ -143,15 +130,10 @@ func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName stri
 func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
-			switch typ := field.Type.(type) {
-			case *ast.ArrayType:
-				v.generateArrayType(typ, fieldName.Name, ArrayStructField, 2)
-			default:
-				v.emitExpression(typ, indent)
-				v.emitToFile(" ")
-				v.emitExpression(fieldName, 0)
-				v.emitToFile(";\n")
-			}
+			v.emitExpression(field.Type, indent)
+			v.emitToFile(" ")
+			v.emitExpression(fieldName, 0)
+			v.emitToFile(";\n")
 		}
 	}
 }
@@ -266,7 +248,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str = v.emitAsString("}", 0)
 		v.emitToFile(str)
 	case *ast.ArrayType:
-		str = v.emitAsString("std::vector<", 0)
+		str = v.emitAsString("std::vector<", indent)
 		v.emitToFile(str)
 		v.emitExpression(e.Elt, 0)
 		str = v.emitAsString(">", 0)
