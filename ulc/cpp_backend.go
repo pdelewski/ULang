@@ -39,15 +39,6 @@ var primTypes = map[string]struct{}{
 
 var namespaces = map[string]struct{}{}
 
-type ArrayTypeGen int
-
-const (
-	ArrayStructField ArrayTypeGen = iota
-	ArrayArgument
-	ArrayAlias
-	ArrayReturn
-)
-
 type GenStructInfo struct {
 	Name       string
 	Struct     *ast.StructType
@@ -90,88 +81,13 @@ func (v *CppBackendVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
-func (v *CppBackendVisitor) generateArrayType(typ *ast.ArrayType, fieldName string, arrayType ArrayTypeGen) {
-	var err error
-	switch elt := typ.Elt.(type) {
-	case *ast.Ident:
-		cppType := elt.Name
-		if val, ok := typesMap[elt.Name]; ok {
-			cppType = val
-		}
-		switch arrayType {
-		case ArrayStructField:
-			if len(fieldName) == 0 {
-				panic("expected field")
-			}
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s;\n", cppType, fieldName), 2)
-			err = v.emitToFile(str)
-		case ArrayArgument:
-			if len(fieldName) == 0 {
-				panic("expected field")
-			}
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s> %s", cppType, fieldName), 0)
-			err = v.emitToFile(str)
-		case ArrayReturn:
-			str := v.emitAsString(fmt.Sprintf("std::vector<%s>", cppType), 0)
-			err = v.emitToFile(str)
-		case ArrayAlias:
-			if len(fieldName) == 0 {
-				panic("expected field")
-			}
-			str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s>;\n\n", fieldName, cppType), 0)
-			err = v.emitToFile(str)
-		}
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-	case *ast.SelectorExpr: // Imported types
-		if pkgIdent, ok := elt.X.(*ast.Ident); ok {
-			cppType := elt.Sel.Name
-			if val, ok := typesMap[elt.Sel.Name]; ok {
-				cppType = val
-			}
-			switch arrayType {
-			case ArrayStructField:
-				if len(fieldName) == 0 {
-					panic("expected field")
-				}
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s;\n", pkgIdent.Name, cppType, fieldName), 2)
-				err = v.emitToFile(str)
-			case ArrayArgument:
-				if len(fieldName) == 0 {
-					panic("expected field")
-				}
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s> %s", pkgIdent.Name, cppType, fieldName), 0)
-				err = v.emitToFile(str)
-			case ArrayReturn:
-				str := v.emitAsString(fmt.Sprintf("std::vector<%s::%s>", pkgIdent.Name, cppType), 0)
-				err = v.emitToFile(str)
-			case ArrayAlias:
-				if len(fieldName) == 0 {
-					panic("expected field")
-				}
-				str := v.emitAsString(fmt.Sprintf("using %s = std::vector<%s::%s>\n\n", fieldName, pkgIdent.Name, cppType), 0)
-				err = v.emitToFile(str)
-			}
-		}
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-	}
-}
-
 func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
-			switch typ := field.Type.(type) {
-			case *ast.ArrayType:
-				v.generateArrayType(typ, fieldName.Name, ArrayStructField)
-			default:
-				v.emitExpression(typ, indent)
-				v.emitToFile(" ")
-				v.emitExpression(fieldName, 0)
-				v.emitToFile(";\n")
-			}
+			v.emitExpression(field.Type, indent)
+			v.emitToFile(" ")
+			v.emitExpression(fieldName, 0)
+			v.emitToFile(";\n")
 		}
 	}
 }
@@ -286,7 +202,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str = v.emitAsString("}", 0)
 		v.emitToFile(str)
 	case *ast.ArrayType:
-		str = v.emitAsString("std::vector<", 0)
+		str = v.emitAsString("std::vector<", indent)
 		v.emitToFile(str)
 		v.emitExpression(e.Elt, 0)
 		str = v.emitAsString(">", 0)
@@ -700,7 +616,7 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				}
 			}
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, "", ArrayReturn)
+				v.emitExpression(arrayArg, 0)
 			} else {
 				v.emitExpression(result.Type, 0)
 			}
@@ -753,7 +669,9 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 		}
 		for _, argName := range arg.Names {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
-				v.generateArrayType(arrayArg, argName.Name, ArrayArgument)
+				v.emitExpression(arrayArg, 0)
+				v.emitToFile(" ")
+				v.emitExpression(argName, 0)
 			} else {
 				v.emitExpression(arg.Type, 0)
 				v.emitToFile(" ")
@@ -998,7 +916,11 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
 				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
-					v.generateArrayType(arrayArg, node.Name.Name, ArrayAlias)
+					v.emitToFile(fmt.Sprintf("using "))
+					v.emitExpression(node.Name, 0)
+					v.emitToFile(" = ")
+					v.emitExpression(arrayArg, 0)
+					v.emitToFile(";\n\n")
 				} else {
 					str := v.emitAsString(fmt.Sprintf("using %s = ", node.Name.Name), 0)
 					err := v.emitToFile(str)
