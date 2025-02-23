@@ -134,7 +134,7 @@ func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) string {
 			str = v.emitAsString(", ", 0)
 			v.emitToFile(str)
 		}
-		str = v.emitExpression(arg, indent) // Function arguments
+		str = v.emitExpression(arg, 0) // Function arguments
 	}
 	str = v.emitAsString(")", 0)
 	v.emitToFile(str)
@@ -275,7 +275,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 					str = v.emitAsString(", ", 0)
 					v.emitToFile(str)
 				}
-				v.emitExpression(result.Type, indent)
+				v.emitExpression(result.Type, 0)
 			}
 		} else {
 			str = v.emitAsString("void", 0)
@@ -288,7 +288,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 				str = v.emitAsString(", ", 0)
 				v.emitToFile(str)
 			}
-			v.emitExpression(param.Type, indent)
+			v.emitExpression(param.Type, 0)
 		}
 		str = v.emitAsString(")>", 0)
 		v.emitToFile(str)
@@ -413,7 +413,7 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) 
 			v.emitToFile(str)
 		}
 		first = false
-		v.emitExpression(result, indent)
+		v.emitExpression(result, 0)
 	}
 	if len(retStmt.Results) > 1 {
 		str := v.emitAsString(")", 0)
@@ -466,30 +466,30 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 				str := v.emitAsString(";", 0)
 				v.emitToFile(str)
 			} else if exprStmt, ok := stmt.Init.(*ast.ExprStmt); ok {
-				v.emitExpression(exprStmt.X, indent)
-				str := v.emitAsString("; ", 0)
+				v.emitExpression(exprStmt.X, 0)
+				str := v.emitAsString(";", 0)
 				v.emitToFile(str)
 			} else {
-				str := v.emitAsString("; ", 0)
+				str := v.emitAsString(";", 0)
 				v.emitToFile(str)
 			}
 		} else {
-			str := v.emitAsString("; ", 0)
+			str := v.emitAsString(";", 0)
 			v.emitToFile(str)
 		}
 		if stmt.Cond != nil {
-			v.emitExpression(stmt.Cond, indent)
-			str := v.emitAsString("; ", 0)
+			v.emitExpression(stmt.Cond, 0)
+			str := v.emitAsString(";", 0)
 			v.emitToFile(str)
 		} else {
-			str := v.emitAsString("; ", 0)
+			str := v.emitAsString(";", 0)
 			v.emitToFile(str)
 		}
 		if stmt.Post != nil {
 			if postExpr, ok := stmt.Post.(*ast.ExprStmt); ok {
-				v.emitExpression(postExpr.X, indent)
+				v.emitExpression(postExpr.X, 0)
 			} else if incDeclStmt, ok := stmt.Post.(*ast.IncDecStmt); ok {
-				v.emitExpression(incDeclStmt.X, indent)
+				v.emitExpression(incDeclStmt.X, 0)
 				str := v.emitAsString(incDeclStmt.Tok.String(), 0)
 				v.emitToFile(str)
 			}
@@ -503,11 +503,11 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 		str := v.emitAsString("for (auto ", indent)
 		v.emitToFile(str)
 		if stmt.Value != nil {
-			v.emitExpression(stmt.Value, indent)
+			v.emitExpression(stmt.Value, 0)
 		}
 		str = v.emitAsString(" : ", 0)
 		v.emitToFile(str)
-		v.emitExpression(stmt.X, indent)
+		v.emitExpression(stmt.X, 0)
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
 		v.emitBlockStmt(stmt.Body, indent+2)
@@ -516,7 +516,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 	case *ast.SwitchStmt:
 		str := v.emitAsString("switch (", indent)
 		v.emitToFile(str)
-		v.emitExpression(stmt.Tag, indent)
+		v.emitExpression(stmt.Tag, 0)
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
 		for _, stmt := range stmt.Body.List {
@@ -524,7 +524,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 				for _, expr := range caseClause.List {
 					str := v.emitAsString("case ", indent+2)
 					v.emitToFile(str)
-					v.emitExpression(expr, indent+2)
+					v.emitExpression(expr, 0)
 					str = v.emitAsString(":\n", 0)
 					v.emitToFile(str)
 				}
@@ -573,9 +573,9 @@ func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 	str := v.emitAsString("if", indent)
 	str += v.emitAsString(" (", 0)
 	v.emitToFile(str)
-	v.emitExpression(ifStmt.Cond, 1)
+	v.emitExpression(ifStmt.Cond, 0)
 	str = v.emitAsString(") ", 0)
-	str += v.emitAsString(" {\n", 0)
+	str += v.emitAsString("{\n", 0)
 	v.emitToFile(str)
 	v.emitBlockStmt(ifStmt.Body, indent+2)
 	str = v.emitAsString("}\n", indent)
