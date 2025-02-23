@@ -456,7 +456,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 	case *ast.ReturnStmt:
 		v.emitReturnStmt(stmt, indent)
 	case *ast.IfStmt:
-		v.emitIfStmt(stmt, indent)
+		v.emitIfStmt(stmt, indent, false)
 	case *ast.ForStmt:
 		str := v.emitAsString("for (", indent)
 		v.emitToFile(str)
@@ -569,8 +569,13 @@ func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
-	str := v.emitAsString("if", indent)
+func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int, innerif bool) {
+	var str string
+	if innerif {
+		str = v.emitAsString("if", 1)
+	} else {
+		str = v.emitAsString("if", indent)
+	}
 	str += v.emitAsString(" (", 0)
 	v.emitToFile(str)
 	v.emitExpression(ifStmt.Cond, 0)
@@ -584,7 +589,7 @@ func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int) {
 		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
 			str = v.emitAsString("else", indent)
 			v.emitToFile(str)
-			v.emitIfStmt(elseIf, indent) // Recursive call for else-if
+			v.emitIfStmt(elseIf, indent, true) // Recursive call for else-if
 		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
 			str = v.emitAsString("else {\n", indent)
 			v.emitToFile(str)
