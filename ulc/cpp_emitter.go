@@ -91,3 +91,10 @@ func (cppe *CPPEmitter) PostVisitCallExprArgs(node *ast.CallExpr, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}

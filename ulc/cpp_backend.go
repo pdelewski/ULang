@@ -129,13 +129,10 @@ func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
 
 func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
 	v.emitter.PreVisitCallExprArgs(node, indent)
-	var str string
 	for i, arg := range node.Args {
-		if i > 0 {
-			str = v.emitAsString(", ", 0)
-			v.emitToFile(str)
-		}
-		str = v.traverseExpression(arg, 0) // Function arguments
+		v.emitter.PreVisitCallExprArg(arg, i, indent)
+		v.traverseExpression(arg, 0) // Function arguments
+		v.emitter.PostVisitCallExprArg(arg, i, indent)
 	}
 	v.emitter.PostVisitCallExprArgs(node, indent)
 }

@@ -26,4 +26,6 @@ type Emitter interface {
 	PostVisitCallExprFun(node ast.Expr, indent int)
 	PreVisitCallExprArgs(node *ast.CallExpr, indent int)
 	PostVisitCallExprArgs(node *ast.CallExpr, indent int)
+	PreVisitCallExprArg(node ast.Expr, index int, indent int)
+	PostVisitCallExprArg(node ast.Expr, index int, indent int)
 }
