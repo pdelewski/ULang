@@ -84,9 +84,9 @@ func (v *CppBackendVisitor) emitAsString(s string, indent int) string {
 func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
-			v.emitExpression(field.Type, indent)
+			v.traverseExpression(field.Type, indent)
 			v.emitToFile(" ")
-			v.emitExpression(fieldName, 0)
+			v.traverseExpression(fieldName, 0)
 			v.emitToFile(";\n")
 		}
 	}
@@ -100,7 +100,7 @@ func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
 	case *ast.SelectorExpr: // Recursive case: nested selectors
 		result = v.resolveSelector(x)
 	default:
-		v.emitExpression(selExpr.X, 0)
+		v.traverseExpression(selExpr.X, 0)
 	}
 	scopeOperator := "."
 	if _, found := namespaces[result]; found {
@@ -134,14 +134,14 @@ func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) string {
 			str = v.emitAsString(", ", 0)
 			v.emitToFile(str)
 		}
-		str = v.emitExpression(arg, 0) // Function arguments
+		str = v.traverseExpression(arg, 0) // Function arguments
 	}
 	str = v.emitAsString(")", 0)
 	v.emitToFile(str)
 	return str
 }
 
-func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
+func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string {
 	var str string
 	switch e := expr.(type) {
 	case *ast.BasicLit:
@@ -172,21 +172,21 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			}
 		}
 	case *ast.BinaryExpr:
-		v.emitExpression(e.X, indent) // Left operand
+		v.traverseExpression(e.X, indent) // Left operand
 		str = v.emitAsString(e.Op.String()+" ", 1)
 		v.emitToFile(str)
-		v.emitExpression(e.Y, indent) // Right operand
+		v.traverseExpression(e.Y, indent) // Right operand
 	case *ast.CallExpr:
-		v.emitExpression(e.Fun, indent)
+		v.traverseExpression(e.Fun, indent)
 		v.emitArgs(e, indent)
 	case *ast.ParenExpr:
 		str = v.emitAsString("(", 0)
 		v.emitToFile(str)
-		v.emitExpression(e.X, indent) // Dump inner expression
+		v.traverseExpression(e.X, indent) // Dump inner expression
 		str = v.emitAsString(")", 0)
 		v.emitToFile(str)
 	case *ast.CompositeLit:
-		v.emitExpression(e.Type, indent)
+		v.traverseExpression(e.Type, indent)
 		str = v.emitAsString("{", 0)
 		v.emitToFile(str)
 		for i, elt := range e.Elts {
@@ -194,14 +194,14 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 				str = v.emitAsString(", ", 0)
 				v.emitToFile(str)
 			}
-			v.emitExpression(elt, indent)
+			v.traverseExpression(elt, indent)
 		}
 		str = v.emitAsString("}", 0)
 		v.emitToFile(str)
 	case *ast.ArrayType:
 		str = v.emitAsString("std::vector<", indent)
 		v.emitToFile(str)
-		v.emitExpression(e.Elt, 0)
+		v.traverseExpression(e.Elt, 0)
 		str = v.emitAsString(">", 0)
 		v.emitToFile(str)
 	case *ast.SelectorExpr:
@@ -210,10 +210,10 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		str := v.emitAsString(selector, indent)
 		v.emitToFile(str)
 	case *ast.IndexExpr:
-		v.emitExpression(e.X, indent)
+		v.traverseExpression(e.X, indent)
 		str = v.emitAsString("[", 0)
 		v.emitToFile(str)
-		v.emitExpression(e.Index, indent)
+		v.traverseExpression(e.Index, indent)
 		str = v.emitAsString("]", 0)
 		v.emitToFile(str)
 	case *ast.UnaryExpr:
@@ -221,43 +221,43 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		v.emitToFile(str)
 		str = v.emitAsString(e.Op.String(), 0)
 		v.emitToFile(str)
-		v.emitExpression(e.X, 0)
+		v.traverseExpression(e.X, 0)
 		str = v.emitAsString(")", 0)
 		v.emitToFile(str)
 	case *ast.SliceExpr:
 		str = v.emitAsString("std::vector<std::remove_reference<decltype(", indent)
 		v.emitToFile(str)
-		v.emitExpression(e.X, 0)
+		v.traverseExpression(e.X, 0)
 		str = v.emitAsString("[0]", 0)
 		v.emitToFile(str)
 		str = v.emitAsString(")>::type>(", 0)
 		v.emitToFile(str)
 		// Check and print Low, High, and Max
-		v.emitExpression(e.X, indent)
+		v.traverseExpression(e.X, indent)
 		str = v.emitAsString(".begin() ", 0)
 		v.emitToFile(str)
 		if e.Low != nil {
 			str = v.emitAsString("+ ", 0)
 			v.emitToFile(str)
-			v.emitExpression(e.Low, indent)
+			v.traverseExpression(e.Low, indent)
 		} else {
 			log.Println("Low index: <nil>")
 		}
 		str = v.emitAsString(", ", 0)
 		v.emitToFile(str)
-		v.emitExpression(e.X, indent)
+		v.traverseExpression(e.X, indent)
 		if e.High != nil {
 			str = v.emitAsString(".begin() ", 0)
 			v.emitToFile(str)
 			str = v.emitAsString("+ ", 0)
 			v.emitToFile(str)
-			v.emitExpression(e.High, indent)
+			v.traverseExpression(e.High, indent)
 		} else {
 			str = v.emitAsString(".end() ", 0)
 			v.emitToFile(str)
 		}
 		if e.Slice3 && e.Max != nil {
-			v.emitExpression(e.Max, indent)
+			v.traverseExpression(e.Max, indent)
 		} else if e.Slice3 {
 			log.Println("Max index: <nil>")
 		}
@@ -272,7 +272,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 					str = v.emitAsString(", ", 0)
 					v.emitToFile(str)
 				}
-				v.emitExpression(result.Type, 0)
+				v.traverseExpression(result.Type, 0)
 			}
 		} else {
 			str = v.emitAsString("void", 0)
@@ -285,17 +285,17 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 				str = v.emitAsString(", ", 0)
 				v.emitToFile(str)
 			}
-			v.emitExpression(param.Type, 0)
+			v.traverseExpression(param.Type, 0)
 		}
 		str = v.emitAsString(")>", 0)
 		v.emitToFile(str)
 	case *ast.KeyValueExpr:
 		str = v.emitAsString(".", 0)
 		v.emitToFile(str)
-		v.emitExpression(e.Key, indent)
+		v.traverseExpression(e.Key, indent)
 		str = v.emitAsString("= ", 0)
 		v.emitToFile(str)
-		v.emitExpression(e.Value, indent)
+		v.traverseExpression(e.Value, indent)
 		str = v.emitAsString("\n", 0)
 		v.emitToFile(str)
 	case *ast.FuncLit:
@@ -305,7 +305,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 				str += v.emitAsString(", ", 0)
 			}
 			v.emitToFile(str)
-			v.emitExpression(param.Type, indent)
+			v.traverseExpression(param.Type, indent)
 			str = v.emitAsString(" ", 0)
 			str += v.emitAsString(param.Names[0].Name, indent)
 		}
@@ -318,7 +318,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 					str = v.emitAsString(", ", 0)
 					v.emitToFile(str)
 				}
-				v.emitExpression(result.Type, indent)
+				v.traverseExpression(result.Type, indent)
 			}
 		} else {
 			str = v.emitAsString("void", 0)
@@ -326,22 +326,22 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 		}
 		str = v.emitAsString("{\n", 0)
 		v.emitToFile(str)
-		v.emitBlockStmt(e.Body, indent+2)
+		v.traverseBlockStmt(e.Body, indent+2)
 		str = v.emitAsString("}", 0)
 		v.emitToFile(str)
 	case *ast.TypeAssertExpr:
 		str = v.emitAsString("std::any_cast<", indent)
 		v.emitToFile(str)
-		v.emitExpression(e.Type, indent)
+		v.traverseExpression(e.Type, indent)
 		str = v.emitAsString(">(std::any(", 0)
 		v.emitToFile(str)
-		v.emitExpression(e.X, indent)
+		v.traverseExpression(e.X, indent)
 		str = v.emitAsString("))", 0)
 		v.emitToFile(str)
 	case *ast.StarExpr:
 		str = v.emitAsString("*", 0)
 		v.emitToFile(str)
-		v.emitExpression(e.X, indent)
+		v.traverseExpression(e.X, indent)
 	case *ast.InterfaceType:
 		str = v.emitAsString("std::any", indent)
 		v.emitToFile(str)
@@ -351,7 +351,7 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 	return str
 }
 
-func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent int) {
+func (v *CppBackendVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent int) {
 	assignmentToken := assignStmt.Tok.String()
 	if assignmentToken == ":=" && len(assignStmt.Lhs) == 1 {
 		str := v.emitAsString("auto ", indent)
@@ -377,7 +377,7 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 			str := v.emitAsString(ident.Name, indent)
 			v.emitToFile(str)
 		} else {
-			v.emitExpression(lhs, indent)
+			v.traverseExpression(lhs, indent)
 		}
 	}
 
@@ -392,11 +392,11 @@ func (v *CppBackendVisitor) emitAssignment(assignStmt *ast.AssignStmt, indent in
 	str := v.emitAsString(assignmentToken+" ", indent+1)
 	v.emitToFile(str)
 	for _, rhs := range assignStmt.Rhs {
-		v.emitExpression(rhs, indent)
+		v.traverseExpression(rhs, indent)
 	}
 }
 
-func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) {
+func (v *CppBackendVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int) {
 	str := v.emitAsString("return ", indent)
 	v.emitToFile(str)
 	if len(retStmt.Results) > 1 {
@@ -410,7 +410,7 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) 
 			v.emitToFile(str)
 		}
 		first = false
-		v.emitExpression(result, 0)
+		v.traverseExpression(result, 0)
 	}
 	if len(retStmt.Results) > 1 {
 		str := v.emitAsString(")", 0)
@@ -420,10 +420,10 @@ func (v *CppBackendVisitor) emitReturnStmt(retStmt *ast.ReturnStmt, indent int) 
 	v.emitToFile(str)
 }
 
-func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
+func (v *CppBackendVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
-		v.emitExpression(stmt.X, indent)
+		v.traverseExpression(stmt.X, indent)
 		str := v.emitAsString(";\n", 0)
 		err := v.emitToFile(str)
 		if err != nil {
@@ -435,10 +435,10 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
 					// Iterate through all variables declared
 					for _, ident := range valueSpec.Names {
-						v.emitExpression(valueSpec.Type, indent)
+						v.traverseExpression(valueSpec.Type, indent)
 						str := v.emitAsString(" ", 0)
 						v.emitToFile(str)
-						v.emitExpression(ident, 0)
+						v.traverseExpression(ident, 0)
 						v.emitToFile(";\n")
 					}
 				}
@@ -447,23 +447,23 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 	case *ast.AssignStmt:
 		str := v.emitAsString("", indent)
 		v.emitToFile(str)
-		v.emitAssignment(stmt, 0)
+		v.traverseAssignment(stmt, 0)
 		str = v.emitAsString(";\n", 0)
 		v.emitToFile(str)
 	case *ast.ReturnStmt:
-		v.emitReturnStmt(stmt, indent)
+		v.traverseReturnStmt(stmt, indent)
 	case *ast.IfStmt:
-		v.emitIfStmt(stmt, indent, false)
+		v.traverseIfStmt(stmt, indent, false)
 	case *ast.ForStmt:
 		str := v.emitAsString("for (", indent)
 		v.emitToFile(str)
 		if stmt.Init != nil {
 			if assignStmt, ok := stmt.Init.(*ast.AssignStmt); ok {
-				v.emitAssignment(assignStmt, 0)
+				v.traverseAssignment(assignStmt, 0)
 				str := v.emitAsString(";", 0)
 				v.emitToFile(str)
 			} else if exprStmt, ok := stmt.Init.(*ast.ExprStmt); ok {
-				v.emitExpression(exprStmt.X, 0)
+				v.traverseExpression(exprStmt.X, 0)
 				str := v.emitAsString(";", 0)
 				v.emitToFile(str)
 			} else {
@@ -475,7 +475,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 			v.emitToFile(str)
 		}
 		if stmt.Cond != nil {
-			v.emitExpression(stmt.Cond, 0)
+			v.traverseExpression(stmt.Cond, 0)
 			str := v.emitAsString(";", 0)
 			v.emitToFile(str)
 		} else {
@@ -484,36 +484,36 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 		}
 		if stmt.Post != nil {
 			if postExpr, ok := stmt.Post.(*ast.ExprStmt); ok {
-				v.emitExpression(postExpr.X, 0)
+				v.traverseExpression(postExpr.X, 0)
 			} else if incDeclStmt, ok := stmt.Post.(*ast.IncDecStmt); ok {
-				v.emitExpression(incDeclStmt.X, 0)
+				v.traverseExpression(incDeclStmt.X, 0)
 				str := v.emitAsString(incDeclStmt.Tok.String(), 0)
 				v.emitToFile(str)
 			}
 		}
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
-		v.emitBlockStmt(stmt.Body, indent+2)
+		v.traverseBlockStmt(stmt.Body, indent+2)
 		str = v.emitAsString("}\n", indent)
 		v.emitToFile(str)
 	case *ast.RangeStmt:
 		str := v.emitAsString("for (auto ", indent)
 		v.emitToFile(str)
 		if stmt.Value != nil {
-			v.emitExpression(stmt.Value, 0)
+			v.traverseExpression(stmt.Value, 0)
 		}
 		str = v.emitAsString(" : ", 0)
 		v.emitToFile(str)
-		v.emitExpression(stmt.X, 0)
+		v.traverseExpression(stmt.X, 0)
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
-		v.emitBlockStmt(stmt.Body, indent+2)
+		v.traverseBlockStmt(stmt.Body, indent+2)
 		str = v.emitAsString("}\n", indent)
 		v.emitToFile(str)
 	case *ast.SwitchStmt:
 		str := v.emitAsString("switch (", indent)
 		v.emitToFile(str)
-		v.emitExpression(stmt.Tag, 0)
+		v.traverseExpression(stmt.Tag, 0)
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
 		for _, stmt := range stmt.Body.List {
@@ -521,7 +521,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 				for _, expr := range caseClause.List {
 					str := v.emitAsString("case ", indent+2)
 					v.emitToFile(str)
-					v.emitExpression(expr, 0)
+					v.traverseExpression(expr, 0)
 					str = v.emitAsString(":\n", 0)
 					v.emitToFile(str)
 				}
@@ -530,7 +530,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 					v.emitToFile(str)
 				}
 				for _, innerStmt := range caseClause.Body {
-					v.emitStmt(innerStmt, indent+4)
+					v.traverseStmt(innerStmt, indent+4)
 				}
 				str := v.emitAsString("break;\n", indent+4)
 				v.emitToFile(str)
@@ -550,7 +550,7 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 	case *ast.IncDecStmt:
 		str := v.emitAsString("", indent)
 		v.emitToFile(str)
-		v.emitExpression(stmt.X, indent)
+		v.traverseExpression(stmt.X, indent)
 		str = v.emitAsString(stmt.Tok.String(), 0)
 		str += v.emitAsString(";\n", 0)
 		v.emitToFile(str)
@@ -560,13 +560,13 @@ func (v *CppBackendVisitor) emitStmt(stmt ast.Stmt, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) emitBlockStmt(block *ast.BlockStmt, indent int) {
+func (v *CppBackendVisitor) traverseBlockStmt(block *ast.BlockStmt, indent int) {
 	for _, stmt := range block.List {
-		v.emitStmt(stmt, indent)
+		v.traverseStmt(stmt, indent)
 	}
 }
 
-func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int, innerif bool) {
+func (v *CppBackendVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, innerif bool) {
 	var str string
 	if innerif {
 		str = v.emitAsString("if", 1)
@@ -575,22 +575,22 @@ func (v *CppBackendVisitor) emitIfStmt(ifStmt *ast.IfStmt, indent int, innerif b
 	}
 	str += v.emitAsString(" (", 0)
 	v.emitToFile(str)
-	v.emitExpression(ifStmt.Cond, 0)
+	v.traverseExpression(ifStmt.Cond, 0)
 	str = v.emitAsString(") ", 0)
 	str += v.emitAsString("{\n", 0)
 	v.emitToFile(str)
-	v.emitBlockStmt(ifStmt.Body, indent+2)
+	v.traverseBlockStmt(ifStmt.Body, indent+2)
 	str = v.emitAsString("}\n", indent)
 	v.emitToFile(str)
 	if ifStmt.Else != nil {
 		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
 			str = v.emitAsString("else", indent)
 			v.emitToFile(str)
-			v.emitIfStmt(elseIf, indent, true) // Recursive call for else-if
+			v.traverseIfStmt(elseIf, indent, true) // Recursive call for else-if
 		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
 			str = v.emitAsString("else {\n", indent)
 			v.emitToFile(str)
-			v.emitBlockStmt(elseBlock, indent+2) // Dump else block
+			v.traverseBlockStmt(elseBlock, indent+2) // Dump else block
 			str = v.emitAsString("}\n", indent)
 			v.emitToFile(str)
 		}
@@ -618,9 +618,9 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 				}
 			}
 			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
-				v.emitExpression(arrayArg, 0)
+				v.traverseExpression(arrayArg, 0)
 			} else {
-				v.emitExpression(result.Type, 0)
+				v.traverseExpression(result.Type, 0)
 			}
 			resultArgIndex++
 		}
@@ -671,11 +671,11 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 		}
 		for _, argName := range arg.Names {
 			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
-				v.emitExpression(arrayArg, 0)
+				v.traverseExpression(arrayArg, 0)
 				v.emitToFile(" ")
-				v.emitExpression(argName, 0)
+				v.traverseExpression(argName, 0)
 			} else {
-				v.emitExpression(arg.Type, 0)
+				v.traverseExpression(arg.Type, 0)
 				v.emitToFile(" ")
 				v.emitToFile(argName.Name)
 			}
@@ -700,7 +700,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	v.emitBlockStmt(node.Body, 2)
+	v.traverseBlockStmt(node.Body, 2)
 	str = v.emitAsString("}\n", 0)
 	str += v.emitAsString("\n", 0)
 	err = v.emitToFile(str)
@@ -919,14 +919,14 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 			if _, ok := node.Type.(*ast.StructType); !ok {
 				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
 					v.emitToFile(fmt.Sprintf("using "))
-					v.emitExpression(node.Name, 0)
+					v.traverseExpression(node.Name, 0)
 					v.emitToFile(" = ")
-					v.emitExpression(arrayArg, 0)
+					v.traverseExpression(arrayArg, 0)
 					v.emitToFile(";\n\n")
 				} else {
 					str := v.emitAsString(fmt.Sprintf("using %s = ", node.Name.Name), 0)
 					err := v.emitToFile(str)
-					v.emitExpression(node.Type, 0)
+					v.traverseExpression(node.Type, 0)
 					str = v.emitAsString(";\n\n", 0)
 					err = v.emitToFile(str)
 					if err != nil {
