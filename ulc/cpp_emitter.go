@@ -10,6 +10,7 @@ import (
 
 type CPPEmitter struct {
 	file *os.File
+	Emitter
 }
 
 func (*CPPEmitter) lowerToBuiltins(selector string) string {
@@ -58,9 +59,6 @@ func (cppe *CPPEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 		cppe.emitToFile(cppe.emitAsString(e.Value, 0))
 	}
 }
-func (*CPPEmitter) PostVisitBasicLit(node *ast.BasicLit, indent int) {
-
-}
 
 func (cppe *CPPEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	var str string
@@ -80,4 +78,7 @@ func (cppe *CPPEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	}
 }
 
-func (*CPPEmitter) PostVisitIdent(node *ast.Ident, indent int) {}
+func (cppe *CPPEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
+	str := cppe.emitAsString(op.String()+" ", 1)
+	cppe.emitToFile(str)
+}

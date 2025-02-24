@@ -153,10 +153,16 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PreVisitIdent(e, indent)
 		v.emitter.PostVisitIdent(e, indent)
 	case *ast.BinaryExpr:
+		v.emitter.PreVisitBinaryExpr(e, indent)
+		v.emitter.PreVisitBinaryExprLeft(e.X, indent)
 		v.traverseExpression(e.X, indent) // Left operand
-		str = v.emitAsString(e.Op.String()+" ", 1)
-		v.emitToFile(str)
+		v.emitter.PostVisitBinaryExprLeft(e.X, indent)
+		v.emitter.PreVisitBinaryExprOperator(e.Op, indent)
+		v.emitter.PostVisitBinaryExprOperator(e.Op, indent)
+		v.emitter.PreVisitBinaryExprRight(e.Y, indent)
 		v.traverseExpression(e.Y, indent) // Right operand
+		v.emitter.PostVisitBinaryExprRight(e.Y, indent)
+		v.emitter.PostVisitBinaryExpr(e, indent)
 	case *ast.CallExpr:
 		v.traverseExpression(e.Fun, indent)
 		v.emitArgs(e, indent)
