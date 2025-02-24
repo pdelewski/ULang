@@ -165,11 +165,9 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitArgs(e, indent)
 		v.emitter.PostVisitCallExpr(e, indent)
 	case *ast.ParenExpr:
-		str = v.emitAsString("(", 0)
-		v.emitToFile(str)
+		v.emitter.PreVisitParenExpr(e, indent)
 		v.traverseExpression(e.X, indent) // Dump inner expression
-		str = v.emitAsString(")", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitParenExpr(e, indent)
 	case *ast.CompositeLit:
 		v.traverseExpression(e.Type, indent)
 		str = v.emitAsString("{", 0)

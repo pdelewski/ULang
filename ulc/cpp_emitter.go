@@ -98,3 +98,12 @@ func (cppe *CPPEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitParenExpr(node *ast.ParenExpr, indent int) {
+	str := cppe.emitAsString("(", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitParenExpr(node *ast.ParenExpr, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}

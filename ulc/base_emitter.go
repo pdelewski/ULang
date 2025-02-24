@@ -29,3 +29,5 @@ func (v *BaseEmitter) PreVisitCallExprArgs(node *ast.CallExpr, indent int)      
 func (v *BaseEmitter) PostVisitCallExprArgs(node *ast.CallExpr, indent int)      {}
 func (v *BaseEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int)  {}
 func (v *BaseEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int) {}
+func (v *BaseEmitter) PreVisitParenExpr(node *ast.ParenExpr, indent int)         {}
+func (v *BaseEmitter) PostVisitParenExpr(node *ast.ParenExpr, indent int)        {}
