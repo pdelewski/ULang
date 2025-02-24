@@ -149,15 +149,12 @@ func (v *CppBackendVisitor) emitExpression(expr ast.Expr, indent int) string {
 			e.Value = strings.Replace(e.Value, "\"", "", -1)
 			if e.Value[0] == '`' {
 				e.Value = strings.Replace(e.Value, "`", "", -1)
-				str = v.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0)
-				v.emitToFile(str)
+				v.emitToFile(v.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
 			} else {
-				str = v.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0)
-				v.emitToFile(str)
+				v.emitToFile(v.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
 			}
 		} else {
-			str = v.emitAsString(e.Value, 0)
-			v.emitToFile(str)
+			v.emitToFile(v.emitAsString(e.Value, 0))
 		}
 	case *ast.Ident:
 		name := e.Name
