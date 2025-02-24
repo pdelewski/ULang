@@ -50,12 +50,14 @@ type CppBackend struct {
 	outputFile string
 	file       *os.File
 	visitor    *CppBackendVisitor
+	emitter    Emitter
 }
 
 type CppBackendVisitor struct {
-	pkg   *packages.Package
-	pass  *CppBackend
-	nodes []ast.Node
+	pkg     *packages.Package
+	pass    *CppBackend
+	nodes   []ast.Node
+	emitter Emitter
 }
 
 func (v *CppBackend) Name() string {
@@ -63,7 +65,7 @@ func (v *CppBackend) Name() string {
 }
 
 func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
-	v.visitor = &CppBackendVisitor{pkg: pkg}
+	v.visitor = &CppBackendVisitor{pkg: pkg, emitter: v.emitter}
 	v.visitor.pass = v
 	return []ast.Visitor{v.visitor}
 }
@@ -145,32 +147,11 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 	var str string
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		if e.Kind == token.STRING {
-			e.Value = strings.Replace(e.Value, "\"", "", -1)
-			if e.Value[0] == '`' {
-				e.Value = strings.Replace(e.Value, "`", "", -1)
-				v.emitToFile(v.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
-			} else {
-				v.emitToFile(v.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
-			}
-		} else {
-			v.emitToFile(v.emitAsString(e.Value, 0))
-		}
+		v.emitter.PreVisitBasicLit(e, indent)
+		v.emitter.PostVisitBasicLit(e, indent)
 	case *ast.Ident:
-		name := e.Name
-		name = v.lowerToBuiltins(name)
-		if name == "nil" {
-			str = v.emitAsString("{}", indent)
-			v.emitToFile(str)
-		} else {
-			if n, ok := typesMap[name]; ok {
-				str = v.emitAsString(n, indent)
-				v.emitToFile(str)
-			} else {
-				str = v.emitAsString(name, indent)
-				v.emitToFile(str)
-			}
-		}
+		v.emitter.PreVisitIdent(e, indent)
+		v.emitter.PostVisitIdent(e, indent)
 	case *ast.BinaryExpr:
 		v.traverseExpression(e.X, indent) // Left operand
 		str = v.emitAsString(e.Op.String()+" ", 1)
@@ -968,6 +949,7 @@ func (v *CppBackend) ProLog() {
 	v.outputFile = "./output.cpp"
 	var err error
 	v.file, err = os.Create(v.outputFile)
+	v.emitter.SetFile(v.file)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
