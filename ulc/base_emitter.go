@@ -21,3 +21,9 @@ func (v *BaseEmitter) PreVisitBinaryExprRight(node ast.Expr, indent int)      {}
 func (v *BaseEmitter) PostVisitBinaryExprRight(node ast.Expr, indent int)     {}
 func (v *BaseEmitter) PreVisitBinaryExprOperator(op token.Token, indent int)  {}
 func (v *BaseEmitter) PostVisitBinaryExprOperator(op token.Token, indent int) {}
+func (v *BaseEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int)        {}
+func (v *BaseEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int)       {}
+func (v *BaseEmitter) PreVisitCallExprFun(node ast.Expr, indent int)          {}
+func (v *BaseEmitter) PostVisitCallExprFun(node ast.Expr, indent int)         {}
+func (v *BaseEmitter) PreVisitCallExprArgs(node *ast.CallExpr, indent int)    {}
+func (v *BaseEmitter) PostVisitCallExprArgs(node *ast.CallExpr, indent int)   {}

@@ -20,4 +20,10 @@ type Emitter interface {
 	PostVisitBinaryExprRight(node ast.Expr, indent int)
 	PreVisitBinaryExprOperator(op token.Token, indent int)
 	PostVisitBinaryExprOperator(op token.Token, indent int)
+	PreVisitCallExpr(node *ast.CallExpr, indent int)
+	PostVisitCallExpr(node *ast.CallExpr, indent int)
+	PreVisitCallExprFun(node ast.Expr, indent int)
+	PostVisitCallExprFun(node ast.Expr, indent int)
+	PreVisitCallExprArgs(node *ast.CallExpr, indent int)
+	PostVisitCallExprArgs(node *ast.CallExpr, indent int)
 }

@@ -127,10 +127,9 @@ func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
 	return selector
 }
 
-func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) string {
+func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
+	v.emitter.PreVisitCallExprArgs(node, indent)
 	var str string
-	str = v.emitAsString("(", 0)
-	v.emitToFile(str)
 	for i, arg := range node.Args {
 		if i > 0 {
 			str = v.emitAsString(", ", 0)
@@ -138,9 +137,7 @@ func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) string {
 		}
 		str = v.traverseExpression(arg, 0) // Function arguments
 	}
-	str = v.emitAsString(")", 0)
-	v.emitToFile(str)
-	return str
+	v.emitter.PostVisitCallExprArgs(node, indent)
 }
 
 func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string {
@@ -164,8 +161,12 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitBinaryExprRight(e.Y, indent)
 		v.emitter.PostVisitBinaryExpr(e, indent)
 	case *ast.CallExpr:
+		v.emitter.PreVisitCallExpr(e, indent)
+		v.emitter.PreVisitCallExprFun(e.Fun, indent)
 		v.traverseExpression(e.Fun, indent)
+		v.emitter.PostVisitCallExprFun(e.Fun, indent)
 		v.emitArgs(e, indent)
+		v.emitter.PostVisitCallExpr(e, indent)
 	case *ast.ParenExpr:
 		str = v.emitAsString("(", 0)
 		v.emitToFile(str)

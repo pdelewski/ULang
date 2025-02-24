@@ -82,3 +82,12 @@ func (cppe *CPPEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
 	str := cppe.emitAsString(op.String()+" ", 1)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitCallExprArgs(node *ast.CallExpr, indent int) {
+	str := cppe.emitAsString("(", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitCallExprArgs(node *ast.CallExpr, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}
