@@ -83,11 +83,11 @@ func (cppe *CPPEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
 	cppe.emitToFile(str)
 }
 
-func (cppe *CPPEmitter) PreVisitCallExprArgs(node *ast.CallExpr, indent int) {
+func (cppe *CPPEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 	str := cppe.emitAsString("(", 0)
 	cppe.emitToFile(str)
 }
-func (cppe *CPPEmitter) PostVisitCallExprArgs(node *ast.CallExpr, indent int) {
+func (cppe *CPPEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
@@ -108,7 +108,12 @@ func (cppe *CPPEmitter) PostVisitParenExpr(node *ast.ParenExpr, indent int) {
 	cppe.emitToFile(str)
 }
 
-func (cppe *CPPEmitter) PostVisitCompositeLit(node *ast.CompositeLit, indent int) {
+func (cppe *CPPEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
+	str := cppe.emitAsString("{", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
 	str := cppe.emitAsString("}", 0)
 	cppe.emitToFile(str)
 }

@@ -25,11 +25,15 @@ func (v *BaseEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int)          
 func (v *BaseEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int)          {}
 func (v *BaseEmitter) PreVisitCallExprFun(node ast.Expr, indent int)             {}
 func (v *BaseEmitter) PostVisitCallExprFun(node ast.Expr, indent int)            {}
-func (v *BaseEmitter) PreVisitCallExprArgs(node *ast.CallExpr, indent int)       {}
-func (v *BaseEmitter) PostVisitCallExprArgs(node *ast.CallExpr, indent int)      {}
+func (v *BaseEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int)          {}
+func (v *BaseEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int)         {}
 func (v *BaseEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int)  {}
 func (v *BaseEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int) {}
 func (v *BaseEmitter) PreVisitParenExpr(node *ast.ParenExpr, indent int)         {}
 func (v *BaseEmitter) PostVisitParenExpr(node *ast.ParenExpr, indent int)        {}
 func (v *BaseEmitter) PreVisitCompositeLit(node *ast.CompositeLit, indent int)   {}
 func (v *BaseEmitter) PostVisitCompositeLit(node *ast.CompositeLit, indent int)  {}
+func (v *BaseEmitter) PreVisitCompositeLitType(node ast.Expr, indent int)        {}
+func (v *BaseEmitter) PostVisitCompositeLitType(node ast.Expr, indent int)       {}
+func (v *BaseEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int)      {}
+func (v *BaseEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int)     {}

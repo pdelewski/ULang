@@ -128,13 +128,13 @@ func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
 }
 
 func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
-	v.emitter.PreVisitCallExprArgs(node, indent)
+	v.emitter.PreVisitCallExprArgs(node.Args, indent)
 	for i, arg := range node.Args {
 		v.emitter.PreVisitCallExprArg(arg, i, indent)
 		v.traverseExpression(arg, 0) // Function arguments
 		v.emitter.PostVisitCallExprArg(arg, i, indent)
 	}
-	v.emitter.PostVisitCallExprArgs(node, indent)
+	v.emitter.PostVisitCallExprArgs(node.Args, indent)
 }
 
 func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string {
@@ -170,9 +170,10 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitParenExpr(e, indent)
 	case *ast.CompositeLit:
 		v.emitter.PreVisitCompositeLit(e, indent)
+		v.emitter.PreVisitCompositeLitType(e.Type, indent)
 		v.traverseExpression(e.Type, indent)
-		str = v.emitAsString("{", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitCompositeLitType(e.Type, indent)
+		v.emitter.PreVisitCompositeLitElts(e.Elts, indent)
 		for i, elt := range e.Elts {
 			if i > 0 {
 				str = v.emitAsString(", ", 0)
@@ -180,6 +181,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 			}
 			v.traverseExpression(elt, indent)
 		}
+		v.emitter.PostVisitCompositeLitElts(e.Elts, indent)
 		v.emitter.PostVisitCompositeLit(e, indent)
 	case *ast.ArrayType:
 		str = v.emitAsString("std::vector<", indent)
