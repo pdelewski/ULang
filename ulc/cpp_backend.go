@@ -169,6 +169,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.traverseExpression(e.X, indent) // Dump inner expression
 		v.emitter.PostVisitParenExpr(e, indent)
 	case *ast.CompositeLit:
+		v.emitter.PreVisitCompositeLit(e, indent)
 		v.traverseExpression(e.Type, indent)
 		str = v.emitAsString("{", 0)
 		v.emitToFile(str)
@@ -179,8 +180,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 			}
 			v.traverseExpression(elt, indent)
 		}
-		str = v.emitAsString("}", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitCompositeLit(e, indent)
 	case *ast.ArrayType:
 		str = v.emitAsString("std::vector<", indent)
 		v.emitToFile(str)

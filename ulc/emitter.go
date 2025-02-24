@@ -30,4 +30,6 @@ type Emitter interface {
 	PostVisitCallExprArg(node ast.Expr, index int, indent int)
 	PreVisitParenExpr(node *ast.ParenExpr, indent int)
 	PostVisitParenExpr(node *ast.ParenExpr, indent int)
+	PreVisitCompositeLit(node *ast.CompositeLit, indent int)
+	PostVisitCompositeLit(node *ast.CompositeLit, indent int)
 }

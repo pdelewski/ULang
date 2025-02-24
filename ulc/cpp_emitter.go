@@ -107,3 +107,8 @@ func (cppe *CPPEmitter) PostVisitParenExpr(node *ast.ParenExpr, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitCompositeLit(node *ast.CompositeLit, indent int) {
+	str := cppe.emitAsString("}", 0)
+	cppe.emitToFile(str)
+}
