@@ -175,11 +175,9 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitCompositeLitType(e.Type, indent)
 		v.emitter.PreVisitCompositeLitElts(e.Elts, indent)
 		for i, elt := range e.Elts {
-			if i > 0 {
-				str = v.emitAsString(", ", 0)
-				v.emitToFile(str)
-			}
-			v.traverseExpression(elt, indent)
+			v.emitter.PreVisitCompositeLitElt(elt, i, indent)
+			v.traverseExpression(elt, 0) // Function arguments
+			v.emitter.PostVisitCompositeLitElt(elt, i, indent)
 		}
 		v.emitter.PostVisitCompositeLitElts(e.Elts, indent)
 		v.emitter.PostVisitCompositeLit(e, indent)

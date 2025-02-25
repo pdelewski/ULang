@@ -117,3 +117,10 @@ func (cppe *CPPEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
 	str := cppe.emitAsString("}", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
