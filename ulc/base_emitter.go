@@ -39,3 +39,5 @@ func (v *BaseEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int)     
 func (v *BaseEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int)         {}
 func (v *BaseEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int)  {}
 func (v *BaseEmitter) PostVisitCompositeLitElt(node ast.Expr, index int, indent int) {}
+func (v *BaseEmitter) PreVisitArrayType(node ast.ArrayType, indent int)              {}
+func (v *BaseEmitter) PostVisitArrayType(node ast.ArrayType, indent int)             {}

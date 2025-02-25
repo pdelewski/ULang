@@ -124,3 +124,12 @@ func (cppe *CPPEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
+	str := cppe.emitAsString("std::vector<", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
+	str := cppe.emitAsString(">", 0)
+	cppe.emitToFile(str)
+}

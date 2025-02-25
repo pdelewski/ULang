@@ -182,11 +182,9 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitCompositeLitElts(e.Elts, indent)
 		v.emitter.PostVisitCompositeLit(e, indent)
 	case *ast.ArrayType:
-		str = v.emitAsString("std::vector<", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitArrayType(*e, indent)
 		v.traverseExpression(e.Elt, 0)
-		str = v.emitAsString(">", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitArrayType(*e, indent)
 	case *ast.SelectorExpr:
 		selector := v.resolveSelector(e)
 		selector = v.lowerToBuiltins(selector)
