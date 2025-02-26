@@ -40,4 +40,6 @@ type Emitter interface {
 	PostVisitCompositeLitElt(node ast.Expr, index int, indent int)
 	PreVisitArrayType(node ast.ArrayType, indent int)
 	PostVisitArrayType(node ast.ArrayType, indent int)
+	PreVisitSelectorExpr(node *ast.SelectorExpr, indent int)
+	PostVisitSelectorExpr(node *ast.SelectorExpr, indent int)
 }

@@ -133,3 +133,10 @@ func (cppe *CPPEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	str := cppe.emitAsString(">", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitSelectorExpr(node *ast.SelectorExpr, indent int) {
+	//selector := cppe.resolveSelector(e)
+	//selector = cppe.lowerToBuiltins(selector)
+	//str := cppe.emitAsString(selector, indent)
+	//cppe.emitToFile(str)
+}

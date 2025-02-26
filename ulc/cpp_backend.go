@@ -95,20 +95,46 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 }
 
 func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
+	var stack []string
+	v.buildSelectorStack(selExpr, &stack) // Populate stack
+
+	if len(stack) == 0 {
+		return "" // Handle edge case where stack is empty
+	}
+	return stack[0] // Return the first element
+}
+
+// Helper function to populate the stack
+func (v *CppBackendVisitor) buildSelectorStack(selExpr *ast.SelectorExpr, stack *[]string) {
 	var result string
-	switch x := selExpr.X.(type) {
-	case *ast.Ident: // Base case: variable name
-		result = x.Name
-	case *ast.SelectorExpr: // Recursive case: nested selectors
-		result = v.resolveSelector(x)
-	default:
+	var okIdent, okSel bool
+	var ident *ast.Ident
+	var selExprX *ast.SelectorExpr
+
+	// Identify base identifier
+	if ident, okIdent = selExpr.X.(*ast.Ident); okIdent {
+		result = ident.Name
+	}
+
+	// Recursively resolve selectors
+	if selExprX, okSel = selExpr.X.(*ast.SelectorExpr); okSel {
+		v.buildSelectorStack(selExprX, stack)
+		result = (*stack)[0] // Ensure we carry over the resolved name
+	}
+
+	// If neither identifier nor selector, traverse the expression
+	if !okIdent && !okSel {
 		v.traverseExpression(selExpr.X, 0)
 	}
+
+	// Determine the appropriate scope operator
 	scopeOperator := "."
 	if _, found := namespaces[result]; found {
 		scopeOperator = "::"
 	}
-	return fmt.Sprintf("%s%s%s", result, scopeOperator, selExpr.Sel.Name)
+
+	// Push the resolved selector into the stack
+	*stack = append([]string{fmt.Sprintf("%s%s%s", result, scopeOperator, selExpr.Sel.Name)}, *stack...)
 }
 
 func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
