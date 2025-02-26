@@ -106,25 +106,28 @@ func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
 
 // Helper function to populate the stack
 func (v *CppBackendVisitor) buildSelectorStack(selExpr *ast.SelectorExpr, stack *[]string) {
-	var result string
 	var okIdent, okSel bool
 	var ident *ast.Ident
 	var selExprX *ast.SelectorExpr
 
 	// Identify base identifier
 	if ident, okIdent = selExpr.X.(*ast.Ident); okIdent {
-		result = ident.Name
+		*stack = append(*stack, ident.Name)
 	}
 
 	// Recursively resolve selectors
 	if selExprX, okSel = selExpr.X.(*ast.SelectorExpr); okSel {
 		v.buildSelectorStack(selExprX, stack)
-		result = (*stack)[0] // Ensure we carry over the resolved name
 	}
 
 	// If neither identifier nor selector, traverse the expression
 	if !okIdent && !okSel {
 		v.traverseExpression(selExpr.X, 0)
+	}
+
+	var result string
+	if len(*stack) > 0 {
+		result = (*stack)[0] // Ensure we carry over the resolved name
 	}
 
 	// Determine the appropriate scope operator
