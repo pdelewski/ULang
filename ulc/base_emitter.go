@@ -63,3 +63,7 @@ func (v *BaseEmitter) PreVisitSliceExprXBegin(node ast.Expr, indent int)        
 func (v *BaseEmitter) PostVisitSliceExprXBegin(node ast.Expr, indent int)            {}
 func (v *BaseEmitter) PreVisitSliceExprXEnd(node ast.Expr, indent int)               {}
 func (v *BaseEmitter) PostVisitSliceExprXEnd(node ast.Expr, indent int)              {}
+func (v *BaseEmitter) PreVisitSliceExprLow(node ast.Expr, indent int)                {}
+func (v *BaseEmitter) PostVisitSliceExprLow(node ast.Expr, indent int)               {}
+func (v *BaseEmitter) PreVisitSliceExprHigh(node ast.Expr, indent int)               {}
+func (v *BaseEmitter) PostVisitSliceExprHigh(node ast.Expr, indent int)              {}

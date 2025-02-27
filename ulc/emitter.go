@@ -62,4 +62,8 @@ type Emitter interface {
 	PostVisitSliceExprXBegin(node ast.Expr, indent int)
 	PreVisitSliceExprXEnd(node ast.Expr, indent int)
 	PostVisitSliceExprXEnd(node ast.Expr, indent int)
+	PreVisitSliceExprLow(node ast.Expr, indent int)
+	PostVisitSliceExprLow(node ast.Expr, indent int)
+	PreVisitSliceExprHigh(node ast.Expr, indent int)
+	PostVisitSliceExprHigh(node ast.Expr, indent int)
 }
