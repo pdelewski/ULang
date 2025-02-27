@@ -201,3 +201,8 @@ func (cppe *CPPEmitter) PreVisitSliceExprLow(node ast.Expr, indent int) {
 		log.Println("Low index: <nil>")
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitSliceExprHigh(node ast.Expr, indent int) {
+	str := cppe.emitAsString(", ", 0)
+	cppe.emitToFile(str)
+}
