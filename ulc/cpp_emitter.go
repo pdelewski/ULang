@@ -164,11 +164,19 @@ func (cppe *CPPEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int)
 
 func (cppe *CPPEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
 	str := cppe.emitAsString("(", 0)
-	cppe.emitToFile(str)
-	str = cppe.emitAsString(node.Op.String(), 0)
+	str += cppe.emitAsString(node.Op.String(), 0)
 	cppe.emitToFile(str)
 }
 func (cppe *CPPEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitSliceExpr(node *ast.SliceExpr, indent int) {
+	str := cppe.emitAsString("std::vector<std::remove_reference<decltype(", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }

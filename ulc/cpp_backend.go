@@ -191,8 +191,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.traverseExpression(e.X, 0)
 		v.emitter.PostVisitUnaryExpr(e, indent)
 	case *ast.SliceExpr:
-		str = v.emitAsString("std::vector<std::remove_reference<decltype(", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitSliceExpr(e, indent)
 		v.traverseExpression(e.X, 0)
 		str = v.emitAsString("[0]", 0)
 		v.emitToFile(str)
@@ -227,8 +226,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		} else if e.Slice3 {
 			log.Println("Max index: <nil>")
 		}
-		str = v.emitAsString(")", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSliceExpr(e, indent)
 	case *ast.FuncType:
 		str = v.emitAsString("std::function<", indent)
 		v.emitToFile(str)
