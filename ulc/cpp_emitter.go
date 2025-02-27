@@ -180,3 +180,9 @@ func (cppe *CPPEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
+	str := cppe.emitAsString("[0]", 0)
+	str += cppe.emitAsString(")>::type>(", 0)
+	cppe.emitToFile(str)
+}

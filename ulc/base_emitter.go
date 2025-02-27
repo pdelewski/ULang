@@ -57,3 +57,5 @@ func (v *BaseEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int)        
 func (v *BaseEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int)            {}
 func (v *BaseEmitter) PreVisitSliceExpr(node *ast.SliceExpr, indent int)             {}
 func (v *BaseEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int)            {}
+func (v *BaseEmitter) PreVisitSliceExprX(node ast.Expr, indent int)                  {}
+func (v *BaseEmitter) PostVisitSliceExprX(node ast.Expr, indent int)                 {}
