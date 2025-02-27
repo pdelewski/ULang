@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"log"
 	"os"
 	"strings"
 )
@@ -193,6 +194,10 @@ func (cppe *CPPEmitter) PostVisitSliceExprXBegin(node ast.Expr, indent int) {
 }
 
 func (cppe *CPPEmitter) PreVisitSliceExprLow(node ast.Expr, indent int) {
-	str := cppe.emitAsString("+ ", 0)
-	cppe.emitToFile(str)
+	if node != nil {
+		str := cppe.emitAsString("+ ", 0)
+		cppe.emitToFile(str)
+	} else {
+		log.Println("Low index: <nil>")
+	}
 }

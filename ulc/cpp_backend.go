@@ -199,13 +199,11 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PreVisitSliceExprXBegin(e.X, indent)
 		v.traverseExpression(e.X, indent)
 		v.emitter.PostVisitSliceExprXBegin(e, indent)
+		v.emitter.PreVisitSliceExprLow(e.Low, indent)
 		if e.Low != nil {
-			v.emitter.PreVisitSliceExprLow(e.Low, indent)
 			v.traverseExpression(e.Low, indent)
-			v.emitter.PostVisitSliceExprLow(e.Low, indent)
-		} else {
-			log.Println("Low index: <nil>")
 		}
+		v.emitter.PostVisitSliceExprLow(e.Low, indent)
 		str = v.emitAsString(", ", 0)
 		v.emitToFile(str)
 		v.traverseExpression(e.X, indent)
