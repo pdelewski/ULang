@@ -42,4 +42,8 @@ type Emitter interface {
 	PostVisitArrayType(node ast.ArrayType, indent int)
 	PreVisitSelectorExpr(node *ast.SelectorExpr, indent int)
 	PostVisitSelectorExpr(node *ast.SelectorExpr, indent int)
+	PreVisitSelectorExprX(node ast.Expr, indent int)
+	PostVisitSelectorExprX(node ast.Expr, indent int)
+	PreVisitSelectorExprSel(node *ast.Ident, indent int)
+	PostVisitSelectorExprSel(node *ast.Ident, indent int)
 }

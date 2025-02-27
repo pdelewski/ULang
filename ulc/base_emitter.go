@@ -43,3 +43,7 @@ func (v *BaseEmitter) PreVisitArrayType(node ast.ArrayType, indent int)         
 func (v *BaseEmitter) PostVisitArrayType(node ast.ArrayType, indent int)             {}
 func (v *BaseEmitter) PreVisitSelectorExpr(node *ast.SelectorExpr, indent int)       {}
 func (v *BaseEmitter) PostVisitSelectorExpr(node *ast.SelectorExpr, indent int)      {}
+func (v *BaseEmitter) PreVisitSelectorExprX(node ast.Expr, indent int)               {}
+func (v *BaseEmitter) PostVisitSelectorExprX(node ast.Expr, indent int)              {}
+func (v *BaseEmitter) PreVisitSelectorExprSel(node *ast.Ident, indent int)           {}
+func (v *BaseEmitter) PostVisitSelectorExprSel(node *ast.Ident, indent int)          {}

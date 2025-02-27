@@ -94,52 +94,6 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
-	var stack []string
-	v.buildSelectorStack(selExpr, &stack) // Populate stack
-
-	if len(stack) == 0 {
-		return "" // Handle edge case where stack is empty
-	}
-	return stack[0] // Return the first element
-}
-
-// Helper function to populate the stack
-func (v *CppBackendVisitor) buildSelectorStack(selExpr *ast.SelectorExpr, stack *[]string) {
-	var okIdent, okSel bool
-	var ident *ast.Ident
-	var selExprX *ast.SelectorExpr
-
-	// Identify base identifier
-	if ident, okIdent = selExpr.X.(*ast.Ident); okIdent {
-		*stack = append(*stack, ident.Name)
-	}
-
-	// Recursively resolve selectors
-	if selExprX, okSel = selExpr.X.(*ast.SelectorExpr); okSel {
-		v.buildSelectorStack(selExprX, stack)
-	}
-
-	// If neither identifier nor selector, traverse the expression
-	if !okIdent && !okSel {
-		v.traverseExpression(selExpr.X, 0)
-	}
-
-	var result string
-	if len(*stack) > 0 {
-		result = (*stack)[0] // Ensure we carry over the resolved name
-	}
-
-	// Determine the appropriate scope operator
-	scopeOperator := "."
-	if _, found := namespaces[result]; found {
-		scopeOperator = "::"
-	}
-
-	// Push the resolved selector into the stack
-	*stack = append([]string{fmt.Sprintf("%s%s%s", result, scopeOperator, selExpr.Sel.Name)}, *stack...)
-}
-
 func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
 	switch selector {
 	case "fmt.Sprintf":
@@ -215,10 +169,14 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.traverseExpression(e.Elt, 0)
 		v.emitter.PostVisitArrayType(*e, indent)
 	case *ast.SelectorExpr:
-		selector := v.resolveSelector(e)
-		selector = v.lowerToBuiltins(selector)
-		str := v.emitAsString(selector, indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitSelectorExpr(e, indent)
+		v.emitter.PreVisitSelectorExprX(e.X, indent)
+		v.traverseExpression(e.X, indent)
+		v.emitter.PostVisitSelectorExprX(e.X, indent)
+		oldIndent := indent
+		v.traverseExpression(e.Sel, 0)
+		indent = oldIndent
+		v.emitter.PostVisitSelectorExpr(e, indent)
 	case *ast.IndexExpr:
 		v.traverseExpression(e.X, indent)
 		str = v.emitAsString("[", 0)

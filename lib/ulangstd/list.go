@@ -80,7 +80,7 @@ func Remove(l List, value int) List {
 }
 
 // Print prints the list
-func Print(l List) {
+func PrintList(l List) {
 	if l.head == -1 {
 		fmt.Println("The list is empty.")
 		return

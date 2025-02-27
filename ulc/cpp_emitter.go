@@ -15,13 +15,15 @@ type CPPEmitter struct {
 
 func (*CPPEmitter) lowerToBuiltins(selector string) string {
 	switch selector {
-	case "fmt.Sprintf":
+	case "fmt":
+		return ""
+	case "Sprintf":
 		return "string_format"
-	case "fmt.Println":
+	case "Println":
 		return "println"
-	case "fmt.Printf":
+	case "Printf":
 		return "printf"
-	case "fmt.Print":
+	case "Print":
 		return "printf"
 	case "len":
 		return "std::size"
@@ -134,9 +136,19 @@ func (cppe *CPPEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	cppe.emitToFile(str)
 }
 
-func (cppe *CPPEmitter) PreVisitSelectorExpr(node *ast.SelectorExpr, indent int) {
-	//selector := cppe.resolveSelector(e)
-	//selector = cppe.lowerToBuiltins(selector)
-	//str := cppe.emitAsString(selector, indent)
-	//cppe.emitToFile(str)
+func (cppe *CPPEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
+	if ident, ok := node.(*ast.Ident); ok {
+		if cppe.lowerToBuiltins(ident.Name) == "" {
+			return
+		}
+		scopeOperator := "."
+		if _, found := namespaces[ident.Name]; found {
+			scopeOperator = "::"
+		}
+		str := cppe.emitAsString(scopeOperator, 0)
+		cppe.emitToFile(str)
+	} else {
+		str := cppe.emitAsString(".", 0)
+		cppe.emitToFile(str)
+	}
 }
