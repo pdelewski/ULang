@@ -188,12 +188,9 @@ func (cppe *CPPEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
 	cppe.emitToFile(str)
 }
 
-func (cppe *CPPEmitter) PostVisitSliceExprXBegin(node ast.Expr, indent int) {
+func (cppe *CPPEmitter) PreVisitSliceExprLow(node ast.Expr, indent int) {
 	str := cppe.emitAsString(".begin() ", 0)
 	cppe.emitToFile(str)
-}
-
-func (cppe *CPPEmitter) PreVisitSliceExprLow(node ast.Expr, indent int) {
 	if node != nil {
 		str := cppe.emitAsString("+ ", 0)
 		cppe.emitToFile(str)
@@ -202,7 +199,7 @@ func (cppe *CPPEmitter) PreVisitSliceExprLow(node ast.Expr, indent int) {
 	}
 }
 
-func (cppe *CPPEmitter) PreVisitSliceExprHigh(node ast.Expr, indent int) {
+func (cppe *CPPEmitter) PreVisitSliceExprXEnd(node ast.Expr, indent int) {
 	str := cppe.emitAsString(", ", 0)
 	cppe.emitToFile(str)
 }
