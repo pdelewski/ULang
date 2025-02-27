@@ -52,4 +52,6 @@ type Emitter interface {
 	PostVisitIndexExprX(node *ast.IndexExpr, indent int)
 	PreVisitIndexExprIndex(node *ast.IndexExpr, indent int)
 	PostVisitIndexExprIndex(node *ast.IndexExpr, indent int)
+	PreVisitUnaryExpr(node *ast.UnaryExpr, indent int)
+	PostVisitUnaryExpr(node *ast.UnaryExpr, indent int)
 }

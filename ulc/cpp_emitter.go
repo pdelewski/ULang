@@ -161,3 +161,14 @@ func (cppe *CPPEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int)
 	str := cppe.emitAsString("]", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	str := cppe.emitAsString("(", 0)
+	cppe.emitToFile(str)
+	str = cppe.emitAsString(node.Op.String(), 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}

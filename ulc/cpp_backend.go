@@ -187,13 +187,9 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitIndexExprIndex(e, indent)
 		v.emitter.PostVisitIndexExpr(e, indent)
 	case *ast.UnaryExpr:
-		str = v.emitAsString("(", 0)
-		v.emitToFile(str)
-		str = v.emitAsString(e.Op.String(), 0)
-		v.emitToFile(str)
+		v.emitter.PreVisitUnaryExpr(e, indent)
 		v.traverseExpression(e.X, 0)
-		str = v.emitAsString(")", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitUnaryExpr(e, indent)
 	case *ast.SliceExpr:
 		str = v.emitAsString("std::vector<std::remove_reference<decltype(", indent)
 		v.emitToFile(str)

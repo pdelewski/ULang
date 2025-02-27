@@ -53,3 +53,5 @@ func (v *BaseEmitter) PreVisitIndexExprX(node *ast.IndexExpr, indent int)       
 func (v *BaseEmitter) PostVisitIndexExprX(node *ast.IndexExpr, indent int)           {}
 func (v *BaseEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int)        {}
 func (v *BaseEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int)       {}
+func (v *BaseEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int)             {}
+func (v *BaseEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int)            {}
