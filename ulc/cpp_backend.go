@@ -94,22 +94,6 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
-	switch selector {
-	case "fmt.Sprintf":
-		return "string_format"
-	case "fmt.Println":
-		return "println"
-	case "fmt.Printf":
-		return "printf"
-	case "fmt.Print":
-		return "printf"
-	case "len":
-		return "std::size"
-	}
-	return selector
-}
-
 func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
 	v.emitter.PreVisitCallExprArgs(node.Args, indent)
 	for i, arg := range node.Args {
