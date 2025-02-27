@@ -196,29 +196,22 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.traverseExpression(e.X, 0)
 		v.emitter.PostVisitSliceExprX(e.X, indent)
 		// Check and print Low, High, and Max
+		v.emitter.PreVisitSliceExprXBegin(e.X, indent)
 		v.traverseExpression(e.X, indent)
-		str = v.emitAsString(".begin() ", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSliceExprXBegin(e, indent)
+		v.emitter.PreVisitSliceExprLow(e.Low, indent)
 		if e.Low != nil {
-			str = v.emitAsString("+ ", 0)
-			v.emitToFile(str)
 			v.traverseExpression(e.Low, indent)
-		} else {
-			log.Println("Low index: <nil>")
 		}
-		str = v.emitAsString(", ", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSliceExprLow(e.Low, indent)
+		v.emitter.PreVisitSliceExprXEnd(e, indent)
 		v.traverseExpression(e.X, indent)
+		v.emitter.PostVisitSliceExprXEnd(e, indent)
+		v.emitter.PreVisitSliceExprHigh(e.High, indent)
 		if e.High != nil {
-			str = v.emitAsString(".begin() ", 0)
-			v.emitToFile(str)
-			str = v.emitAsString("+ ", 0)
-			v.emitToFile(str)
 			v.traverseExpression(e.High, indent)
-		} else {
-			str = v.emitAsString(".end() ", 0)
-			v.emitToFile(str)
 		}
+		v.emitter.PostVisitSliceExprHigh(e.High, indent)
 		if e.Slice3 && e.Max != nil {
 			v.traverseExpression(e.Max, indent)
 		} else if e.Slice3 {
