@@ -46,4 +46,10 @@ type Emitter interface {
 	PostVisitSelectorExprX(node ast.Expr, indent int)
 	PreVisitSelectorExprSel(node *ast.Ident, indent int)
 	PostVisitSelectorExprSel(node *ast.Ident, indent int)
+	PreVisitIndexExpr(node *ast.IndexExpr, indent int)
+	PostVisitIndexExpr(node *ast.IndexExpr, indent int)
+	PreVisitIndexExprX(node *ast.IndexExpr, indent int)
+	PostVisitIndexExprX(node *ast.IndexExpr, indent int)
+	PreVisitIndexExprIndex(node *ast.IndexExpr, indent int)
+	PostVisitIndexExprIndex(node *ast.IndexExpr, indent int)
 }

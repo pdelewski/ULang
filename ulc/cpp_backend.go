@@ -178,12 +178,14 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		indent = oldIndent
 		v.emitter.PostVisitSelectorExpr(e, indent)
 	case *ast.IndexExpr:
+		v.emitter.PreVisitIndexExpr(e, indent)
+		v.emitter.PreVisitIndexExprX(e, indent)
 		v.traverseExpression(e.X, indent)
-		str = v.emitAsString("[", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitIndexExprX(e, indent)
+		v.emitter.PreVisitIndexExprIndex(e, indent)
 		v.traverseExpression(e.Index, indent)
-		str = v.emitAsString("]", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitIndexExprIndex(e, indent)
+		v.emitter.PostVisitIndexExpr(e, indent)
 	case *ast.UnaryExpr:
 		str = v.emitAsString("(", 0)
 		v.emitToFile(str)

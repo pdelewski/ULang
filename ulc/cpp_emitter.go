@@ -152,3 +152,12 @@ func (cppe *CPPEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	str := cppe.emitAsString("[", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	str := cppe.emitAsString("]", 0)
+	cppe.emitToFile(str)
+}

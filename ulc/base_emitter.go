@@ -47,3 +47,9 @@ func (v *BaseEmitter) PreVisitSelectorExprX(node ast.Expr, indent int)          
 func (v *BaseEmitter) PostVisitSelectorExprX(node ast.Expr, indent int)              {}
 func (v *BaseEmitter) PreVisitSelectorExprSel(node *ast.Ident, indent int)           {}
 func (v *BaseEmitter) PostVisitSelectorExprSel(node *ast.Ident, indent int)          {}
+func (v *BaseEmitter) PreVisitIndexExpr(node *ast.IndexExpr, indent int)             {}
+func (v *BaseEmitter) PostVisitIndexExpr(node *ast.IndexExpr, indent int)            {}
+func (v *BaseEmitter) PreVisitIndexExprX(node *ast.IndexExpr, indent int)            {}
+func (v *BaseEmitter) PostVisitIndexExprX(node *ast.IndexExpr, indent int)           {}
+func (v *BaseEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int)        {}
+func (v *BaseEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int)       {}
