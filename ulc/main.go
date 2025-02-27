@@ -42,7 +42,8 @@ func main() {
 		},
 	}
 
-	passManager.passes = append(passManager.passes, &CppBackend{})
+	cppBackend := &CppBackend{emitter: &CPPEmitter{Emitter: &BaseEmitter{}}}
+	passManager.passes = append(passManager.passes, cppBackend)
 
 	passManager.RunPasses()
 }

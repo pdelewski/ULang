@@ -50,12 +50,14 @@ type CppBackend struct {
 	outputFile string
 	file       *os.File
 	visitor    *CppBackendVisitor
+	emitter    Emitter
 }
 
 type CppBackendVisitor struct {
-	pkg   *packages.Package
-	pass  *CppBackend
-	nodes []ast.Node
+	pkg     *packages.Package
+	pass    *CppBackend
+	nodes   []ast.Node
+	emitter Emitter
 }
 
 func (v *CppBackend) Name() string {
@@ -63,7 +65,7 @@ func (v *CppBackend) Name() string {
 }
 
 func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
-	v.visitor = &CppBackendVisitor{pkg: pkg}
+	v.visitor = &CppBackendVisitor{pkg: pkg, emitter: v.emitter}
 	v.visitor.pass = v
 	return []ast.Visitor{v.visitor}
 }
@@ -92,23 +94,6 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) resolveSelector(selExpr *ast.SelectorExpr) string {
-	var result string
-	switch x := selExpr.X.(type) {
-	case *ast.Ident: // Base case: variable name
-		result = x.Name
-	case *ast.SelectorExpr: // Recursive case: nested selectors
-		result = v.resolveSelector(x)
-	default:
-		v.traverseExpression(selExpr.X, 0)
-	}
-	scopeOperator := "."
-	if _, found := namespaces[result]; found {
-		scopeOperator = "::"
-	}
-	return fmt.Sprintf("%s%s%s", result, scopeOperator, selExpr.Sel.Name)
-}
-
 func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
 	switch selector {
 	case "fmt.Sprintf":
@@ -125,113 +110,91 @@ func (v *CppBackendVisitor) lowerToBuiltins(selector string) string {
 	return selector
 }
 
-func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) string {
-	var str string
-	str = v.emitAsString("(", 0)
-	v.emitToFile(str)
+func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
+	v.emitter.PreVisitCallExprArgs(node.Args, indent)
 	for i, arg := range node.Args {
-		if i > 0 {
-			str = v.emitAsString(", ", 0)
-			v.emitToFile(str)
-		}
-		str = v.traverseExpression(arg, 0) // Function arguments
+		v.emitter.PreVisitCallExprArg(arg, i, indent)
+		v.traverseExpression(arg, 0) // Function arguments
+		v.emitter.PostVisitCallExprArg(arg, i, indent)
 	}
-	str = v.emitAsString(")", 0)
-	v.emitToFile(str)
-	return str
+	v.emitter.PostVisitCallExprArgs(node.Args, indent)
 }
 
 func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string {
 	var str string
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		if e.Kind == token.STRING {
-			e.Value = strings.Replace(e.Value, "\"", "", -1)
-			if e.Value[0] == '`' {
-				e.Value = strings.Replace(e.Value, "`", "", -1)
-				v.emitToFile(v.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
-			} else {
-				v.emitToFile(v.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
-			}
-		} else {
-			v.emitToFile(v.emitAsString(e.Value, 0))
-		}
+		v.emitter.PreVisitBasicLit(e, indent)
+		v.emitter.PostVisitBasicLit(e, indent)
 	case *ast.Ident:
-		name := e.Name
-		name = v.lowerToBuiltins(name)
-		if name == "nil" {
-			str = v.emitAsString("{}", indent)
-			v.emitToFile(str)
-		} else {
-			if n, ok := typesMap[name]; ok {
-				str = v.emitAsString(n, indent)
-				v.emitToFile(str)
-			} else {
-				str = v.emitAsString(name, indent)
-				v.emitToFile(str)
-			}
-		}
+		v.emitter.PreVisitIdent(e, indent)
+		v.emitter.PostVisitIdent(e, indent)
 	case *ast.BinaryExpr:
+		v.emitter.PreVisitBinaryExpr(e, indent)
+		v.emitter.PreVisitBinaryExprLeft(e.X, indent)
 		v.traverseExpression(e.X, indent) // Left operand
-		str = v.emitAsString(e.Op.String()+" ", 1)
-		v.emitToFile(str)
+		v.emitter.PostVisitBinaryExprLeft(e.X, indent)
+		v.emitter.PreVisitBinaryExprOperator(e.Op, indent)
+		v.emitter.PostVisitBinaryExprOperator(e.Op, indent)
+		v.emitter.PreVisitBinaryExprRight(e.Y, indent)
 		v.traverseExpression(e.Y, indent) // Right operand
+		v.emitter.PostVisitBinaryExprRight(e.Y, indent)
+		v.emitter.PostVisitBinaryExpr(e, indent)
 	case *ast.CallExpr:
+		v.emitter.PreVisitCallExpr(e, indent)
+		v.emitter.PreVisitCallExprFun(e.Fun, indent)
 		v.traverseExpression(e.Fun, indent)
+		v.emitter.PostVisitCallExprFun(e.Fun, indent)
 		v.emitArgs(e, indent)
+		v.emitter.PostVisitCallExpr(e, indent)
 	case *ast.ParenExpr:
-		str = v.emitAsString("(", 0)
-		v.emitToFile(str)
+		v.emitter.PreVisitParenExpr(e, indent)
 		v.traverseExpression(e.X, indent) // Dump inner expression
-		str = v.emitAsString(")", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitParenExpr(e, indent)
 	case *ast.CompositeLit:
+		v.emitter.PreVisitCompositeLit(e, indent)
+		v.emitter.PreVisitCompositeLitType(e.Type, indent)
 		v.traverseExpression(e.Type, indent)
-		str = v.emitAsString("{", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitCompositeLitType(e.Type, indent)
+		v.emitter.PreVisitCompositeLitElts(e.Elts, indent)
 		for i, elt := range e.Elts {
-			if i > 0 {
-				str = v.emitAsString(", ", 0)
-				v.emitToFile(str)
-			}
-			v.traverseExpression(elt, indent)
+			v.emitter.PreVisitCompositeLitElt(elt, i, indent)
+			v.traverseExpression(elt, 0) // Function arguments
+			v.emitter.PostVisitCompositeLitElt(elt, i, indent)
 		}
-		str = v.emitAsString("}", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitCompositeLitElts(e.Elts, indent)
+		v.emitter.PostVisitCompositeLit(e, indent)
 	case *ast.ArrayType:
-		str = v.emitAsString("std::vector<", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitArrayType(*e, indent)
 		v.traverseExpression(e.Elt, 0)
-		str = v.emitAsString(">", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitArrayType(*e, indent)
 	case *ast.SelectorExpr:
-		selector := v.resolveSelector(e)
-		selector = v.lowerToBuiltins(selector)
-		str := v.emitAsString(selector, indent)
-		v.emitToFile(str)
-	case *ast.IndexExpr:
+		v.emitter.PreVisitSelectorExpr(e, indent)
+		v.emitter.PreVisitSelectorExprX(e.X, indent)
 		v.traverseExpression(e.X, indent)
-		str = v.emitAsString("[", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSelectorExprX(e.X, indent)
+		oldIndent := indent
+		v.traverseExpression(e.Sel, 0)
+		indent = oldIndent
+		v.emitter.PostVisitSelectorExpr(e, indent)
+	case *ast.IndexExpr:
+		v.emitter.PreVisitIndexExpr(e, indent)
+		v.emitter.PreVisitIndexExprX(e, indent)
+		v.traverseExpression(e.X, indent)
+		v.emitter.PostVisitIndexExprX(e, indent)
+		v.emitter.PreVisitIndexExprIndex(e, indent)
 		v.traverseExpression(e.Index, indent)
-		str = v.emitAsString("]", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitIndexExprIndex(e, indent)
+		v.emitter.PostVisitIndexExpr(e, indent)
 	case *ast.UnaryExpr:
-		str = v.emitAsString("(", 0)
-		v.emitToFile(str)
-		str = v.emitAsString(e.Op.String(), 0)
-		v.emitToFile(str)
+		v.emitter.PreVisitUnaryExpr(e, indent)
 		v.traverseExpression(e.X, 0)
-		str = v.emitAsString(")", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitUnaryExpr(e, indent)
 	case *ast.SliceExpr:
-		str = v.emitAsString("std::vector<std::remove_reference<decltype(", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitSliceExpr(e, indent)
+		v.emitter.PreVisitSliceExprX(e.X, indent)
 		v.traverseExpression(e.X, 0)
-		str = v.emitAsString("[0]", 0)
-		v.emitToFile(str)
-		str = v.emitAsString(")>::type>(", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSliceExprX(e.X, indent)
 		// Check and print Low, High, and Max
 		v.traverseExpression(e.X, indent)
 		str = v.emitAsString(".begin() ", 0)
@@ -261,8 +224,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		} else if e.Slice3 {
 			log.Println("Max index: <nil>")
 		}
-		str = v.emitAsString(")", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSliceExpr(e, indent)
 	case *ast.FuncType:
 		str = v.emitAsString("std::function<", indent)
 		v.emitToFile(str)
@@ -968,6 +930,7 @@ func (v *CppBackend) ProLog() {
 	v.outputFile = "./output.cpp"
 	var err error
 	v.file, err = os.Create(v.outputFile)
+	v.emitter.SetFile(v.file)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return

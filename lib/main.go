@@ -13,17 +13,17 @@ func main() {
 	list = ulangstd.Add(list, 40)
 
 	fmt.Println("List after adding elements:")
-	ulangstd.Print(list) // Output: 10 -> 20 -> 30 -> 40 -> nil
+	ulangstd.PrintList(list) // Output: 10 -> 20 -> 30 -> 40 -> nil
 
 	// Remove an element from the list
 	list = ulangstd.Remove(list, 20)
 	fmt.Println("List after removing 20:")
-	ulangstd.Print(list) // Output: 10 -> 30 -> 40 -> nil
+	ulangstd.PrintList(list) // Output: 10 -> 30 -> 40 -> nil
 
 	// Remove the head element
 	list = ulangstd.Remove(list, 10)
 	fmt.Println("List after removing 10:")
-	ulangstd.Print(list) // Output: 30 -> 40 -> nil
+	ulangstd.PrintList(list) // Output: 30 -> 40 -> nil
 
 	tree := ulangstd.NewBinaryTree()
 
