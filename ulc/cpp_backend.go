@@ -196,9 +196,9 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.traverseExpression(e.X, 0)
 		v.emitter.PostVisitSliceExprX(e.X, indent)
 		// Check and print Low, High, and Max
+		v.emitter.PreVisitSliceExprXBegin(e.X, indent)
 		v.traverseExpression(e.X, indent)
-		str = v.emitAsString(".begin() ", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSliceExprXBegin(e, indent)
 		if e.Low != nil {
 			str = v.emitAsString("+ ", 0)
 			v.emitToFile(str)
