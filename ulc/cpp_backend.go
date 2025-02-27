@@ -207,19 +207,11 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PreVisitSliceExprXEnd(e, indent)
 		v.traverseExpression(e.X, indent)
 		v.emitter.PostVisitSliceExprXEnd(e, indent)
-		if e.High != nil {
-			str = v.emitAsString(".begin() ", 0)
-			v.emitToFile(str)
-			str = v.emitAsString("+ ", 0)
-			v.emitToFile(str)
-		}
+		v.emitter.PreVisitSliceExprHigh(e.High, indent)
 		if e.High != nil {
 			v.traverseExpression(e.High, indent)
 		}
-		if e.High == nil {
-			str = v.emitAsString(".end() ", 0)
-			v.emitToFile(str)
-		}
+		v.emitter.PostVisitSliceExprHigh(e.High, indent)
 		if e.Slice3 && e.Max != nil {
 			v.traverseExpression(e.Max, indent)
 		} else if e.Slice3 {
