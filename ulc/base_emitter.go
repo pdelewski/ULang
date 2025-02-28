@@ -83,3 +83,5 @@ func (v *BaseEmitter) PreVisitKeyValueExprKey(node ast.Expr, indent int)        
 func (v *BaseEmitter) PostVisitKeyValueExprKey(node ast.Expr, indent int)             {}
 func (v *BaseEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int)            {}
 func (v *BaseEmitter) PostVisitKeyValueExprValue(node ast.Expr, indent int)           {}
+func (v *BaseEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int)                  {}
+func (v *BaseEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int)                 {}

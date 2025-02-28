@@ -273,3 +273,12 @@ func (cppe *CPPEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
 	str := cppe.emitAsString("= ", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cppe.emitAsString("[&](", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cppe.emitAsString("}", 0)
+	cppe.emitToFile(str)
+}
