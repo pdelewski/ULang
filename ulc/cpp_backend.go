@@ -243,11 +243,9 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 
 		if e.Type.Results != nil {
 			for i, result := range e.Type.Results.List {
-				if i > 0 {
-					str = v.emitAsString(", ", 0)
-					v.emitToFile(str)
-				}
+				v.emitter.PreVisitFuncLitTypeResult(result, i, indent)
 				v.traverseExpression(result.Type, indent)
+				v.emitter.PostVisitFuncLitTypeResult(result, i, indent)
 			}
 		}
 		v.emitter.PostVisitFuncLitTypeResults(e.Type.Results, indent)

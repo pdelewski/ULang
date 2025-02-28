@@ -314,3 +314,10 @@ func (cppe *CPPEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent i
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
