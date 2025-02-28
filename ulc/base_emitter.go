@@ -105,3 +105,5 @@ func (v *BaseEmitter) PreVisitStarExpr(node *ast.StarExpr, indent int)          
 func (v *BaseEmitter) PostVisitStarExpr(node *ast.StarExpr, indent int)                  {}
 func (v *BaseEmitter) PreVisitStarExprX(node ast.Expr, indent int)                       {}
 func (v *BaseEmitter) PostVisitStarExprX(node ast.Expr, indent int)                      {}
+func (v *BaseEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int)         {}
+func (v *BaseEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent int)        {}
