@@ -243,6 +243,15 @@ func (cppe *CPPEmitter) PreVisitFuncTypeResult(node *ast.Field, index int, inden
 	}
 }
 
+func (cppe *CPPEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
+	str := cppe.emitAsString(".", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
+	str := cppe.emitAsString("\n", 0)
+	cppe.emitToFile(str)
+}
+
 func (cppe *CPPEmitter) PreVisitFuncTypeParams(node *ast.FieldList, indent int) {
 	str := cppe.emitAsString("(", 0)
 	cppe.emitToFile(str)
