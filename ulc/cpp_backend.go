@@ -223,10 +223,12 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitFuncType(e, indent)
 	case *ast.KeyValueExpr:
 		v.emitter.PreVisitKeyValueExpr(e, indent)
+		v.emitter.PreVisitKeyValueExprKey(e.Key, indent)
 		v.traverseExpression(e.Key, indent)
-		str = v.emitAsString("= ", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitKeyValueExprKey(e.Key, indent)
+		v.emitter.PreVisitKeyValueExprValue(e.Value, indent)
 		v.traverseExpression(e.Value, indent)
+		v.emitter.PostVisitKeyValueExprValue(e.Value, indent)
 		v.emitter.PostVisitKeyValueExpr(e, indent)
 	case *ast.FuncLit:
 		str = v.emitAsString("[&](", indent)

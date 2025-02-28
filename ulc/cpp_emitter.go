@@ -268,3 +268,8 @@ func (cppe *CPPEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
+	str := cppe.emitAsString("= ", 0)
+	cppe.emitToFile(str)
+}
