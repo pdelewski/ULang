@@ -239,11 +239,8 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 			v.emitter.PostVisitFuncLitTypeParam(param, i, indent)
 		}
 		v.emitter.PostVisitFuncLitTypeParams(e.Type.Params, indent)
+		v.emitter.PreVisitFuncLitTypeResults(e.Type.Results, indent)
 
-		if e.Type.Results == nil {
-			str = v.emitAsString("void", 0)
-			v.emitToFile(str)
-		}
 		if e.Type.Results != nil {
 			for i, result := range e.Type.Results.List {
 				if i > 0 {
@@ -253,6 +250,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 				v.traverseExpression(result.Type, indent)
 			}
 		}
+		v.emitter.PostVisitFuncLitTypeResults(e.Type.Results, indent)
 		v.emitter.PreVisitFuncLitBody(e.Body, indent)
 		v.traverseBlockStmt(e.Body, indent+2)
 		v.emitter.PostVisitFuncLitBody(e.Body, indent)

@@ -91,3 +91,5 @@ func (v *BaseEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, inden
 func (v *BaseEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {}
 func (v *BaseEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int)              {}
 func (v *BaseEmitter) PostVisitFuncLitBody(node *ast.BlockStmt, indent int)             {}
+func (v *BaseEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int)       {}
+func (v *BaseEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int)      {}

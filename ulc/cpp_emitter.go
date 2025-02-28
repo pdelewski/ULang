@@ -307,3 +307,10 @@ func (cppe *CPPEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
 	str := cppe.emitAsString("{\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	if node == nil {
+		str := cppe.emitAsString("void", 0)
+		cppe.emitToFile(str)
+	}
+}
