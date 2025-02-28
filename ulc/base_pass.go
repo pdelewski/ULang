@@ -46,31 +46,31 @@ type GenStructInfo struct {
 	Pkg        string
 }
 
-type CppBackend struct {
+type BasePass struct {
 	outputFile string
 	file       *os.File
-	visitor    *CppBackendVisitor
+	visitor    *BasePassVisitor
 	emitter    Emitter
 }
 
-type CppBackendVisitor struct {
+type BasePassVisitor struct {
 	pkg     *packages.Package
-	pass    *CppBackend
+	pass    *BasePass
 	nodes   []ast.Node
 	emitter Emitter
 }
 
-func (v *CppBackend) Name() string {
+func (v *BasePass) Name() string {
 	return "CppGen"
 }
 
-func (v *CppBackend) Visitors(pkg *packages.Package) []ast.Visitor {
-	v.visitor = &CppBackendVisitor{pkg: pkg, emitter: v.emitter}
+func (v *BasePass) Visitors(pkg *packages.Package) []ast.Visitor {
+	v.visitor = &BasePassVisitor{pkg: pkg, emitter: v.emitter}
 	v.visitor.pass = v
 	return []ast.Visitor{v.visitor}
 }
 
-func (v *CppBackendVisitor) emitToFile(s string) error {
+func (v *BasePassVisitor) emitToFile(s string) error {
 	_, err := v.pass.file.WriteString(s)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -79,11 +79,11 @@ func (v *CppBackendVisitor) emitToFile(s string) error {
 	return nil
 }
 
-func (v *CppBackendVisitor) emitAsString(s string, indent int) string {
+func (v *BasePassVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
-func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
+func (v *BasePassVisitor) generateFields(st *ast.StructType, indent int) {
 	for _, field := range st.Fields.List {
 		for _, fieldName := range field.Names {
 			v.traverseExpression(field.Type, indent)
@@ -94,7 +94,7 @@ func (v *CppBackendVisitor) generateFields(st *ast.StructType, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
+func (v *BasePassVisitor) emitArgs(node *ast.CallExpr, indent int) {
 	v.emitter.PreVisitCallExprArgs(node.Args, indent)
 	for i, arg := range node.Args {
 		v.emitter.PreVisitCallExprArg(arg, i, indent)
@@ -104,7 +104,7 @@ func (v *CppBackendVisitor) emitArgs(node *ast.CallExpr, indent int) {
 	v.emitter.PostVisitCallExprArgs(node.Args, indent)
 }
 
-func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string {
+func (v *BasePassVisitor) traverseExpression(expr ast.Expr, indent int) string {
 	var str string
 	switch e := expr.(type) {
 	case *ast.BasicLit:
@@ -277,7 +277,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 	return str
 }
 
-func (v *CppBackendVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent int) {
+func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent int) {
 	assignmentToken := assignStmt.Tok.String()
 	if assignmentToken == ":=" && len(assignStmt.Lhs) == 1 {
 		str := v.emitAsString("auto ", indent)
@@ -322,7 +322,7 @@ func (v *CppBackendVisitor) traverseAssignment(assignStmt *ast.AssignStmt, inden
 	}
 }
 
-func (v *CppBackendVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int) {
+func (v *BasePassVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int) {
 	str := v.emitAsString("return ", indent)
 	v.emitToFile(str)
 	if len(retStmt.Results) > 1 {
@@ -346,7 +346,7 @@ func (v *CppBackendVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent i
 	v.emitToFile(str)
 }
 
-func (v *CppBackendVisitor) traverseStmt(stmt ast.Stmt, indent int) {
+func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
 		v.traverseExpression(stmt.X, indent)
@@ -486,13 +486,13 @@ func (v *CppBackendVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 	}
 }
 
-func (v *CppBackendVisitor) traverseBlockStmt(block *ast.BlockStmt, indent int) {
+func (v *BasePassVisitor) traverseBlockStmt(block *ast.BlockStmt, indent int) {
 	for _, stmt := range block.List {
 		v.traverseStmt(stmt, indent)
 	}
 }
 
-func (v *CppBackendVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, innerif bool) {
+func (v *BasePassVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, innerif bool) {
 	var str string
 	if innerif {
 		str = v.emitAsString("if", 1)
@@ -523,7 +523,7 @@ func (v *CppBackendVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, inner
 	}
 }
 
-func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
+func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
 	if node.Type.Results != nil {
 		resultArgIndex := 0
 		if len(node.Type.Results.List) > 1 {
@@ -617,7 +617,7 @@ func (v *CppBackendVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Vi
 	return v
 }
 
-func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
+func (v *BasePassVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	v.generateFuncDeclSignature(node)
 	str := v.emitAsString("\n", 0)
 	str += v.emitAsString("{\n", 0)
@@ -637,7 +637,7 @@ func (v *CppBackendVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	return v
 }
 
-func (v *CppBackendVisitor) buildTypesGraph() map[string][]string {
+func (v *BasePassVisitor) buildTypesGraph() map[string][]string {
 	typesGraph := make(map[string][]string)
 	for _, node := range v.nodes {
 		switch node := node.(type) {
@@ -773,7 +773,7 @@ func SliceToMap(slice []string) map[string]int {
 	return result
 }
 
-func (v *CppBackendVisitor) gen(precedence map[string]int) {
+func (v *BasePassVisitor) gen(precedence map[string]int) {
 	structInfos := make([]GenStructInfo, 0)
 	for i := 0; i < len(v.nodes); i++ {
 		switch node := v.nodes[i].(type) {
@@ -884,12 +884,12 @@ func (v *CppBackendVisitor) gen(precedence map[string]int) {
 	}
 }
 
-func (v *CppBackendVisitor) Visit(node ast.Node) ast.Visitor {
+func (v *BasePassVisitor) Visit(node ast.Node) ast.Visitor {
 	v.nodes = append(v.nodes, node)
 	return v
 }
 
-func (v *CppBackend) ProLog() {
+func (v *BasePass) ProLog() {
 	namespaces = make(map[string]struct{})
 	v.outputFile = "./output.cpp"
 	var err error
@@ -912,12 +912,12 @@ func (v *CppBackend) ProLog() {
 	}
 }
 
-func (v *CppBackend) EpiLog() {
+func (v *BasePass) EpiLog() {
 	v.file.Close()
 }
 
-func (v *CppBackend) PreVisit(visitor ast.Visitor) {
-	cppVisitor := visitor.(*CppBackendVisitor)
+func (v *BasePass) PreVisit(visitor ast.Visitor) {
+	cppVisitor := visitor.(*BasePassVisitor)
 	if cppVisitor.pkg.Name == "main" {
 		return
 	}
@@ -935,7 +935,7 @@ func (v *CppBackend) PreVisit(visitor ast.Visitor) {
 	}
 }
 
-func (v *CppBackendVisitor) complementPrecedenceMap(sortedTypes map[string]int) {
+func (v *BasePassVisitor) complementPrecedenceMap(sortedTypes map[string]int) {
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
@@ -948,8 +948,8 @@ func (v *CppBackendVisitor) complementPrecedenceMap(sortedTypes map[string]int) 
 	}
 }
 
-func (v *CppBackend) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
-	cppVisitor := visitor.(*CppBackendVisitor)
+func (v *BasePass) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
+	cppVisitor := visitor.(*BasePassVisitor)
 	typesGraph := cppVisitor.buildTypesGraph()
 	for name, val := range typesGraph {
 		fmt.Println("Type:", name, "Parent:", val)
