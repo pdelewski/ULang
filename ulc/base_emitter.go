@@ -95,3 +95,9 @@ func (v *BaseEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int
 func (v *BaseEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int)       {}
 func (v *BaseEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int)  {}
 func (v *BaseEmitter) PostVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {}
+func (v *BaseEmitter) PreVisitTypeAssertExpr(node *ast.TypeAssertExpr, indent int)       {}
+func (v *BaseEmitter) PostVisitTypeAssertExpr(node *ast.TypeAssertExpr, indent int)      {}
+func (v *BaseEmitter) PreVisitTypeAssertExprX(node ast.Expr, indent int)                 {}
+func (v *BaseEmitter) PostVisitTypeAssertExprX(node ast.Expr, indent int)                {}
+func (v *BaseEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int)              {}
+func (v *BaseEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int)             {}
