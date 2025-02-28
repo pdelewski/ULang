@@ -239,6 +239,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 			v.emitter.PostVisitFuncLitTypeParam(param, i, indent)
 		}
 		v.emitter.PostVisitFuncLitTypeParams(e.Type.Params, indent)
+
 		if e.Type.Results == nil {
 			str = v.emitAsString("void", 0)
 			v.emitToFile(str)
@@ -252,9 +253,9 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 				v.traverseExpression(result.Type, indent)
 			}
 		}
-		str = v.emitAsString("{\n", 0)
-		v.emitToFile(str)
+		v.emitter.PreVisitFuncLitBody(e.Body, indent)
 		v.traverseBlockStmt(e.Body, indent+2)
+		v.emitter.PostVisitFuncLitBody(e.Body, indent)
 		v.emitter.PostVisitFuncLit(e, indent)
 	case *ast.TypeAssertExpr:
 		str = v.emitAsString("std::any_cast<", indent)

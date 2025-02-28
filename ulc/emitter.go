@@ -88,4 +88,6 @@ type Emitter interface {
 	PostVisitFuncLitTypeParams(node *ast.FieldList, indent int)
 	PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int)
 	PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int)
+	PreVisitFuncLitBody(node *ast.BlockStmt, indent int)
+	PostVisitFuncLitBody(node *ast.BlockStmt, indent int)
 }

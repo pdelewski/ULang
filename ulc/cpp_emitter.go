@@ -302,3 +302,8 @@ func (cppe *CPPEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, in
 	str += cppe.emitAsString(node.Names[0].Name, indent)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("{\n", 0)
+	cppe.emitToFile(str)
+}
