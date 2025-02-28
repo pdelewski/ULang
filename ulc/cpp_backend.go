@@ -231,36 +231,28 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitKeyValueExprValue(e.Value, indent)
 		v.emitter.PostVisitKeyValueExpr(e, indent)
 	case *ast.FuncLit:
-		str = v.emitAsString("[&](", indent)
+		v.emitter.PreVisitFuncLit(e, indent)
+		v.emitter.PreVisitFuncLitTypeParams(e.Type.Params, indent)
 		for i, param := range e.Type.Params.List {
-			if i > 0 {
-				str += v.emitAsString(", ", 0)
-			}
-			v.emitToFile(str)
+			v.emitter.PreVisitFuncLitTypeParam(param, i, indent)
 			v.traverseExpression(param.Type, indent)
-			str = v.emitAsString(" ", 0)
-			str += v.emitAsString(param.Names[0].Name, indent)
+			v.emitter.PostVisitFuncLitTypeParam(param, i, indent)
 		}
-		str += v.emitAsString(")", 0)
-		str += v.emitAsString("->", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitFuncLitTypeParams(e.Type.Params, indent)
+		v.emitter.PreVisitFuncLitTypeResults(e.Type.Results, indent)
+
 		if e.Type.Results != nil {
 			for i, result := range e.Type.Results.List {
-				if i > 0 {
-					str = v.emitAsString(", ", 0)
-					v.emitToFile(str)
-				}
+				v.emitter.PreVisitFuncLitTypeResult(result, i, indent)
 				v.traverseExpression(result.Type, indent)
+				v.emitter.PostVisitFuncLitTypeResult(result, i, indent)
 			}
-		} else {
-			str = v.emitAsString("void", 0)
-			v.emitToFile(str)
 		}
-		str = v.emitAsString("{\n", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitFuncLitTypeResults(e.Type.Results, indent)
+		v.emitter.PreVisitFuncLitBody(e.Body, indent)
 		v.traverseBlockStmt(e.Body, indent+2)
-		str = v.emitAsString("}", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitFuncLitBody(e.Body, indent)
+		v.emitter.PostVisitFuncLit(e, indent)
 	case *ast.TypeAssertExpr:
 		str = v.emitAsString("std::any_cast<", indent)
 		v.emitToFile(str)

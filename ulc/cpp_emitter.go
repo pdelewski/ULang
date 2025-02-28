@@ -273,3 +273,51 @@ func (cppe *CPPEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
 	str := cppe.emitAsString("= ", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cppe.emitAsString("[&](", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cppe.emitAsString("}", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
+	str := cppe.emitAsString(")", 0)
+	str += cppe.emitAsString("->", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	str := ""
+	if index > 0 {
+		str += cppe.emitAsString(", ", 0)
+	}
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	str := cppe.emitAsString(" ", 0)
+	str += cppe.emitAsString(node.Names[0].Name, indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("{\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	if node == nil {
+		str := cppe.emitAsString("void", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
