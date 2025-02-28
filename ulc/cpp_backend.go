@@ -203,31 +203,24 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		}
 		v.emitter.PostVisitSliceExpr(e, indent)
 	case *ast.FuncType:
-		str = v.emitAsString("std::function<", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitFuncType(e, indent)
+		v.emitter.PreVisitFuncTypeResults(e.Results, indent)
 		if e.Results != nil {
 			for i, result := range e.Results.List {
-				if i > 0 {
-					str = v.emitAsString(", ", 0)
-					v.emitToFile(str)
-				}
+				v.emitter.PreVisitFuncTypeResult(result, i, indent)
 				v.traverseExpression(result.Type, 0)
+				v.emitter.PostVisitFuncTypeResult(result, i, indent)
 			}
-		} else {
-			str = v.emitAsString("void", 0)
-			v.emitToFile(str)
 		}
-		str = v.emitAsString("(", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitFuncTypeResults(e.Results, indent)
+		v.emitter.PreVisitFuncTypeParams(e.Params, indent)
 		for i, param := range e.Params.List {
-			if i > 0 {
-				str = v.emitAsString(", ", 0)
-				v.emitToFile(str)
-			}
+			v.emitter.PreVisitFuncTypeParam(param, i, indent)
 			v.traverseExpression(param.Type, 0)
+			v.emitter.PostVisitFuncTypeParam(param, i, indent)
 		}
-		str = v.emitAsString(")>", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitFuncTypeParams(e.Params, indent)
+		v.emitter.PostVisitFuncType(e, indent)
 	case *ast.KeyValueExpr:
 		str = v.emitAsString(".", 0)
 		v.emitToFile(str)

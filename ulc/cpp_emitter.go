@@ -219,3 +219,43 @@ func (cppe *CPPEmitter) PreVisitSliceExprHigh(node ast.Expr, indent int) {
 func (cppe *CPPEmitter) PostVisitSliceExprHigh(node ast.Expr, indent int) {
 
 }
+
+func (cppe *CPPEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
+	str := cppe.emitAsString("std::function<", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
+	str := cppe.emitAsString(">", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
+	if node == nil {
+		str := cppe.emitAsString("void", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitFuncTypeResult(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitFuncTypeParams(node *ast.FieldList, indent int) {
+	str := cppe.emitAsString("(", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
