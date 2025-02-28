@@ -245,6 +245,10 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		str += v.emitAsString(")", 0)
 		str += v.emitAsString("->", 0)
 		v.emitToFile(str)
+		if e.Type.Results == nil {
+			str = v.emitAsString("void", 0)
+			v.emitToFile(str)
+		}
 		if e.Type.Results != nil {
 			for i, result := range e.Type.Results.List {
 				if i > 0 {
@@ -253,9 +257,6 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 				}
 				v.traverseExpression(result.Type, indent)
 			}
-		} else {
-			str = v.emitAsString("void", 0)
-			v.emitToFile(str)
 		}
 		str = v.emitAsString("{\n", 0)
 		v.emitToFile(str)
