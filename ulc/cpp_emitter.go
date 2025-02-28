@@ -321,3 +321,17 @@ func (cppe *CPPEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, in
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int) {
+	str := cppe.emitAsString("std::any_cast<", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitTypeAssertExprX(node ast.Expr, indent int) {
+	str := cppe.emitAsString(">(std::any(", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitTypeAssertExprX(node ast.Expr, indent int) {
+	str := cppe.emitAsString("))", 0)
+	cppe.emitToFile(str)
+}

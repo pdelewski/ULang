@@ -94,4 +94,10 @@ type Emitter interface {
 	PostVisitFuncLitTypeResults(node *ast.FieldList, indent int)
 	PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int)
 	PostVisitFuncLitTypeResult(node *ast.Field, index int, indent int)
+	PreVisitTypeAssertExpr(node *ast.TypeAssertExpr, indent int)
+	PostVisitTypeAssertExpr(node *ast.TypeAssertExpr, indent int)
+	PreVisitTypeAssertExprX(node ast.Expr, indent int)
+	PostVisitTypeAssertExprX(node ast.Expr, indent int)
+	PreVisitTypeAssertExprType(node ast.Expr, indent int)
+	PostVisitTypeAssertExprType(node ast.Expr, indent int)
 }
