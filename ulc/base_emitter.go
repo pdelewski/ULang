@@ -101,3 +101,7 @@ func (v *BaseEmitter) PreVisitTypeAssertExprX(node ast.Expr, indent int)        
 func (v *BaseEmitter) PostVisitTypeAssertExprX(node ast.Expr, indent int)                {}
 func (v *BaseEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int)              {}
 func (v *BaseEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int)             {}
+func (v *BaseEmitter) PreVisitStarExpr(node *ast.StarExpr, indent int)                   {}
+func (v *BaseEmitter) PostVisitStarExpr(node *ast.StarExpr, indent int)                  {}
+func (v *BaseEmitter) PreVisitStarExprX(node ast.Expr, indent int)                       {}
+func (v *BaseEmitter) PostVisitStarExprX(node ast.Expr, indent int)                      {}
