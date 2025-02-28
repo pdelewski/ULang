@@ -299,12 +299,7 @@ func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent 
 			v.emitToFile(str)
 		}
 		first = false
-		if ident, ok := lhs.(*ast.Ident); ok {
-			str := v.emitAsString(ident.Name, indent)
-			v.emitToFile(str)
-		} else {
-			v.traverseExpression(lhs, indent)
-		}
+		v.traverseExpression(lhs, indent)
 	}
 
 	if assignStmt.Tok.String() == ":=" && len(assignStmt.Lhs) > 1 {
