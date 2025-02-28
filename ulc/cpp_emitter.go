@@ -282,3 +282,9 @@ func (cppe *CPPEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
 	str := cppe.emitAsString("}", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
+	str := cppe.emitAsString(")", 0)
+	str += cppe.emitAsString("->", 0)
+	cppe.emitToFile(str)
+}
