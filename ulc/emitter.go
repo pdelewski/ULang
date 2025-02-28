@@ -74,4 +74,6 @@ type Emitter interface {
 	PostVisitFuncTypeResult(node *ast.Field, index int, indent int)
 	PreVisitFuncTypeParams(node *ast.FieldList, indent int)
 	PostVisitFuncTypeParams(node *ast.FieldList, indent int)
+	PreVisitFuncTypeParam(node *ast.Field, index int, indent int)
+	PostVisitFuncTypeParam(node *ast.Field, index int, indent int)
 }

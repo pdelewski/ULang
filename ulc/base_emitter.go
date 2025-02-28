@@ -75,3 +75,5 @@ func (v *BaseEmitter) PreVisitFuncTypeResult(node *ast.Field, index int, indent 
 func (v *BaseEmitter) PostVisitFuncTypeResult(node *ast.Field, index int, indent int) {}
 func (v *BaseEmitter) PreVisitFuncTypeParams(node *ast.FieldList, indent int)         {}
 func (v *BaseEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int)        {}
+func (v *BaseEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int)   {}
+func (v *BaseEmitter) PostVisitFuncTypeParam(node *ast.Field, index int, indent int)  {}

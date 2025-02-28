@@ -252,3 +252,10 @@ func (cppe *CPPEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int)
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
