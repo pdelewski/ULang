@@ -228,3 +228,17 @@ func (cppe *CPPEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	str := cppe.emitAsString(")>", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
+	if node == nil {
+		str := cppe.emitAsString("void", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitFuncTypeResult(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}

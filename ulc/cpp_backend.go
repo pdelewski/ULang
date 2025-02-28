@@ -204,18 +204,15 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitSliceExpr(e, indent)
 	case *ast.FuncType:
 		v.emitter.PreVisitFuncType(e, indent)
+		v.emitter.PreVisitFuncTypeResults(e.Results, indent)
 		if e.Results != nil {
 			for i, result := range e.Results.List {
-				if i > 0 {
-					str = v.emitAsString(", ", 0)
-					v.emitToFile(str)
-				}
+				v.emitter.PreVisitFuncTypeResult(result, i, indent)
 				v.traverseExpression(result.Type, 0)
+				v.emitter.PostVisitFuncTypeResult(result, i, indent)
 			}
-		} else {
-			str = v.emitAsString("void", 0)
-			v.emitToFile(str)
 		}
+		v.emitter.PostVisitFuncTypeResults(e.Results, indent)
 		str = v.emitAsString("(", 0)
 		v.emitToFile(str)
 		for i, param := range e.Params.List {
