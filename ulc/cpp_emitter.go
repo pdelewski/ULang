@@ -335,3 +335,8 @@ func (cppe *CPPEmitter) PostVisitTypeAssertExprX(node ast.Expr, indent int) {
 	str := cppe.emitAsString("))", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitStarExpr(node *ast.StarExpr, indent int) {
+	str := cppe.emitAsString("*", 0)
+	cppe.emitToFile(str)
+}

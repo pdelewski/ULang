@@ -263,9 +263,11 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitTypeAssertExprX(e.X, indent)
 		v.emitter.PostVisitTypeAssertExpr(e, indent)
 	case *ast.StarExpr:
-		str = v.emitAsString("*", 0)
-		v.emitToFile(str)
+		v.emitter.PreVisitStarExpr(e, indent)
+		v.emitter.PreVisitStarExprX(e, indent)
 		v.traverseExpression(e.X, indent)
+		v.emitter.PostVisitStarExprX(e, indent)
+		v.emitter.PostVisitStarExpr(e, indent)
 	case *ast.InterfaceType:
 		str = v.emitAsString("std::any", indent)
 		v.emitToFile(str)
