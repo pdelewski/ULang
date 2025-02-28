@@ -203,8 +203,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		}
 		v.emitter.PostVisitSliceExpr(e, indent)
 	case *ast.FuncType:
-		str = v.emitAsString("std::function<", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitFuncType(e, indent)
 		if e.Results != nil {
 			for i, result := range e.Results.List {
 				if i > 0 {
@@ -226,8 +225,7 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 			}
 			v.traverseExpression(param.Type, 0)
 		}
-		str = v.emitAsString(")>", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitFuncType(e, indent)
 	case *ast.KeyValueExpr:
 		str = v.emitAsString(".", 0)
 		v.emitToFile(str)

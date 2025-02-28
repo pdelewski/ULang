@@ -219,3 +219,12 @@ func (cppe *CPPEmitter) PreVisitSliceExprHigh(node ast.Expr, indent int) {
 func (cppe *CPPEmitter) PostVisitSliceExprHigh(node ast.Expr, indent int) {
 
 }
+
+func (cppe *CPPEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
+	str := cppe.emitAsString("std::function<", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
+	str := cppe.emitAsString(")>", 0)
+	cppe.emitToFile(str)
+}

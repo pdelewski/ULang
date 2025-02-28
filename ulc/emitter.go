@@ -66,4 +66,6 @@ type Emitter interface {
 	PostVisitSliceExprLow(node ast.Expr, indent int)
 	PreVisitSliceExprHigh(node ast.Expr, indent int)
 	PostVisitSliceExprHigh(node ast.Expr, indent int)
+	PreVisitFuncType(node *ast.FuncType, indent int)
+	PostVisitFuncType(node *ast.FuncType, indent int)
 }
