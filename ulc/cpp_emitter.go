@@ -288,3 +288,17 @@ func (cppe *CPPEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent i
 	str += cppe.emitAsString("->", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	str := ""
+	if index > 0 {
+		str += cppe.emitAsString(", ", 0)
+	}
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	str := cppe.emitAsString(" ", 0)
+	str += cppe.emitAsString(node.Names[0].Name, indent)
+	cppe.emitToFile(str)
+}
