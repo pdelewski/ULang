@@ -340,3 +340,8 @@ func (cppe *CPPEmitter) PreVisitStarExpr(node *ast.StarExpr, indent int) {
 	str := cppe.emitAsString("*", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
+	str := cppe.emitAsString("std::any", indent)
+	cppe.emitToFile(str)
+}

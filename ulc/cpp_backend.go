@@ -269,8 +269,8 @@ func (v *CppBackendVisitor) traverseExpression(expr ast.Expr, indent int) string
 		v.emitter.PostVisitStarExprX(e, indent)
 		v.emitter.PostVisitStarExpr(e, indent)
 	case *ast.InterfaceType:
-		str = v.emitAsString("std::any", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitInterfaceType(e, indent)
+		v.emitter.PostVisitInterfaceType(e, indent)
 	default:
 		panic(fmt.Sprintf("unsupported expression type: %T", e))
 	}

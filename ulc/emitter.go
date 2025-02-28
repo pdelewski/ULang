@@ -104,4 +104,6 @@ type Emitter interface {
 	PostVisitStarExpr(node *ast.StarExpr, indent int)
 	PreVisitStarExprX(node ast.Expr, indent int)
 	PostVisitStarExprX(node ast.Expr, indent int)
+	PreVisitInterfaceType(node *ast.InterfaceType, indent int)
+	PostVisitInterfaceType(node *ast.InterfaceType, indent int)
 }
