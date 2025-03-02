@@ -346,6 +346,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PostVisitExprStmtX(stmt.X, indent)
 		v.emitter.PostVisitExprStmt(stmt, indent)
 	case *ast.DeclStmt:
+		v.emitter.PreVisitDeclStmt(stmt, indent)
 		if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
 			for _, spec := range genDecl.Specs {
 				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
@@ -360,6 +361,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 				}
 			}
 		}
+		v.emitter.PostVisitDeclStmt(stmt, indent)
 	case *ast.AssignStmt:
 		str := v.emitAsString("", indent)
 		v.emitToFile(str)
@@ -882,25 +884,9 @@ func (v *BasePassVisitor) Visit(node ast.Node) ast.Visitor {
 
 func (v *BasePass) ProLog() {
 	namespaces = make(map[string]struct{})
-	v.outputFile = "./output.cpp"
-	var err error
-	v.file, err = os.Create(v.outputFile)
-	v.emitter.SetFile(v.file)
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	_, err = v.file.WriteString("#include <vector>\n" +
-		"#include <string>\n" +
-		"#include <tuple>\n" +
-		"#include <any>\n" +
-		"#include <cstdint>\n" +
-		"#include <functional>\n" +
-		"#include \"../builtins/builtins.h\"\n\n")
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
+	v.emitter.PreVisitProgram(0)
+	v.file = v.emitter.GetFile()
+	v.emitter.PostVisitProgram(0)
 }
 
 func (v *BasePass) EpiLog() {

@@ -8,6 +8,9 @@ import (
 
 type Emitter interface {
 	SetFile(file *os.File)
+	GetFile() *os.File
+	PreVisitProgram(indent int)
+	PostVisitProgram(indent int)
 	PreVisitBasicLit(node *ast.BasicLit, indent int)
 	PostVisitBasicLit(node *ast.BasicLit, indent int)
 	PreVisitIdent(node *ast.Ident, indent int)
@@ -110,4 +113,6 @@ type Emitter interface {
 	PostVisitExprStmt(node *ast.ExprStmt, indent int)
 	PreVisitExprStmtX(node ast.Expr, indent int)
 	PostVisitExprStmtX(node ast.Expr, indent int)
+	PreVisitDeclStmt(node *ast.DeclStmt, indent int)
+	PostVisitDeclStmt(node *ast.DeclStmt, indent int)
 }

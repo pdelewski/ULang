@@ -9,6 +9,9 @@ import (
 type BaseEmitter struct{}
 
 func (v *BaseEmitter) SetFile(file *os.File)                                             {}
+func (v *BaseEmitter) GetFile() *os.File                                                 { return nil }
+func (v *BaseEmitter) PreVisitProgram(indent int)                                        {}
+func (v *BaseEmitter) PostVisitProgram(indent int)                                       {}
 func (v *BaseEmitter) PreVisitBasicLit(node *ast.BasicLit, indent int)                   {}
 func (v *BaseEmitter) PostVisitBasicLit(node *ast.BasicLit, indent int)                  {}
 func (v *BaseEmitter) PreVisitIdent(node *ast.Ident, indent int)                         {}
@@ -111,3 +114,5 @@ func (v *BaseEmitter) PreVisitExprStmt(node *ast.ExprStmt, indent int)          
 func (v *BaseEmitter) PostVisitExprStmt(node *ast.ExprStmt, indent int)                  {}
 func (v *BaseEmitter) PreVisitExprStmtX(node ast.Expr, indent int)                       {}
 func (v *BaseEmitter) PostVisitExprStmtX(node ast.Expr, indent int)                      {}
+func (v *BaseEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int)                   {}
+func (v *BaseEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int)                  {}
