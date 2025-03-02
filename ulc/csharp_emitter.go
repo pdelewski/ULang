@@ -368,3 +368,11 @@ func (cppe *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent
 	str := cppe.emitAsString("std::any", indent)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	str := cppe.emitAsString(" ", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	cppe.emitToFile(";\n")
+}

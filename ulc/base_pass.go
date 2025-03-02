@@ -352,11 +352,12 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
 					// Iterate through all variables declared
 					for i := 0; i < len(valueSpec.Names); i++ {
+						v.emitter.PreVisitDeclStmtValueSpecType(valueSpec, i, indent)
 						v.traverseExpression(valueSpec.Type, indent)
-						str := v.emitAsString(" ", 0)
-						v.emitToFile(str)
+						v.emitter.PostVisitDeclStmtValueSpecType(valueSpec, i, indent)
+						v.emitter.PreVisitDeclStmtValueSpecNames(valueSpec.Names[i], i, indent)
 						v.traverseExpression(valueSpec.Names[i], 0)
-						v.emitToFile(";\n")
+						v.emitter.PostVisitDeclStmtValueSpecNames(valueSpec.Names[i], i, indent)
 					}
 				}
 			}
