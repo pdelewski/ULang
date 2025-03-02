@@ -458,14 +458,8 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		str = v.emitAsString("}\n", indent)
 		v.emitToFile(str)
 	case *ast.BranchStmt:
-		var str string
-		switch stmt.Tok {
-		case token.BREAK:
-			str = v.emitAsString("break;\n", indent)
-		case token.CONTINUE:
-			str = v.emitAsString("continue;\n", indent)
-		}
-		v.emitToFile(str)
+		v.emitter.PreVisitBranchStmt(stmt, indent)
+		v.emitter.PostVisitBranchStmt(stmt, indent)
 	case *ast.IncDecStmt:
 		str := v.emitAsString("", indent)
 		v.emitToFile(str)
