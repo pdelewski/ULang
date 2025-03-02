@@ -817,15 +817,9 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 					v.emitToFile(str)
 					if valueSpec.Values != nil {
 						if i < len(valueSpec.Values) {
-							value := valueSpec.Values[i]
-							switch val := value.(type) {
-							case *ast.BasicLit:
-								str = v.emitAsString(val.Value, 0)
-								str += v.emitAsString(";\n", 0)
-								v.emitToFile(str)
-							default:
-								log.Printf("Unhandled value type: %T", v)
-							}
+							v.traverseExpression(valueSpec.Values[i], 0)
+							str = v.emitAsString(";\n", 0)
+							v.emitToFile(str)
 						}
 					}
 				}
