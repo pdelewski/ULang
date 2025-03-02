@@ -354,11 +354,11 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 			for _, spec := range genDecl.Specs {
 				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
 					// Iterate through all variables declared
-					for _, ident := range valueSpec.Names {
+					for i := 0; i < len(valueSpec.Names); i++ {
 						v.traverseExpression(valueSpec.Type, indent)
 						str := v.emitAsString(" ", 0)
 						v.emitToFile(str)
-						v.traverseExpression(ident, 0)
+						v.traverseExpression(valueSpec.Names[i], 0)
 						v.emitToFile(";\n")
 					}
 				}
