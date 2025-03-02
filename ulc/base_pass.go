@@ -344,12 +344,11 @@ func (v *BasePassVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int
 func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
+		v.emitter.PreVisitExprStmt(stmt, indent)
+		v.emitter.PreVisitExprStmtX(stmt.X, indent)
 		v.traverseExpression(stmt.X, indent)
-		str := v.emitAsString(";\n", 0)
-		err := v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
+		v.emitter.PostVisitExprStmtX(stmt.X, indent)
+		v.emitter.PostVisitExprStmt(stmt, indent)
 	case *ast.DeclStmt:
 		if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
 			for _, spec := range genDecl.Specs {
