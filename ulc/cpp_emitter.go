@@ -345,3 +345,8 @@ func (cppe *CPPEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent in
 	str := cppe.emitAsString("std::any", indent)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
+	str := cppe.emitAsString(";\n", 0)
+	cppe.emitToFile(str)
+}
