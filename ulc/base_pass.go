@@ -886,11 +886,10 @@ func (v *BasePass) ProLog() {
 	namespaces = make(map[string]struct{})
 	v.emitter.PreVisitProgram(0)
 	v.file = v.emitter.GetFile()
-	v.emitter.PostVisitProgram(0)
 }
 
 func (v *BasePass) EpiLog() {
-	v.file.Close()
+	v.emitter.PostVisitProgram(0)
 }
 
 func (v *BasePass) PreVisit(visitor ast.Visitor) {
