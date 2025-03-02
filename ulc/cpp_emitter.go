@@ -76,7 +76,7 @@ func (v *CPPEmitter) PreVisitProgram(indent int) {
 }
 
 func (v *CPPEmitter) PostVisitProgram(indent int) {
-
+	v.file.Close()
 }
 
 func (cppe *CPPEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {

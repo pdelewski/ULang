@@ -68,6 +68,10 @@ func (v *CSharpEmitter) PreVisitProgram(indent int) {
 	}
 }
 
+func (v *CSharpEmitter) PostVisitProgram(indent int) {
+	v.file.Close()
+}
+
 func (cppe *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
