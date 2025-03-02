@@ -461,12 +461,9 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PreVisitBranchStmt(stmt, indent)
 		v.emitter.PostVisitBranchStmt(stmt, indent)
 	case *ast.IncDecStmt:
-		str := v.emitAsString("", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitIncDecStmt(stmt, indent)
 		v.traverseExpression(stmt.X, indent)
-		str = v.emitAsString(stmt.Tok.String(), 0)
-		str += v.emitAsString(";\n", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitIncDecStmt(stmt, indent)
 	default:
 		fmt.Printf("<Other statement type>\n")
 
