@@ -45,24 +45,24 @@ func (e *CPPEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
-func (v *CPPEmitter) SetFile(file *os.File) {
-	v.file = file
+func (cppe *CPPEmitter) SetFile(file *os.File) {
+	cppe.file = file
 }
 
-func (v *CPPEmitter) GetFile() *os.File {
-	return v.file
+func (cppe *CPPEmitter) GetFile() *os.File {
+	return cppe.file
 }
 
-func (v *CPPEmitter) PreVisitProgram(indent int) {
+func (cppe *CPPEmitter) PreVisitProgram(indent int) {
 	outputFile := "./output.cpp"
 	var err error
-	v.file, err = os.Create(outputFile)
-	v.SetFile(v.file)
+	cppe.file, err = os.Create(outputFile)
+	cppe.SetFile(cppe.file)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
 	}
-	_, err = v.file.WriteString("#include <vector>\n" +
+	_, err = cppe.file.WriteString("#include <vector>\n" +
 		"#include <string>\n" +
 		"#include <tuple>\n" +
 		"#include <any>\n" +
@@ -75,8 +75,37 @@ func (v *CPPEmitter) PreVisitProgram(indent int) {
 	}
 }
 
-func (v *CPPEmitter) PostVisitProgram(indent int) {
-	v.file.Close()
+func (cppe *CPPEmitter) PostVisitProgram(indent int) {
+	cppe.file.Close()
+}
+
+func (cppe *CPPEmitter) PreVisitPackage(name string, indent int) {
+	if name == "main" {
+		return
+	}
+	str := cppe.emitAsString(fmt.Sprintf("namespace %s\n", name), 0)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
+	err = cppe.emitToFile("{\n\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
+}
+
+func (cppe *CPPEmitter) PostVisitPackage(name string, indent int) {
+	if name == "main" {
+		return
+	}
+	str := cppe.emitAsString(fmt.Sprintf("} // namespace %s\n\n", name), 0)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
 }
 
 func (cppe *CPPEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {

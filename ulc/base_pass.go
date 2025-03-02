@@ -895,21 +895,8 @@ func (v *BasePass) EpiLog() {
 
 func (v *BasePass) PreVisit(visitor ast.Visitor) {
 	cppVisitor := visitor.(*BasePassVisitor)
-	if cppVisitor.pkg.Name == "main" {
-		return
-	}
 	namespaces[cppVisitor.pkg.Name] = struct{}{}
-	str := cppVisitor.emitAsString(fmt.Sprintf("namespace %s\n", cppVisitor.pkg.Name), 0)
-	err := cppVisitor.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
-	_, err = cppVisitor.pass.file.WriteString("{\n\n")
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
+	v.emitter.PreVisitPackage(cppVisitor.pkg.Name, 0)
 }
 
 func (v *BasePassVisitor) complementPrecedenceMap(sortedTypes map[string]int) {
@@ -945,13 +932,5 @@ func (v *BasePass) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	}
 	fmt.Println("Types precedence:", typesPrecedence)
 	cppVisitor.gen(typesPrecedence)
-	if cppVisitor.pkg.Name == "main" {
-		return
-	}
-	str := cppVisitor.emitAsString(fmt.Sprintf("} // namespace %s\n\n", cppVisitor.pkg.Name), 0)
-	err = cppVisitor.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
+	v.emitter.PostVisitPackage(cppVisitor.pkg.Name, 0)
 }
