@@ -125,4 +125,6 @@ type Emitter interface {
 	PostVisitBranchStmt(node *ast.BranchStmt, indent int)
 	PreVisitIncDecStmt(node *ast.IncDecStmt, indent int)
 	PostVisitIncDecStmt(node *ast.IncDecStmt, indent int)
+	PreVisitAssignStmt(node *ast.AssignStmt, indent int)
+	PostVisitAssignStmt(node *ast.AssignStmt, indent int)
 }

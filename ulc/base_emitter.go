@@ -126,3 +126,5 @@ func (v *BaseEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int)      
 func (v *BaseEmitter) PostVisitBranchStmt(node *ast.BranchStmt, indent int)                      {}
 func (v *BaseEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int)                       {}
 func (v *BaseEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int)                      {}
+func (v *BaseEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int)                       {}
+func (v *BaseEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int)                      {}

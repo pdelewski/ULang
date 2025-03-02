@@ -406,7 +406,7 @@ func (cppe *CPPEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent in
 }
 
 func (cppe *CPPEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
-	str := cppe.emitAsString(";\n", 0)
+	str := cppe.emitAsString(";", 0)
 	cppe.emitToFile(str)
 }
 
@@ -415,20 +415,16 @@ func (cppe *CPPEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 	cppe.emitToFile(str)
 }
 func (cppe *CPPEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
-	cppe.emitToFile(";\n")
+	cppe.emitToFile(";")
 }
 
 func (cppe *CPPEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
-	str := cppe.emitAsString(node.Tok.String()+";\n", indent)
+	str := cppe.emitAsString(node.Tok.String()+";", indent)
 	cppe.emitToFile(str)
 }
 
-func (cppe *CPPEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
-	str := cppe.emitAsString("", indent)
-	cppe.emitToFile(str)
-}
 func (cppe *CPPEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	str := cppe.emitAsString(node.Tok.String(), 0)
-	str += cppe.emitAsString(";\n", 0)
+	str += cppe.emitAsString(";", 0)
 	cppe.emitToFile(str)
 }
