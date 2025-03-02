@@ -377,18 +377,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		str := v.emitAsString("for (", indent)
 		v.emitToFile(str)
 		if stmt.Init != nil {
-			if assignStmt, ok := stmt.Init.(*ast.AssignStmt); ok {
-				v.traverseAssignment(assignStmt, 0)
-				str := v.emitAsString(";", 0)
-				v.emitToFile(str)
-			} else if exprStmt, ok := stmt.Init.(*ast.ExprStmt); ok {
-				v.traverseExpression(exprStmt.X, 0)
-				str := v.emitAsString(";", 0)
-				v.emitToFile(str)
-			} else {
-				str := v.emitAsString(";", 0)
-				v.emitToFile(str)
-			}
+			v.traverseStmt(stmt.Init, 0)
 		} else {
 			str := v.emitAsString(";", 0)
 			v.emitToFile(str)
