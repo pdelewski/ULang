@@ -292,14 +292,12 @@ func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent 
 	if assignmentToken != "+=" {
 		assignmentToken = "="
 	}
-	first := true
-	for _, lhs := range assignStmt.Lhs {
-		if !first {
+	for i := 0; i < len(assignStmt.Lhs); i++ {
+		if i > 0 {
 			str := v.emitAsString(", ", indent)
 			v.emitToFile(str)
 		}
-		first = false
-		v.traverseExpression(lhs, indent)
+		v.traverseExpression(assignStmt.Lhs[i], indent)
 	}
 
 	if assignStmt.Tok.String() == ":=" && len(assignStmt.Lhs) > 1 {
@@ -324,14 +322,12 @@ func (v *BasePassVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int
 		str := v.emitAsString("std::make_tuple(", 0)
 		v.emitToFile(str)
 	}
-	first := true
-	for _, result := range retStmt.Results {
-		if !first {
+	for i := 0; i < len(retStmt.Results); i++ {
+		if i > 0 {
 			str := v.emitAsString(", ", 0)
 			v.emitToFile(str)
 		}
-		first = false
-		v.traverseExpression(result, 0)
+		v.traverseExpression(retStmt.Results[i], 0)
 	}
 	if len(retStmt.Results) > 1 {
 		str := v.emitAsString(")", 0)
@@ -438,10 +434,10 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitToFile(str)
 		for _, stmt := range stmt.Body.List {
 			if caseClause, ok := stmt.(*ast.CaseClause); ok {
-				for _, expr := range caseClause.List {
+				for i := 0; i < len(caseClause.List); i++ {
 					str := v.emitAsString("case ", indent+2)
 					v.emitToFile(str)
-					v.traverseExpression(expr, 0)
+					v.traverseExpression(caseClause.List[i], 0)
 					str = v.emitAsString(":\n", 0)
 					v.emitToFile(str)
 				}
@@ -449,8 +445,8 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 					str := v.emitAsString("default:\n", indent+2)
 					v.emitToFile(str)
 				}
-				for _, innerStmt := range caseClause.Body {
-					v.traverseStmt(innerStmt, indent+4)
+				for i := 0; i < len(caseClause.Body); i++ {
+					v.traverseStmt(caseClause.Body[i], indent+4)
 				}
 				str := v.emitAsString("break;\n", indent+4)
 				v.emitToFile(str)
@@ -481,7 +477,8 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 }
 
 func (v *BasePassVisitor) traverseBlockStmt(block *ast.BlockStmt, indent int) {
-	for _, stmt := range block.List {
+	for i := 0; i < len(block.List); i++ {
+		stmt := block.List[i]
 		v.traverseStmt(stmt, indent)
 	}
 }
