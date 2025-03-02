@@ -422,3 +422,13 @@ func (cppe *CPPEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
 	str := cppe.emitAsString(node.Tok.String()+";\n", indent)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	str := cppe.emitAsString("", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	str := cppe.emitAsString(node.Tok.String(), 0)
+	str += cppe.emitAsString(";\n", 0)
+	cppe.emitToFile(str)
+}
