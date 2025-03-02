@@ -48,6 +48,25 @@ func (e *CSharpEmitter) emitAsString(s string, indent int) string {
 func (v *CSharpEmitter) SetFile(file *os.File) {
 	v.file = file
 }
+func (v *CSharpEmitter) GetFile() *os.File {
+	return v.file
+}
+
+func (v *CSharpEmitter) PreVisitProgram(indent int) {
+	outputFile := "./output.cs"
+	var err error
+	v.file, err = os.Create(outputFile)
+	v.SetFile(v.file)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	_, err = v.file.WriteString("using System;\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
+}
 
 func (cppe *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	if e.Kind == token.STRING {
