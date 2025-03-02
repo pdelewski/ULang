@@ -11,6 +11,8 @@ type Emitter interface {
 	GetFile() *os.File
 	PreVisitProgram(indent int)
 	PostVisitProgram(indent int)
+	PreVisitPackage(name string, indent int)
+	PostVisitPackage(name string, indent int)
 	PreVisitBasicLit(node *ast.BasicLit, indent int)
 	PostVisitBasicLit(node *ast.BasicLit, indent int)
 	PreVisitIdent(node *ast.Ident, indent int)
