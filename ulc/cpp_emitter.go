@@ -417,3 +417,8 @@ func (cppe *CPPEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 func (cppe *CPPEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
 	cppe.emitToFile(";\n")
 }
+
+func (cppe *CPPEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
+	str := cppe.emitAsString(node.Tok.String()+";\n", indent)
+	cppe.emitToFile(str)
+}

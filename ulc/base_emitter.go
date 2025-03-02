@@ -122,3 +122,5 @@ func (v *BaseEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index i
 func (v *BaseEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {}
 func (v *BaseEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int)     {}
 func (v *BaseEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int)    {}
+func (v *BaseEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int)                       {}
+func (v *BaseEmitter) PostVisitBranchStmt(node *ast.BranchStmt, indent int)                      {}
