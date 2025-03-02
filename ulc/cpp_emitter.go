@@ -380,3 +380,11 @@ func (cppe *CPPEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
 	str := cppe.emitAsString(";\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	str := cppe.emitAsString(" ", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	cppe.emitToFile(";\n")
+}

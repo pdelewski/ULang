@@ -115,4 +115,8 @@ type Emitter interface {
 	PostVisitExprStmtX(node ast.Expr, indent int)
 	PreVisitDeclStmt(node *ast.DeclStmt, indent int)
 	PostVisitDeclStmt(node *ast.DeclStmt, indent int)
+	PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int)
+	PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int)
+	PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int)
+	PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int)
 }
