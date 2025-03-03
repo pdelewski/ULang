@@ -374,6 +374,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 	case *ast.IfStmt:
 		v.traverseIfStmt(stmt, indent, false)
 	case *ast.ForStmt:
+		v.emitter.PreVisitForStmt(stmt, indent)
 		str := v.emitAsString("for (", indent)
 		v.emitToFile(str)
 		if stmt.Init != nil {
@@ -391,19 +392,16 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 			v.emitToFile(str)
 		}
 		if stmt.Post != nil {
-			if postExpr, ok := stmt.Post.(*ast.ExprStmt); ok {
-				v.traverseExpression(postExpr.X, 0)
-			} else if incDeclStmt, ok := stmt.Post.(*ast.IncDecStmt); ok {
-				v.traverseExpression(incDeclStmt.X, 0)
-				str := v.emitAsString(incDeclStmt.Tok.String(), 0)
-				v.emitToFile(str)
-			}
+			v.emitter.PreVisitForStmtPost(stmt.Post, indent)
+			v.traverseStmt(stmt.Post, 0)
+			v.emitter.PostVisitForStmtPost(stmt.Post, indent)
 		}
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
 		v.traverseBlockStmt(stmt.Body, indent+2)
 		str = v.emitAsString("}", indent)
 		v.emitToFile(str)
+		v.emitter.PostVisitForStmt(stmt, indent)
 	case *ast.RangeStmt:
 		str := v.emitAsString("for (auto ", indent)
 		v.emitToFile(str)
@@ -456,7 +454,6 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitToFile(str)
 	default:
 		fmt.Printf("<Other statement type>\n")
-
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 type CPPEmitter struct {
 	file *os.File
 	Emitter
+	insideForPostCond bool
 }
 
 func (*CPPEmitter) lowerToBuiltins(selector string) string {
@@ -73,6 +74,7 @@ func (cppe *CPPEmitter) PreVisitProgram(indent int) {
 		fmt.Println("Error writing to file:", err)
 		return
 	}
+	cppe.insideForPostCond = false
 }
 
 func (cppe *CPPEmitter) PostVisitProgram(indent int) {
@@ -425,6 +427,15 @@ func (cppe *CPPEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
 
 func (cppe *CPPEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	str := cppe.emitAsString(node.Tok.String(), 0)
-	str += cppe.emitAsString(";", 0)
+	if !cppe.insideForPostCond {
+		str += cppe.emitAsString(";", 0)
+	}
 	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitForStmtPost(node ast.Stmt, indent int) {
+	cppe.insideForPostCond = true
+}
+func (cppe *CPPEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
+	cppe.insideForPostCond = false
 }
