@@ -498,11 +498,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 					return v
 				}
 			}
-			if arrayArg, ok := result.Type.(*ast.ArrayType); ok {
-				v.traverseExpression(arrayArg, 0)
-			} else {
-				v.traverseExpression(result.Type, 0)
-			}
+			v.traverseExpression(result.Type, 0)
 			resultArgIndex++
 		}
 		if len(node.Type.Results.List) > 1 {
