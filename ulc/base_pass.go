@@ -452,6 +452,8 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitToFile("\n")
 		str := v.emitAsString("break;\n", indent+4)
 		v.emitToFile(str)
+	case *ast.BlockStmt:
+		v.traverseBlockStmt(stmt, indent)
 	default:
 		fmt.Printf("<Other statement type>\n")
 	}
@@ -481,18 +483,18 @@ func (v *BasePassVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, innerif
 	str = v.emitAsString(") ", 0)
 	str += v.emitAsString("{\n", 0)
 	v.emitToFile(str)
-	v.traverseBlockStmt(ifStmt.Body, indent+2)
+	v.traverseStmt(ifStmt.Body, indent+2)
 	str = v.emitAsString("}\n", indent)
 	v.emitToFile(str)
 	if ifStmt.Else != nil {
 		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
 			str = v.emitAsString("else", indent)
 			v.emitToFile(str)
-			v.traverseIfStmt(elseIf, indent, true) // Recursive call for else-if
+			v.traverseStmt(elseIf, indent)
 		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
 			str = v.emitAsString("else {\n", indent)
 			v.emitToFile(str)
-			v.traverseBlockStmt(elseBlock, indent+2) // Dump else block
+			v.traverseStmt(elseBlock, indent+2) // Dump else block
 			str = v.emitAsString("}\n", indent)
 			v.emitToFile(str)
 		}
@@ -602,7 +604,7 @@ func (v *BasePassVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	v.traverseBlockStmt(node.Body, 2)
+	v.traverseStmt(node.Body, 2)
 	str = v.emitAsString("}\n", 0)
 	str += v.emitAsString("\n", 0)
 	err = v.emitToFile(str)
