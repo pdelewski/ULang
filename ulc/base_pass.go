@@ -250,7 +250,7 @@ func (v *BasePassVisitor) traverseExpression(expr ast.Expr, indent int) string {
 		}
 		v.emitter.PostVisitFuncLitTypeResults(e.Type.Results, indent)
 		v.emitter.PreVisitFuncLitBody(e.Body, indent)
-		v.traverseBlockStmt(e.Body, indent+4)
+		v.traverseStmt(e.Body, indent+4)
 		v.emitter.PostVisitFuncLitBody(e.Body, indent)
 		v.emitter.PostVisitFuncLit(e, indent)
 	case *ast.TypeAssertExpr:
@@ -398,7 +398,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		}
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
-		v.traverseBlockStmt(stmt.Body, indent+2)
+		v.traverseStmt(stmt.Body, indent+2)
 		str = v.emitAsString("}", indent)
 		v.emitToFile(str)
 		v.emitter.PostVisitForStmt(stmt, indent)
@@ -413,7 +413,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.traverseExpression(stmt.X, 0)
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
-		v.traverseBlockStmt(stmt.Body, indent+2)
+		v.traverseStmt(stmt.Body, indent+2)
 		str = v.emitAsString("}", indent)
 		v.emitToFile(str)
 	case *ast.SwitchStmt:
