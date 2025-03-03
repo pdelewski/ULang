@@ -482,7 +482,7 @@ func (v *BasePassVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, innerif
 	v.traverseExpression(ifStmt.Cond, 0)
 	str = v.emitAsString(")\n", 0)
 	v.emitToFile(str)
-	v.traverseStmt(ifStmt.Body, indent+2)
+	v.traverseStmt(ifStmt.Body, indent)
 	if ifStmt.Else != nil {
 		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
 			str = v.emitAsString("else", indent)
@@ -491,7 +491,7 @@ func (v *BasePassVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, innerif
 		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
 			str = v.emitAsString("else\n", indent)
 			v.emitToFile(str)
-			v.traverseStmt(elseBlock, indent+2) // Dump else block
+			v.traverseStmt(elseBlock, indent) // Dump else block
 		}
 	}
 }
