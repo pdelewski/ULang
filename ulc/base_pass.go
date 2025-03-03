@@ -547,15 +547,9 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 			}
 		}
 		for _, argName := range arg.Names {
-			if arrayArg, ok := arg.Type.(*ast.ArrayType); ok {
-				v.traverseExpression(arrayArg, 0)
-				v.emitToFile(" ")
-				v.traverseExpression(argName, 0)
-			} else {
-				v.traverseExpression(arg.Type, 0)
-				v.emitToFile(" ")
-				v.emitToFile(argName.Name)
-			}
+			v.traverseExpression(arg.Type, 0)
+			v.emitToFile(" ")
+			v.traverseExpression(argName, 0)
 		}
 		argIndex++
 	}
