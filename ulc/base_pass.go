@@ -379,7 +379,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitToFile(str)
 		v.traverseStmt(stmt.Body, indent)
 		if stmt.Else != nil {
-			str = v.emitAsString("else", indent)
+			str = v.emitAsString("else", 1)
 			v.emitToFile(str)
 			v.traverseStmt(stmt.Else, indent)
 		}
@@ -462,7 +462,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		str := v.emitAsString("{\n", indent)
 		v.emitToFile(str)
 		v.traverseBlockStmt(stmt, indent+2)
-		str = v.emitAsString("}\n", indent)
+		str = v.emitAsString("}", indent)
 		v.emitToFile(str)
 	default:
 		fmt.Printf("<Other statement type>\n")
@@ -473,10 +473,8 @@ func (v *BasePassVisitor) traverseBlockStmt(block *ast.BlockStmt, indent int) {
 	for i := 0; i < len(block.List); i++ {
 		stmt := block.List[i]
 		v.traverseStmt(stmt, indent)
-		if _, ok := stmt.(*ast.IfStmt); !ok {
-			str := v.emitAsString("\n", indent)
-			v.emitToFile(str)
-		}
+		str := v.emitAsString("\n", indent)
+		v.emitToFile(str)
 	}
 }
 
@@ -579,6 +577,8 @@ func (v *BasePassVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
 	str := v.emitAsString("\n", 0)
 	v.emitToFile(str)
 	v.traverseStmt(node.Body, 0)
+	str = v.emitAsString("\n\n", 0)
+	v.emitToFile(str)
 	return v
 }
 
