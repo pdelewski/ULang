@@ -128,3 +128,11 @@ func (v *BaseEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int)      
 func (v *BaseEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int)                      {}
 func (v *BaseEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int)                       {}
 func (v *BaseEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int)                      {}
+func (v *BaseEmitter) PostVisitForStmt(node *ast.ForStmt, indent int)                            {}
+func (v *BaseEmitter) PreVisitForStmt(node *ast.ForStmt, indent int)                             {}
+func (v *BaseEmitter) PreVisitForStmtInit(node ast.Stmt, indent int)                             {}
+func (v *BaseEmitter) PostVisitForStmtInit(node ast.Stmt, indent int)                            {}
+func (v *BaseEmitter) PreVisitForStmtCond(node ast.Expr, indent int)                             {}
+func (v *BaseEmitter) PostVisitForStmtCond(node ast.Expr, indent int)                            {}
+func (v *BaseEmitter) PreVisitForStmtPost(node ast.Stmt, indent int)                             {}
+func (v *BaseEmitter) PostVisitForStmtPost(node ast.Stmt, indent int)                            {}
