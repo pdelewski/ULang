@@ -772,22 +772,11 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
-				if arrayArg, ok := node.Type.(*ast.ArrayType); ok {
-					v.emitToFile(fmt.Sprintf("using "))
-					v.traverseExpression(node.Name, 0)
-					v.emitToFile(" = ")
-					v.traverseExpression(arrayArg, 0)
-					v.emitToFile(";\n\n")
-				} else {
-					str := v.emitAsString(fmt.Sprintf("using %s = ", node.Name.Name), 0)
-					err := v.emitToFile(str)
-					v.traverseExpression(node.Type, 0)
-					str = v.emitAsString(";\n\n", 0)
-					err = v.emitToFile(str)
-					if err != nil {
-						fmt.Println("Error writing to file:", err)
-					}
-				}
+				v.emitToFile(fmt.Sprintf("using "))
+				v.traverseExpression(node.Name, 0)
+				v.emitToFile(" = ")
+				v.traverseExpression(node.Type, 0)
+				v.emitToFile(";\n\n")
 			}
 		}
 	}
