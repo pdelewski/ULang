@@ -425,25 +425,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		str = v.emitAsString(") {\n", 0)
 		v.emitToFile(str)
 		for _, stmt := range stmt.Body.List {
-			if caseClause, ok := stmt.(*ast.CaseClause); ok {
-				for i := 0; i < len(caseClause.List); i++ {
-					str := v.emitAsString("case ", indent+2)
-					v.emitToFile(str)
-					v.traverseExpression(caseClause.List[i], 0)
-					str = v.emitAsString(":\n", 0)
-					v.emitToFile(str)
-				}
-				if len(caseClause.List) == 0 {
-					str := v.emitAsString("default:\n", indent+2)
-					v.emitToFile(str)
-				}
-				for i := 0; i < len(caseClause.Body); i++ {
-					v.traverseStmt(caseClause.Body[i], indent+4)
-				}
-				v.emitToFile("\n")
-				str := v.emitAsString("break;\n", indent+4)
-				v.emitToFile(str)
-			}
+			v.traverseStmt(stmt, indent+2)
 		}
 		str = v.emitAsString("}", indent)
 		v.emitToFile(str)
@@ -454,6 +436,24 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PreVisitIncDecStmt(stmt, indent)
 		v.traverseExpression(stmt.X, indent)
 		v.emitter.PostVisitIncDecStmt(stmt, indent)
+	case *ast.CaseClause:
+		for i := 0; i < len(stmt.List); i++ {
+			str := v.emitAsString("case ", indent+2)
+			v.emitToFile(str)
+			v.traverseExpression(stmt.List[i], 0)
+			str = v.emitAsString(":\n", 0)
+			v.emitToFile(str)
+		}
+		if len(stmt.List) == 0 {
+			str := v.emitAsString("default:\n", indent+2)
+			v.emitToFile(str)
+		}
+		for i := 0; i < len(stmt.Body); i++ {
+			v.traverseStmt(stmt.Body[i], indent+4)
+		}
+		v.emitToFile("\n")
+		str := v.emitAsString("break;\n", indent+4)
+		v.emitToFile(str)
 	default:
 		fmt.Printf("<Other statement type>\n")
 
