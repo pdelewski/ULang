@@ -372,7 +372,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 	case *ast.ReturnStmt:
 		v.traverseReturnStmt(stmt, indent)
 	case *ast.IfStmt:
-		v.traverseIfStmt(stmt, indent, false)
+		v.traverseIfStmt(stmt, indent)
 	case *ast.ForStmt:
 		v.emitter.PreVisitForStmt(stmt, indent)
 		str := v.emitAsString("for (", indent)
@@ -470,29 +470,18 @@ func (v *BasePassVisitor) traverseBlockStmt(block *ast.BlockStmt, indent int) {
 	}
 }
 
-func (v *BasePassVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int, innerif bool) {
+func (v *BasePassVisitor) traverseIfStmt(ifStmt *ast.IfStmt, indent int) {
 	var str string
-	if innerif {
-		str = v.emitAsString("if", 1)
-	} else {
-		str = v.emitAsString("if", indent)
-	}
-	str += v.emitAsString(" (", 0)
+	str = v.emitAsString("if (", indent)
 	v.emitToFile(str)
 	v.traverseExpression(ifStmt.Cond, 0)
 	str = v.emitAsString(")\n", 0)
 	v.emitToFile(str)
 	v.traverseStmt(ifStmt.Body, indent)
 	if ifStmt.Else != nil {
-		if elseIf, ok := ifStmt.Else.(*ast.IfStmt); ok {
-			str = v.emitAsString("else", indent)
-			v.emitToFile(str)
-			v.traverseStmt(elseIf, indent)
-		} else if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok {
-			str = v.emitAsString("else\n", indent)
-			v.emitToFile(str)
-			v.traverseStmt(elseBlock, indent) // Dump else block
-		}
+		str = v.emitAsString("else", indent)
+		v.emitToFile(str)
+		v.traverseStmt(ifStmt.Else, indent) // Dump else block
 	}
 }
 
