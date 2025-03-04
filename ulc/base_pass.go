@@ -363,11 +363,9 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		}
 		v.emitter.PostVisitDeclStmt(stmt, indent)
 	case *ast.AssignStmt:
-		str := v.emitAsString("", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitAssignStmt(stmt, indent)
 		v.traverseAssignment(stmt, 0)
-		str = v.emitAsString(";", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitAssignStmt(stmt, indent)
 	case *ast.ReturnStmt:
 		v.traverseReturnStmt(stmt, indent)
 	case *ast.IfStmt:

@@ -439,3 +439,13 @@ func (cppe *CPPEmitter) PreVisitForStmtPost(node ast.Stmt, indent int) {
 func (cppe *CPPEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
 	cppe.insideForPostCond = false
 }
+
+func (cppe *CPPEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	str := cppe.emitAsString("", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+}
