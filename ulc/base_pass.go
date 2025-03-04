@@ -309,8 +309,8 @@ func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent 
 
 	str := v.emitAsString(assignmentToken+" ", indent+1)
 	v.emitToFile(str)
-	for _, rhs := range assignStmt.Rhs {
-		v.traverseExpression(rhs, indent)
+	for i := 0; i < len(assignStmt.Rhs); i++ {
+		v.traverseExpression(assignStmt.Rhs[i], indent)
 	}
 }
 
