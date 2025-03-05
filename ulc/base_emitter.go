@@ -136,3 +136,11 @@ func (v *BaseEmitter) PreVisitForStmtCond(node ast.Expr, indent int)            
 func (v *BaseEmitter) PostVisitForStmtCond(node ast.Expr, indent int)                            {}
 func (v *BaseEmitter) PreVisitForStmtPost(node ast.Stmt, indent int)                             {}
 func (v *BaseEmitter) PostVisitForStmtPost(node ast.Stmt, indent int)                            {}
+func (v *BaseEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int)                    {}
+func (v *BaseEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int)                   {}
+func (v *BaseEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int)                    {}
+func (v *BaseEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int)                   {}
+func (v *BaseEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int)            {}
+func (v *BaseEmitter) PostVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int)           {}
+func (v *BaseEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)            {}
+func (v *BaseEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)           {}
