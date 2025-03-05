@@ -279,10 +279,6 @@ func (v *BasePassVisitor) traverseExpression(expr ast.Expr, indent int) string {
 func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent int) {
 	v.emitter.PreVisitAssignStmtLhs(assignStmt, indent)
 	for i := 0; i < len(assignStmt.Lhs); i++ {
-		if i > 0 {
-			str := v.emitAsString(", ", indent)
-			v.emitToFile(str)
-		}
 		v.emitter.PreVisitAssignStmtLhsExpr(assignStmt.Lhs[i], i, indent)
 		v.traverseExpression(assignStmt.Lhs[i], indent)
 		v.emitter.PostVisitAssignStmtLhsExpr(assignStmt.Lhs[i], i, indent)

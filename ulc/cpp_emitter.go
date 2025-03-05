@@ -483,3 +483,10 @@ func (cppe *CPPEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) 
 	str := cppe.emitAsString(cppe.assignmentToken+" ", indent+1)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", indent)
+		cppe.emitToFile(str)
+	}
+}
