@@ -277,21 +277,7 @@ func (v *BasePassVisitor) traverseExpression(expr ast.Expr, indent int) string {
 }
 
 func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent int) {
-	assignmentToken := assignStmt.Tok.String()
-	if assignmentToken == ":=" && len(assignStmt.Lhs) == 1 {
-		str := v.emitAsString("auto ", indent)
-		v.emitToFile(str)
-	} else if assignmentToken == ":=" && len(assignStmt.Lhs) > 1 {
-		str := v.emitAsString("auto [", indent)
-		v.emitToFile(str)
-	} else if assignmentToken == "=" && len(assignStmt.Lhs) > 1 {
-		str := v.emitAsString("std::tie(", indent)
-		v.emitToFile(str)
-	}
-	if assignmentToken != "+=" {
-		assignmentToken = "="
-	}
-	v.emitter.PreVisitAssignStmtLhs(assignStmt.Lhs, indent)
+	v.emitter.PreVisitAssignStmtLhs(assignStmt, indent)
 	for i := 0; i < len(assignStmt.Lhs); i++ {
 		if i > 0 {
 			str := v.emitAsString(", ", indent)
@@ -301,26 +287,15 @@ func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent 
 		v.traverseExpression(assignStmt.Lhs[i], indent)
 		v.emitter.PostVisitAssignStmtLhsExpr(assignStmt.Lhs[i], i, indent)
 	}
-	v.emitter.PostVisitAssignStmtLhs(assignStmt.Lhs, indent)
+	v.emitter.PostVisitAssignStmtLhs(assignStmt, indent)
 
-	if assignStmt.Tok.String() == ":=" && len(assignStmt.Lhs) > 1 {
-		str := v.emitAsString("]", indent)
-		v.emitToFile(str)
-	} else if assignStmt.Tok.String() == "=" && len(assignStmt.Lhs) > 1 {
-		str := v.emitAsString(")", indent)
-		v.emitToFile(str)
-	}
-
-	str := v.emitAsString(assignmentToken+" ", indent+1)
-	v.emitToFile(str)
-
-	v.emitter.PreVisitAssignStmtRhs(assignStmt.Rhs, indent)
+	v.emitter.PreVisitAssignStmtRhs(assignStmt, indent)
 	for i := 0; i < len(assignStmt.Rhs); i++ {
 		v.emitter.PreVisitAssignStmtRhsExpr(assignStmt.Rhs[i], i, indent)
 		v.traverseExpression(assignStmt.Rhs[i], indent)
 		v.emitter.PostVisitAssignStmtRhsExpr(assignStmt.Rhs[i], i, indent)
 	}
-	v.emitter.PostVisitAssignStmtRhs(assignStmt.Rhs, indent)
+	v.emitter.PostVisitAssignStmtRhs(assignStmt, indent)
 }
 
 func (v *BasePassVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int) {

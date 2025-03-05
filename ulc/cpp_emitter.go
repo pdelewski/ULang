@@ -13,6 +13,7 @@ type CPPEmitter struct {
 	file *os.File
 	Emitter
 	insideForPostCond bool
+	assignmentToken   string
 }
 
 func (*CPPEmitter) lowerToBuiltins(selector string) string {
@@ -447,5 +448,38 @@ func (cppe *CPPEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 
 func (cppe *CPPEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	assignmentToken := node.Tok.String()
+	if assignmentToken == ":=" && len(node.Lhs) == 1 {
+		str := cppe.emitAsString("auto ", indent)
+		cppe.emitToFile(str)
+	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString("auto [", indent)
+		cppe.emitToFile(str)
+	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString("std::tie(", indent)
+		cppe.emitToFile(str)
+	}
+	if assignmentToken != "+=" {
+		assignmentToken = "="
+	}
+	cppe.assignmentToken = assignmentToken
+}
+
+func (cppe *CPPEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString("]", indent)
+		cppe.emitToFile(str)
+	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString(")", indent)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
+	str := cppe.emitAsString(cppe.assignmentToken+" ", indent+1)
 	cppe.emitToFile(str)
 }
