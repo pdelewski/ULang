@@ -135,4 +135,12 @@ type Emitter interface {
 	PostVisitForStmtCond(node ast.Expr, indent int)
 	PreVisitForStmtPost(node ast.Stmt, indent int)
 	PostVisitForStmtPost(node ast.Stmt, indent int)
+	PreVisitAssignStmtLhs(node []ast.Expr, indent int)
+	PostVisitAssignStmtLhs(node []ast.Expr, indent int)
+	PreVisitAssignStmtRhs(node []ast.Expr, indent int)
+	PostVisitAssignStmtRhs(node []ast.Expr, indent int)
+	PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int)
+	PostVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int)
+	PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)
+	PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)
 }

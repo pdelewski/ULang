@@ -291,13 +291,17 @@ func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent 
 	if assignmentToken != "+=" {
 		assignmentToken = "="
 	}
+	v.emitter.PreVisitAssignStmtLhs(assignStmt.Lhs, indent)
 	for i := 0; i < len(assignStmt.Lhs); i++ {
 		if i > 0 {
 			str := v.emitAsString(", ", indent)
 			v.emitToFile(str)
 		}
+		v.emitter.PreVisitAssignStmtLhsExpr(assignStmt.Lhs[i], i, indent)
 		v.traverseExpression(assignStmt.Lhs[i], indent)
+		v.emitter.PostVisitAssignStmtLhsExpr(assignStmt.Lhs[i], i, indent)
 	}
+	v.emitter.PostVisitAssignStmtLhs(assignStmt.Lhs, indent)
 
 	if assignStmt.Tok.String() == ":=" && len(assignStmt.Lhs) > 1 {
 		str := v.emitAsString("]", indent)
@@ -309,9 +313,14 @@ func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent 
 
 	str := v.emitAsString(assignmentToken+" ", indent+1)
 	v.emitToFile(str)
+
+	v.emitter.PreVisitAssignStmtRhs(assignStmt.Rhs, indent)
 	for i := 0; i < len(assignStmt.Rhs); i++ {
+		v.emitter.PreVisitAssignStmtRhsExpr(assignStmt.Rhs[i], i, indent)
 		v.traverseExpression(assignStmt.Rhs[i], indent)
+		v.emitter.PostVisitAssignStmtRhsExpr(assignStmt.Rhs[i], i, indent)
 	}
+	v.emitter.PostVisitAssignStmtRhs(assignStmt.Rhs, indent)
 }
 
 func (v *BasePassVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int) {
