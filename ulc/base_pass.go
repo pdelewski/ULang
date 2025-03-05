@@ -5,11 +5,12 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"golang.org/x/tools/go/packages"
 	"log"
 	"os"
 	"sort"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
 
 var typesMap = map[string]string{
