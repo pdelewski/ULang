@@ -144,3 +144,7 @@ func (v *BaseEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent
 func (v *BaseEmitter) PostVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int)           {}
 func (v *BaseEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)            {}
 func (v *BaseEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)           {}
+func (v *BaseEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int)                       {}
+func (v *BaseEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int)                      {}
+func (v *BaseEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int)             {}
+func (v *BaseEmitter) PostVisitReturnStmtResult(node ast.Expr, index int, indent int)            {}

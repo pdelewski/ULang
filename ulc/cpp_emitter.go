@@ -490,3 +490,28 @@ func (cppe *CPPEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, inde
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	str := cppe.emitAsString("return ", indent)
+	cppe.emitToFile(str)
+	if len(node.Results) > 1 {
+		str := cppe.emitAsString("std::make_tuple(", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	if len(node.Results) > 1 {
+		str := cppe.emitAsString(")", 0)
+		cppe.emitToFile(str)
+	}
+	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
