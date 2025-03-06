@@ -515,3 +515,13 @@ func (cppe *CPPEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, inden
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	str := cppe.emitAsString("if (", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	str := cppe.emitAsString(")\n", 0)
+	cppe.emitToFile(str)
+}
