@@ -148,3 +148,11 @@ func (v *BaseEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int)      
 func (v *BaseEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int)                      {}
 func (v *BaseEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int)             {}
 func (v *BaseEmitter) PostVisitReturnStmtResult(node ast.Expr, index int, indent int)            {}
+func (v *BaseEmitter) PreVisitIfStmt(node *ast.IfStmt, indent int)                               {}
+func (v *BaseEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int)                              {}
+func (v *BaseEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int)                           {}
+func (v *BaseEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int)                          {}
+func (v *BaseEmitter) PreVisitIfStmtBody(node *ast.IfStmt, indent int)                           {}
+func (v *BaseEmitter) PostVisitIfStmtBody(node *ast.IfStmt, indent int)                          {}
+func (v *BaseEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int)                           {}
+func (v *BaseEmitter) PostVisitIfStmtElse(node *ast.IfStmt, indent int)                          {}

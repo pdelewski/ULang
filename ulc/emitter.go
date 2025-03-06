@@ -322,4 +322,20 @@ type Emitter interface {
 	PreVisitReturnStmtResult(node ast.Expr, index int, indent int)
 	// PostVisitReturnStmtResult is called after visiting the results of a return statement.
 	PostVisitReturnStmtResult(node ast.Expr, index int, indent int)
+	// PreVisitIfStmt is called before visiting an if statement.
+	PreVisitIfStmt(node *ast.IfStmt, indent int)
+	// PostVisitIfStmt is called after visiting an if statement.
+	PostVisitIfStmt(node *ast.IfStmt, indent int)
+	// PreVisitIfStmtCond is called before visiting the Cond part of an if statement.
+	PreVisitIfStmtCond(node *ast.IfStmt, indent int)
+	// PostVisitIfStmtCond is called after visiting the Cond part of an if statement.
+	PostVisitIfStmtCond(node *ast.IfStmt, indent int)
+	// PreVisitIfStmtBody is called before visiting the Body part of an if statement.
+	PreVisitIfStmtBody(node *ast.IfStmt, indent int)
+	// PostVisitIfStmtBody is called after visiting the Body part of an if statement.
+	PostVisitIfStmtBody(node *ast.IfStmt, indent int)
+	// PreVisitIfStmtElse is called before visiting the Else part of an if statement.
+	PreVisitIfStmtElse(node *ast.IfStmt, indent int)
+	// PostVisitIfStmtElse is called after visiting the Else part of an if statement.
+	PostVisitIfStmtElse(node *ast.IfStmt, indent int)
 }
