@@ -295,28 +295,6 @@ func (v *BasePassVisitor) traverseAssignment(assignStmt *ast.AssignStmt, indent 
 	v.emitter.PostVisitAssignStmtRhs(assignStmt, indent)
 }
 
-func (v *BasePassVisitor) traverseReturnStmt(retStmt *ast.ReturnStmt, indent int) {
-	str := v.emitAsString("return ", indent)
-	v.emitToFile(str)
-	if len(retStmt.Results) > 1 {
-		str := v.emitAsString("std::make_tuple(", 0)
-		v.emitToFile(str)
-	}
-	for i := 0; i < len(retStmt.Results); i++ {
-		if i > 0 {
-			str := v.emitAsString(", ", 0)
-			v.emitToFile(str)
-		}
-		v.traverseExpression(retStmt.Results[i], 0)
-	}
-	if len(retStmt.Results) > 1 {
-		str := v.emitAsString(")", 0)
-		v.emitToFile(str)
-	}
-	str = v.emitAsString(";", 0)
-	v.emitToFile(str)
-}
-
 func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
@@ -348,7 +326,13 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.traverseAssignment(stmt, 0)
 		v.emitter.PostVisitAssignStmt(stmt, indent)
 	case *ast.ReturnStmt:
-		v.traverseReturnStmt(stmt, indent)
+		v.emitter.PreVisitReturnStmt(stmt, indent)
+		for i := 0; i < len(stmt.Results); i++ {
+			v.emitter.PreVisitReturnStmtResult(stmt.Results[i], i, indent)
+			v.traverseExpression(stmt.Results[i], 0)
+			v.emitter.PostVisitReturnStmtResult(stmt.Results[i], i, indent)
+		}
+		v.emitter.PostVisitReturnStmt(stmt, indent)
 	case *ast.IfStmt:
 		str := v.emitAsString("if (", indent)
 		v.emitToFile(str)

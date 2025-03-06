@@ -314,4 +314,12 @@ type Emitter interface {
 	PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)
 	// PostVisitAssignStmtRhsExpr is called after visiting a specific right-hand side expression of an assignment statement.
 	PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int)
+	// PreVisitReturnStmt is called before visiting a return statement.
+	PreVisitReturnStmt(node *ast.ReturnStmt, indent int)
+	// PostVisitReturnStmt is called after visiting a return statement.
+	PostVisitReturnStmt(node *ast.ReturnStmt, indent int)
+	// PreVisitReturnStmtResult is called before visiting the results of a return statement.
+	PreVisitReturnStmtResult(node ast.Expr, index int, indent int)
+	// PostVisitReturnStmtResult is called after visiting the results of a return statement.
+	PostVisitReturnStmtResult(node ast.Expr, index int, indent int)
 }
