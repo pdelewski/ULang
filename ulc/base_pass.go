@@ -338,11 +338,13 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PreVisitIfStmtCond(stmt, indent)
 		v.traverseExpression(stmt.Cond, 0)
 		v.emitter.PostVisitIfStmtCond(stmt, indent)
+		v.emitter.PreVisitIfStmtBody(stmt, indent)
 		v.traverseStmt(stmt.Body, indent)
+		v.emitter.PostVisitIfStmtBody(stmt, indent)
 		if stmt.Else != nil {
-			str := v.emitAsString("else", 1)
-			v.emitToFile(str)
+			v.emitter.PreVisitIfStmtElse(stmt, indent)
 			v.traverseStmt(stmt.Else, indent)
+			v.emitter.PostVisitIfStmtElse(stmt, indent)
 		}
 		v.emitter.PostVisitIfStmt(stmt, indent)
 	case *ast.ForStmt:

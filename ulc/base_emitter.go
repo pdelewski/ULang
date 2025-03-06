@@ -152,3 +152,7 @@ func (v *BaseEmitter) PreVisitIfStmt(node *ast.IfStmt, indent int)              
 func (v *BaseEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int)                              {}
 func (v *BaseEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int)                           {}
 func (v *BaseEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int)                          {}
+func (v *BaseEmitter) PreVisitIfStmtBody(node *ast.IfStmt, indent int)                           {}
+func (v *BaseEmitter) PostVisitIfStmtBody(node *ast.IfStmt, indent int)                          {}
+func (v *BaseEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int)                           {}
+func (v *BaseEmitter) PostVisitIfStmtElse(node *ast.IfStmt, indent int)                          {}
