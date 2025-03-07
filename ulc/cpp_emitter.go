@@ -614,3 +614,8 @@ func (cppe *CPPEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	str := cppe.emitAsString("}", indent)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int) {
+	str := cppe.emitAsString("\n", indent)
+	cppe.emitToFile(str)
+}
