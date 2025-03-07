@@ -431,6 +431,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 }
 
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
+	v.emitter.PreVisitFuncDeclSignature(node, 0)
 	if node.Type.Results != nil {
 		resultArgIndex := 0
 		if len(node.Type.Results.List) > 1 {
@@ -511,6 +512,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
+	v.emitter.PostVisitFuncDeclSignature(node, 0)
 	return v
 }
 
