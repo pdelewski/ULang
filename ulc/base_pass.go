@@ -417,11 +417,9 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		}
 		v.emitter.PostVisitCaseClause(stmt, indent)
 	case *ast.BlockStmt:
-		str := v.emitAsString("{\n", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitBlockStmt(stmt, indent)
 		v.traverseBlockStmt(stmt, indent+2)
-		str = v.emitAsString("}", indent)
-		v.emitToFile(str)
+		v.emitter.PostVisitBlockStmt(stmt, indent)
 	default:
 		fmt.Printf("<Other statement type>\n")
 	}
