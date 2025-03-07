@@ -162,3 +162,7 @@ func (v *BaseEmitter) PreVisitRangeStmtValue(node ast.Expr, indent int)         
 func (v *BaseEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int)                         {}
 func (v *BaseEmitter) PreVisitRangeStmtX(node ast.Expr, indent int)                              {}
 func (v *BaseEmitter) PostVisitRangeStmtX(node ast.Expr, indent int)                             {}
+func (v *BaseEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int)                       {}
+func (v *BaseEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int)                      {}
+func (v *BaseEmitter) PreVisitSwitchStmtTag(node ast.Expr, indent int)                           {}
+func (v *BaseEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int)                          {}

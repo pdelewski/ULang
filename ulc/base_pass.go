@@ -387,16 +387,15 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.traverseStmt(stmt.Body, indent)
 		v.emitter.PostVisitRangeStmt(stmt, indent)
 	case *ast.SwitchStmt:
-		str := v.emitAsString("switch (", indent)
-		v.emitToFile(str)
+		v.emitter.PreVisitSwitchStmt(stmt, indent)
+		v.emitter.PreVisitSwitchStmtTag(stmt.Tag, indent)
 		v.traverseExpression(stmt.Tag, 0)
-		str = v.emitAsString(") {\n", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitSwitchStmtTag(stmt.Tag, indent)
+
 		for _, stmt := range stmt.Body.List {
 			v.traverseStmt(stmt, indent+2)
 		}
-		str = v.emitAsString("}", indent)
-		v.emitToFile(str)
+		v.emitter.PostVisitSwitchStmt(stmt, indent)
 	case *ast.BranchStmt:
 		v.emitter.PreVisitBranchStmt(stmt, indent)
 		v.emitter.PostVisitBranchStmt(stmt, indent)
