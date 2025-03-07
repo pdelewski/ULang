@@ -358,13 +358,9 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		}
 		if stmt.Cond != nil {
 			v.traverseExpression(stmt.Cond, 0)
-			str := v.emitAsString(";", 0)
-			v.emitToFile(str)
 		}
-		if stmt.Cond == nil {
-			str := v.emitAsString(";", 0)
-			v.emitToFile(str)
-		}
+		str := v.emitAsString(";", 0)
+		v.emitToFile(str)
 		v.emitter.PreVisitForStmtPost(stmt.Post, indent)
 
 		if stmt.Post != nil {
