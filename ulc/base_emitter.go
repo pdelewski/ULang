@@ -156,3 +156,9 @@ func (v *BaseEmitter) PreVisitIfStmtBody(node *ast.IfStmt, indent int)          
 func (v *BaseEmitter) PostVisitIfStmtBody(node *ast.IfStmt, indent int)                          {}
 func (v *BaseEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int)                           {}
 func (v *BaseEmitter) PostVisitIfStmtElse(node *ast.IfStmt, indent int)                          {}
+func (v *BaseEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int)                         {}
+func (v *BaseEmitter) PostVisitRangeStmt(node *ast.RangeStmt, indent int)                        {}
+func (v *BaseEmitter) PreVisitRangeStmtValue(node ast.Expr, indent int)                          {}
+func (v *BaseEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int)                         {}
+func (v *BaseEmitter) PreVisitRangeStmtX(node ast.Expr, indent int)                              {}
+func (v *BaseEmitter) PostVisitRangeStmtX(node ast.Expr, indent int)                             {}

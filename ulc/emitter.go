@@ -338,4 +338,10 @@ type Emitter interface {
 	PreVisitIfStmtElse(node *ast.IfStmt, indent int)
 	// PostVisitIfStmtElse is called after visiting the Else part of an if statement.
 	PostVisitIfStmtElse(node *ast.IfStmt, indent int)
+	PreVisitRangeStmt(node *ast.RangeStmt, indent int)
+	PostVisitRangeStmt(node *ast.RangeStmt, indent int)
+	PreVisitRangeStmtValue(node ast.Expr, indent int)
+	PostVisitRangeStmtValue(node ast.Expr, indent int)
+	PreVisitRangeStmtX(node ast.Expr, indent int)
+	PostVisitRangeStmtX(node ast.Expr, indent int)
 }
