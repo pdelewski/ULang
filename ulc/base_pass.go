@@ -404,23 +404,18 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.traverseExpression(stmt.X, indent)
 		v.emitter.PostVisitIncDecStmt(stmt, indent)
 	case *ast.CaseClause:
+		v.emitter.PreVisitCaseClause(stmt, indent)
+		v.emitter.PreVisitCaseClauseList(stmt.List, indent)
 		for i := 0; i < len(stmt.List); i++ {
-			str := v.emitAsString("case ", indent+2)
-			v.emitToFile(str)
+			v.emitter.PreVisitCaseClauseListExpr(stmt.List[i], i, indent)
 			v.traverseExpression(stmt.List[i], 0)
-			str = v.emitAsString(":\n", 0)
-			v.emitToFile(str)
+			v.emitter.PostVisitCaseClauseListExpr(stmt.List[i], i, indent)
 		}
-		if len(stmt.List) == 0 {
-			str := v.emitAsString("default:\n", indent+2)
-			v.emitToFile(str)
-		}
+		v.emitter.PostVisitCaseClauseList(stmt.List, indent)
 		for i := 0; i < len(stmt.Body); i++ {
 			v.traverseStmt(stmt.Body[i], indent+4)
 		}
-		v.emitToFile("\n")
-		str := v.emitAsString("break;\n", indent+4)
-		v.emitToFile(str)
+		v.emitter.PostVisitCaseClause(stmt, indent)
 	case *ast.BlockStmt:
 		str := v.emitAsString("{\n", indent)
 		v.emitToFile(str)

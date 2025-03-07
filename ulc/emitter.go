@@ -348,4 +348,10 @@ type Emitter interface {
 	PostVisitSwitchStmt(node *ast.SwitchStmt, indent int)
 	PreVisitSwitchStmtTag(node ast.Expr, indent int)
 	PostVisitSwitchStmtTag(node ast.Expr, indent int)
+	PreVisitCaseClause(node *ast.CaseClause, indent int)
+	PostVisitCaseClause(node *ast.CaseClause, indent int)
+	PreVisitCaseClauseList(node []ast.Expr, indent int)
+	PostVisitCaseClauseList(node []ast.Expr, indent int)
+	PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int)
+	PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int)
 }
