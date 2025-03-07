@@ -568,3 +568,16 @@ func (cppe *CPPEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
 	str := cppe.emitAsString(")\n", 0)
 	cppe.emitToFile(str)
 }
+func (cppe *CPPEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	str := cppe.emitAsString("switch (", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	str := cppe.emitAsString("}", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
+	str := cppe.emitAsString(") {\n", 0)
+	cppe.emitToFile(str)
+}
