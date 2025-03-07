@@ -435,10 +435,16 @@ func (cppe *CPPEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 }
 
 func (cppe *CPPEmitter) PreVisitForStmtPost(node ast.Stmt, indent int) {
-	cppe.insideForPostCond = true
+	if node != nil {
+		cppe.insideForPostCond = true
+	}
 }
 func (cppe *CPPEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
-	cppe.insideForPostCond = false
+	if node != nil {
+		cppe.insideForPostCond = false
+	}
+	str := cppe.emitAsString(")\n", 0)
+	cppe.emitToFile(str)
 }
 
 func (cppe *CPPEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
@@ -528,5 +534,22 @@ func (cppe *CPPEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
 
 func (cppe *CPPEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
 	str := cppe.emitAsString("else", 1)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
+	str := cppe.emitAsString("for (", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
+	if node == nil {
+		str := cppe.emitAsString(";", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
+	str := cppe.emitAsString(";", 0)
 	cppe.emitToFile(str)
 }
