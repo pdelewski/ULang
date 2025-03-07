@@ -354,4 +354,6 @@ type Emitter interface {
 	PostVisitCaseClauseList(node []ast.Expr, indent int)
 	PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int)
 	PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int)
+	PreVisitBlockStmt(node *ast.BlockStmt, indent int)
+	PostVisitBlockStmt(node *ast.BlockStmt, indent int)
 }

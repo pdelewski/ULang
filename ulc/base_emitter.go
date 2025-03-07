@@ -172,3 +172,5 @@ func (v *BaseEmitter) PreVisitCaseClauseList(node []ast.Expr, indent int)       
 func (v *BaseEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int)                       {}
 func (v *BaseEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int)           {}
 func (v *BaseEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int)          {}
+func (v *BaseEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int)                         {}
+func (v *BaseEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int)                        {}

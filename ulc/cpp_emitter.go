@@ -604,3 +604,13 @@ func (cppe *CPPEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, in
 	str := cppe.emitAsString(":\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("{\n", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("}", indent)
+	cppe.emitToFile(str)
+}
