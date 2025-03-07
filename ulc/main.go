@@ -42,8 +42,8 @@ func main() {
 		},
 	}
 
-	cppBackend := &BasePass{emitter: &CPPEmitter{Emitter: &BaseEmitter{}}}
-	csBackend := &BasePass{emitter: &CSharpEmitter{Emitter: &BaseEmitter{}}}
+	cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{Emitter: &BaseEmitter{}}}
+	csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{Emitter: &BaseEmitter{}}}
 	passManager.passes = append(passManager.passes, cppBackend)
 	passManager.passes = append(passManager.passes, csBackend)
 
