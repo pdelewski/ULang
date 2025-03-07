@@ -47,6 +47,7 @@ type GenStructInfo struct {
 }
 
 type BasePass struct {
+	PassName   string
 	outputFile string
 	file       *os.File
 	visitor    *BasePassVisitor
@@ -61,7 +62,7 @@ type BasePassVisitor struct {
 }
 
 func (v *BasePass) Name() string {
-	return "CppGen"
+	return v.PassName
 }
 
 func (v *BasePass) Visitors(pkg *packages.Package) []ast.Visitor {
