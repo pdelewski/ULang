@@ -418,19 +418,14 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PostVisitCaseClause(stmt, indent)
 	case *ast.BlockStmt:
 		v.emitter.PreVisitBlockStmt(stmt, indent)
-		v.traverseBlockStmt(stmt, indent+2)
+		for i := 0; i < len(stmt.List); i++ {
+			v.emitter.PreVisitBlockStmtList(stmt.List[i], i, indent+2)
+			v.traverseStmt(stmt.List[i], indent+2)
+			v.emitter.PostVisitBlockStmtList(stmt.List[i], i, indent+2)
+		}
 		v.emitter.PostVisitBlockStmt(stmt, indent)
 	default:
 		fmt.Printf("<Other statement type>\n")
-	}
-}
-
-func (v *BasePassVisitor) traverseBlockStmt(block *ast.BlockStmt, indent int) {
-	for i := 0; i < len(block.List); i++ {
-		stmt := block.List[i]
-		v.traverseStmt(stmt, indent)
-		str := v.emitAsString("\n", indent)
-		v.emitToFile(str)
 	}
 }
 
