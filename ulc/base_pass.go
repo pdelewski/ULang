@@ -514,12 +514,12 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 }
 
 func (v *BasePassVisitor) generateFuncDecl(node *ast.FuncDecl) ast.Visitor {
+	v.emitter.PreVisitFuncDecl(node, 0)
 	v.generateFuncDeclSignature(node)
-	str := v.emitAsString("\n", 0)
-	v.emitToFile(str)
+	v.emitter.PreVisitFuncDeclBody(node.Body, 0)
 	v.traverseStmt(node.Body, 0)
-	str = v.emitAsString("\n\n", 0)
-	v.emitToFile(str)
+	v.emitter.PostVisitFuncDeclBody(node.Body, 0)
+	v.emitter.PostVisitFuncDecl(node, 0)
 	return v
 }
 
