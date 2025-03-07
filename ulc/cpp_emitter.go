@@ -619,3 +619,13 @@ func (cppe *CPPEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent 
 	str := cppe.emitAsString("\n", indent)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
+	str := cppe.emitAsString("\n\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("\n", 0)
+	cppe.emitToFile(str)
+}

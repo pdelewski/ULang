@@ -176,3 +176,7 @@ func (v *BaseEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int)        
 func (v *BaseEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int)                        {}
 func (v *BaseEmitter) PreVisitBlockStmtList(node ast.Stmt, index int, indent int)                {}
 func (v *BaseEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int)               {}
+func (v *BaseEmitter) PreVisitFuncDecl(node *ast.FuncDecl, indent int)                           {}
+func (v *BaseEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int)                          {}
+func (v *BaseEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int)                      {}
+func (v *BaseEmitter) PostVisitFuncDeclBody(node *ast.BlockStmt, indent int)                     {}

@@ -358,4 +358,8 @@ type Emitter interface {
 	PostVisitBlockStmt(node *ast.BlockStmt, indent int)
 	PreVisitBlockStmtList(node ast.Stmt, index int, indent int)
 	PostVisitBlockStmtList(node ast.Stmt, index int, indent int)
+	PreVisitFuncDecl(node *ast.FuncDecl, indent int)
+	PostVisitFuncDecl(node *ast.FuncDecl, indent int)
+	PreVisitFuncDeclBody(node *ast.BlockStmt, indent int)
+	PostVisitFuncDeclBody(node *ast.BlockStmt, indent int)
 }
