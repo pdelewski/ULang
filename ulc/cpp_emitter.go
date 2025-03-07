@@ -541,3 +541,10 @@ func (cppe *CPPEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	str := cppe.emitAsString("for (", indent)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
+	if node == nil {
+		str := cppe.emitAsString(";", 0)
+		cppe.emitToFile(str)
+	}
+}

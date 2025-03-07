@@ -349,20 +349,20 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PostVisitIfStmt(stmt, indent)
 	case *ast.ForStmt:
 		v.emitter.PreVisitForStmt(stmt, indent)
+		v.emitter.PreVisitForStmtInit(stmt.Init, indent)
 		if stmt.Init != nil {
 			v.traverseStmt(stmt.Init, 0)
 		}
-		if stmt.Init == nil {
-			str := v.emitAsString(";", 0)
-			v.emitToFile(str)
-		}
+
+		v.emitter.PostVisitForStmtInit(stmt.Init, indent)
+
 		if stmt.Cond != nil {
 			v.traverseExpression(stmt.Cond, 0)
 		}
 		str := v.emitAsString(";", 0)
 		v.emitToFile(str)
-		v.emitter.PreVisitForStmtPost(stmt.Post, indent)
 
+		v.emitter.PreVisitForStmtPost(stmt.Post, indent)
 		if stmt.Post != nil {
 			v.traverseStmt(stmt.Post, 0)
 		}
