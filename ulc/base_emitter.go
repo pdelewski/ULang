@@ -166,3 +166,9 @@ func (v *BaseEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int)      
 func (v *BaseEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int)                      {}
 func (v *BaseEmitter) PreVisitSwitchStmtTag(node ast.Expr, indent int)                           {}
 func (v *BaseEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int)                          {}
+func (v *BaseEmitter) PreVisitCaseClause(node *ast.CaseClause, indent int)                       {}
+func (v *BaseEmitter) PostVisitCaseClause(node *ast.CaseClause, indent int)                      {}
+func (v *BaseEmitter) PreVisitCaseClauseList(node []ast.Expr, indent int)                        {}
+func (v *BaseEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int)                       {}
+func (v *BaseEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int)           {}
+func (v *BaseEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int)          {}

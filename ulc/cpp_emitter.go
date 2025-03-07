@@ -581,3 +581,26 @@ func (cppe *CPPEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
 	str := cppe.emitAsString(") {\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitCaseClause(node *ast.CaseClause, indent int) {
+	cppe.emitToFile("\n")
+	str := cppe.emitAsString("break;\n", indent+4)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) {
+	if len(node) == 0 {
+		str := cppe.emitAsString("default:\n", indent+2)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	str := cppe.emitAsString("case ", indent+2)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	str := cppe.emitAsString(":\n", 0)
+	cppe.emitToFile(str)
+}
