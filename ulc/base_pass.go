@@ -349,18 +349,18 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PostVisitIfStmt(stmt, indent)
 	case *ast.ForStmt:
 		v.emitter.PreVisitForStmt(stmt, indent)
+
 		v.emitter.PreVisitForStmtInit(stmt.Init, indent)
 		if stmt.Init != nil {
 			v.traverseStmt(stmt.Init, 0)
 		}
-
 		v.emitter.PostVisitForStmtInit(stmt.Init, indent)
 
+		v.emitter.PreVisitForStmtCond(stmt.Cond, indent)
 		if stmt.Cond != nil {
 			v.traverseExpression(stmt.Cond, 0)
 		}
-		str := v.emitAsString(";", 0)
-		v.emitToFile(str)
+		v.emitter.PostVisitForStmtCond(stmt.Cond, indent)
 
 		v.emitter.PreVisitForStmtPost(stmt.Post, indent)
 		if stmt.Post != nil {
@@ -369,6 +369,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PostVisitForStmtPost(stmt.Post, indent)
 
 		v.traverseStmt(stmt.Body, indent)
+
 		v.emitter.PostVisitForStmt(stmt, indent)
 	case *ast.RangeStmt:
 		str := v.emitAsString("for (auto ", indent)

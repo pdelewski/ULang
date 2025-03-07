@@ -548,3 +548,8 @@ func (cppe *CPPEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
+	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+}
