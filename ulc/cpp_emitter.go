@@ -642,3 +642,8 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int
 		}
 	}
 }
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}

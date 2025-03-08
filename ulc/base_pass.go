@@ -497,12 +497,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 			v.traverseExpression(argName, 0)
 		}
 	}
-	str = v.emitAsString(")", 0)
-	err = v.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return v
-	}
+
 	v.emitter.PostVisitFuncDeclSignature(node, 0)
 	return v
 }
