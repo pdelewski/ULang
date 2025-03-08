@@ -180,3 +180,5 @@ func (v *BaseEmitter) PreVisitFuncDecl(node *ast.FuncDecl, indent int)          
 func (v *BaseEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int)                          {}
 func (v *BaseEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int)                      {}
 func (v *BaseEmitter) PostVisitFuncDeclBody(node *ast.BlockStmt, indent int)                     {}
+func (v *BaseEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int)                  {}
+func (v *BaseEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int)                 {}

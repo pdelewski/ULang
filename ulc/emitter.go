@@ -362,4 +362,6 @@ type Emitter interface {
 	PostVisitFuncDecl(node *ast.FuncDecl, indent int)
 	PreVisitFuncDeclBody(node *ast.BlockStmt, indent int)
 	PostVisitFuncDeclBody(node *ast.BlockStmt, indent int)
+	PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int)
+	PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int)
 }
