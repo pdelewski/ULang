@@ -184,3 +184,7 @@ func (v *BaseEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) 
 func (v *BaseEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int)                 {}
 func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int)       {}
 func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int)      {}
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+}

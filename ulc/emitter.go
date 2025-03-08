@@ -366,4 +366,6 @@ type Emitter interface {
 	PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int)
 	PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int)
 	PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int)
+	PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int)
+	PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int)
 }

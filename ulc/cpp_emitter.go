@@ -666,3 +666,10 @@ func (cppe *CPPEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl
 	str = cppe.emitAsString(node.Name.Name+"(", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(",", 0)
+		cppe.emitToFile(str)
+	}
+}
