@@ -456,7 +456,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 			v.traverseExpression(argName, 0)
 			v.emitter.PostVisitFuncDeclSignatureTypeParamsArgName(argName, j, 0)
 		}
-		v.emitter.PreVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
+		v.emitter.PostVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 	}
 
 	v.emitter.PostVisitFuncDeclSignature(node, 0)
