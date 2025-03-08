@@ -679,3 +679,7 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
+	cppe.emitToFile(" ")
+}
