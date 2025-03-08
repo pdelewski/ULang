@@ -673,3 +673,9 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field
 		cppe.emitToFile(str)
 	}
 }
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(",", 0)
+		cppe.emitToFile(str)
+	}
+}

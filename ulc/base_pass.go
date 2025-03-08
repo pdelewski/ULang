@@ -446,19 +446,13 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 	v.emitter.PostVisitFuncDeclSignatureTypeResults(node, 0)
 
 	for i := 0; i < len(node.Type.Params.List); i++ {
-		if i > 0 {
-			str := v.emitAsString(", ", 0)
-			err := v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		}
+		v.emitter.PreVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 		for _, argName := range node.Type.Params.List[i].Names {
 			v.traverseExpression(node.Type.Params.List[i].Type, 0)
 			v.emitToFile(" ")
 			v.traverseExpression(argName, 0)
 		}
+		v.emitter.PreVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 	}
 
 	v.emitter.PostVisitFuncDeclSignature(node, 0)
