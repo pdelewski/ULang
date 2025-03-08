@@ -629,3 +629,16 @@ func (cppe *CPPEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int) {
 	str := cppe.emitAsString("\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	if node.Type.Results != nil {
+		if len(node.Type.Results.List) > 1 {
+			str := cppe.emitAsString("std::tuple<", 0)
+			err := cppe.emitToFile(str)
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return
+			}
+		}
+	}
+}

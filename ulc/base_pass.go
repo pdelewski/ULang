@@ -432,16 +432,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
 	v.emitter.PreVisitFuncDeclSignature(node, 0)
-	if node.Type.Results != nil {
-		if len(node.Type.Results.List) > 1 {
-			str := v.emitAsString("std::tuple<", 0)
-			err := v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		}
-	}
+
 	if node.Type.Results != nil {
 		for i := 0; i < len(node.Type.Results.List); i++ {
 			if i > 0 {
