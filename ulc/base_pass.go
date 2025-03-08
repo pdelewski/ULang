@@ -433,7 +433,6 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
 	v.emitter.PreVisitFuncDeclSignature(node, 0)
 	if node.Type.Results != nil {
-		resultArgIndex := 0
 		if len(node.Type.Results.List) > 1 {
 			str := v.emitAsString("std::tuple<", 0)
 			err := v.emitToFile(str)
@@ -442,8 +441,10 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 				return v
 			}
 		}
-		for _, result := range node.Type.Results.List {
-			if resultArgIndex > 0 {
+	}
+	if node.Type.Results != nil {
+		for i := 0; i < len(node.Type.Results.List); i++ {
+			if i > 0 {
 				str := v.emitAsString(",", 0)
 				err := v.emitToFile(str)
 				if err != nil {
@@ -451,9 +452,10 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 					return v
 				}
 			}
-			v.traverseExpression(result.Type, 0)
-			resultArgIndex++
+			v.traverseExpression(node.Type.Results.List[i].Type, 0)
 		}
+	}
+	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
 			str := v.emitAsString(">", 0)
 			err := v.emitToFile(str)
