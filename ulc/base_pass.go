@@ -431,86 +431,35 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 }
 
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
+	v.emitter.PreVisitFuncDeclSignature(node, 0)
+
+	v.emitter.PreVisitFuncDeclSignatureTypeResults(node, 0)
+
 	if node.Type.Results != nil {
-		resultArgIndex := 0
-		if len(node.Type.Results.List) > 1 {
-			str := v.emitAsString("std::tuple<", 0)
-			err := v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		}
-		for _, result := range node.Type.Results.List {
-			if resultArgIndex > 0 {
-				str := v.emitAsString(",", 0)
-				err := v.emitToFile(str)
-				if err != nil {
-					fmt.Println("Error writing to file:", err)
-					return v
-				}
-			}
-			v.traverseExpression(result.Type, 0)
-			resultArgIndex++
-		}
-		if len(node.Type.Results.List) > 1 {
-			str := v.emitAsString(">", 0)
-			err := v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		}
-	} else if node.Name.Name == "main" {
-		str := v.emitAsString("int", 0)
-		err := v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
-	} else {
-		str := v.emitAsString("void", 0)
-		err := v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
+		for i := 0; i < len(node.Type.Results.List); i++ {
+			v.emitter.PreVisitFuncDeclSignatureTypeResultsList(node.Type.Results.List[i], i, 0)
+			v.traverseExpression(node.Type.Results.List[i].Type, 0)
+			v.emitter.PostVisitFuncDeclSignatureTypeResultsList(node.Type.Results.List[i], i, 0)
 		}
 	}
-	str := v.emitAsString("", 1)
-	err := v.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return v
-	}
-	str = v.emitAsString(node.Name.Name+"(", 0)
-	err = v.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return v
-	}
-	argIndex := 0
-	for _, arg := range node.Type.Params.List {
-		if argIndex > 0 {
-			str = v.emitAsString(", ", 0)
-			err = v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		}
-		for _, argName := range arg.Names {
-			v.traverseExpression(arg.Type, 0)
-			v.emitToFile(" ")
+
+	v.emitter.PostVisitFuncDeclSignatureTypeResults(node, 0)
+
+	for i := 0; i < len(node.Type.Params.List); i++ {
+		v.emitter.PreVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
+		for j := 0; j < len(node.Type.Params.List[i].Names); j++ {
+			argName := node.Type.Params.List[i].Names[j]
+			v.emitter.PreVisitFuncDeclSignatureTypeParamsListType(node.Type.Params.List[i].Type, argName, j, 0)
+			v.traverseExpression(node.Type.Params.List[i].Type, 0)
+			v.emitter.PostVisitFuncDeclSignatureTypeParamsListType(node.Type.Params.List[i].Type, argName, j, 0)
+			v.emitter.PreVisitFuncDeclSignatureTypeParamsArgName(argName, j, 0)
 			v.traverseExpression(argName, 0)
+			v.emitter.PostVisitFuncDeclSignatureTypeParamsArgName(argName, j, 0)
 		}
-		argIndex++
+		v.emitter.PostVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 	}
-	str = v.emitAsString(")", 0)
-	err = v.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return v
-	}
+
+	v.emitter.PostVisitFuncDeclSignature(node, 0)
 	return v
 }
 

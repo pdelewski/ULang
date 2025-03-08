@@ -180,3 +180,23 @@ func (v *BaseEmitter) PreVisitFuncDecl(node *ast.FuncDecl, indent int)          
 func (v *BaseEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int)                          {}
 func (v *BaseEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int)                      {}
 func (v *BaseEmitter) PostVisitFuncDeclBody(node *ast.BlockStmt, indent int)                     {}
+func (v *BaseEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int)                  {}
+func (v *BaseEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int)                 {}
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int)       {}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int)      {}
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+}
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
+}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
+}
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
+}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
+}
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
+}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
+}

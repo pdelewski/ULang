@@ -629,3 +629,57 @@ func (cppe *CPPEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int) {
 	str := cppe.emitAsString("\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	if node.Type.Results != nil {
+		if len(node.Type.Results.List) > 1 {
+			str := cppe.emitAsString("std::tuple<", 0)
+			err := cppe.emitToFile(str)
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return
+			}
+		}
+	}
+}
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
+	if node.Type.Results != nil {
+		if len(node.Type.Results.List) > 1 {
+			str := cppe.emitAsString(">", 0)
+			cppe.emitToFile(str)
+		}
+	} else if node.Name.Name == "main" {
+		str := cppe.emitAsString("int", 0)
+		cppe.emitToFile(str)
+	} else {
+		str := cppe.emitAsString("void", 0)
+		cppe.emitToFile(str)
+	}
+	str := cppe.emitAsString("", 1)
+	cppe.emitToFile(str)
+	str = cppe.emitAsString(node.Name.Name+"(", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(",", 0)
+		cppe.emitToFile(str)
+	}
+}
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
+	cppe.emitToFile(" ")
+}
