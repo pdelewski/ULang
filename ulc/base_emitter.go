@@ -200,3 +200,6 @@ func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeParamsListType(node ast.Expr,
 }
 func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
 }
+
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int)  {}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {}

@@ -420,7 +420,6 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 }
 
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
-	v.emitter.PreVisitFuncDeclSignature(node, 0)
 
 	v.emitter.PreVisitFuncDeclSignatureTypeResults(node, 0)
 
@@ -434,6 +433,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 
 	v.emitter.PostVisitFuncDeclSignatureTypeResults(node, 0)
 
+	v.emitter.PreVisitFuncDeclSignatureTypeParams(node, 0)
 	for i := 0; i < len(node.Type.Params.List); i++ {
 		v.emitter.PreVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 		for j := 0; j < len(node.Type.Params.List[i].Names); j++ {
@@ -447,8 +447,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 		}
 		v.emitter.PostVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 	}
-
-	v.emitter.PostVisitFuncDeclSignature(node, 0)
+	v.emitter.PostVisitFuncDeclSignatureTypeParams(node, 0)
 	return v
 }
 
@@ -581,7 +580,8 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 			str := v.emitAsString("\n", 0)
 			v.emitToFile(str)
 		}
-
+	}
+	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
@@ -600,9 +600,9 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.FuncDecl:
+			v.emitter.PreVisitFuncDeclSignature(node, 0)
 			v.generateFuncDeclSignature(node)
-			str = v.emitAsString(";\n", 0)
-			v.emitToFile(str)
+			v.emitter.PostVisitFuncDeclSignature(node, 0)
 		}
 	}
 	str = v.emitAsString("\n", 0)

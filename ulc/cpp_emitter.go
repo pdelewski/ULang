@@ -630,7 +630,7 @@ func (cppe *CPPEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int) {
 	cppe.emitToFile(str)
 }
 
-func (cppe *CPPEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
 			str := cppe.emitAsString("std::tuple<", 0)
@@ -643,7 +643,7 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int
 	}
 }
 
-func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+func (cppe *CPPEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
@@ -682,4 +682,9 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 
 func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
 	cppe.emitToFile(" ")
+}
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	str := cppe.emitAsString(";\n", 0)
+	cppe.emitToFile(str)
 }
