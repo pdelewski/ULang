@@ -491,9 +491,8 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 		fmt.Println("Error writing to file:", err)
 		return v
 	}
-	argIndex := 0
-	for _, arg := range node.Type.Params.List {
-		if argIndex > 0 {
+	for i := 0; i < len(node.Type.Params.List); i++ {
+		if i > 0 {
 			str = v.emitAsString(", ", 0)
 			err = v.emitToFile(str)
 			if err != nil {
@@ -501,12 +500,11 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 				return v
 			}
 		}
-		for _, argName := range arg.Names {
-			v.traverseExpression(arg.Type, 0)
+		for _, argName := range node.Type.Params.List[i].Names {
+			v.traverseExpression(node.Type.Params.List[i].Type, 0)
 			v.emitToFile(" ")
 			v.traverseExpression(argName, 0)
 		}
-		argIndex++
 	}
 	str = v.emitAsString(")", 0)
 	err = v.emitToFile(str)
