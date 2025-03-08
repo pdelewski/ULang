@@ -647,3 +647,22 @@ func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent in
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
+	if node.Type.Results != nil {
+		if len(node.Type.Results.List) > 1 {
+			str := cppe.emitAsString(">", 0)
+			cppe.emitToFile(str)
+		}
+	} else if node.Name.Name == "main" {
+		str := cppe.emitAsString("int", 0)
+		cppe.emitToFile(str)
+	} else {
+		str := cppe.emitAsString("void", 0)
+		cppe.emitToFile(str)
+	}
+	str := cppe.emitAsString("", 1)
+	cppe.emitToFile(str)
+	str = cppe.emitAsString(node.Name.Name+"(", 0)
+	cppe.emitToFile(str)
+}

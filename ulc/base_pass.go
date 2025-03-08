@@ -433,6 +433,8 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
 	v.emitter.PreVisitFuncDeclSignature(node, 0)
 
+	v.emitter.PreVisitFuncDeclSignatureTypeResults(node, 0)
+
 	if node.Type.Results != nil {
 		for i := 0; i < len(node.Type.Results.List); i++ {
 			if i > 0 {
@@ -446,46 +448,13 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 			v.traverseExpression(node.Type.Results.List[i].Type, 0)
 		}
 	}
-	if node.Type.Results != nil {
-		if len(node.Type.Results.List) > 1 {
-			str := v.emitAsString(">", 0)
-			err := v.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return v
-			}
-		}
-	} else if node.Name.Name == "main" {
-		str := v.emitAsString("int", 0)
-		err := v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
-	} else {
-		str := v.emitAsString("void", 0)
-		err := v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return v
-		}
-	}
-	str := v.emitAsString("", 1)
-	err := v.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return v
-	}
-	str = v.emitAsString(node.Name.Name+"(", 0)
-	err = v.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return v
-	}
+
+	v.emitter.PostVisitFuncDeclSignatureTypeResults(node, 0)
+
 	for i := 0; i < len(node.Type.Params.List); i++ {
 		if i > 0 {
-			str = v.emitAsString(", ", 0)
-			err = v.emitToFile(str)
+			str := v.emitAsString(", ", 0)
+			err := v.emitToFile(str)
 			if err != nil {
 				fmt.Println("Error writing to file:", err)
 				return v
