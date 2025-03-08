@@ -84,17 +84,6 @@ func (v *BasePassVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
-func (v *BasePassVisitor) generateFields(st *ast.StructType, indent int) {
-	for _, field := range st.Fields.List {
-		for _, fieldName := range field.Names {
-			v.traverseExpression(field.Type, indent)
-			v.emitToFile(" ")
-			v.traverseExpression(fieldName, 0)
-			v.emitToFile(";\n")
-		}
-	}
-}
-
 func (v *BasePassVisitor) emitArgs(node *ast.CallExpr, indent int) {
 	v.emitter.PreVisitCallExprArgs(node.Args, indent)
 	for i, arg := range node.Args {
@@ -559,7 +548,14 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 		}
-		v.generateFields(structInfos[i].Struct, 2)
+		for _, field := range structInfos[i].Struct.Fields.List {
+			for _, fieldName := range field.Names {
+				v.traverseExpression(field.Type, 2)
+				v.emitToFile(" ")
+				v.traverseExpression(fieldName, 0)
+				v.emitToFile(";\n")
+			}
+		}
 		str = v.emitAsString("};\n\n", 0)
 		err = v.emitToFile(str)
 		if err != nil {
