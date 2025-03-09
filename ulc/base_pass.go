@@ -536,17 +536,9 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		precJ := precedence[v.pkg.Name+"::"+structInfos[j].Name]
 		return precI < precJ
 	})
+	v.emitter.PreVisitGenStructInfos(structInfos, 0)
 	for i := 0; i < len(structInfos); i++ {
-		str := v.emitAsString(fmt.Sprintf("struct %s\n", structInfos[i].Name), 0)
-		err := v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-		str = v.emitAsString("{\n", 0)
-		err = v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
+		v.emitter.PreVisitGenStructInfo(structInfos[i], 0)
 		for _, field := range structInfos[i].Struct.Fields.List {
 			for _, fieldName := range field.Names {
 				v.traverseExpression(field.Type, 2)
@@ -555,12 +547,9 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 				v.emitToFile(";\n")
 			}
 		}
-		str = v.emitAsString("};\n\n", 0)
-		err = v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
+		v.emitter.PostVisitGenStructInfo(structInfos[i], 0)
 	}
+	v.emitter.PostVisitGenStructInfos(structInfos, 0)
 	for _, node := range v.nodes {
 		if genDecl, ok := node.(*ast.GenDecl); ok && genDecl.Tok == token.CONST {
 			for _, spec := range genDecl.Specs {

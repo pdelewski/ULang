@@ -688,3 +688,23 @@ func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent in
 	str := cppe.emitAsString(";\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
+	str := cppe.emitAsString(fmt.Sprintf("struct %s\n", node.Name), 0)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+	str = cppe.emitAsString("{\n", 0)
+	err = cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
+func (cppe *CPPEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
+	str := cppe.emitAsString("};\n\n", 0)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
