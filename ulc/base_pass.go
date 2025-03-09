@@ -552,6 +552,7 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 	v.emitter.PostVisitGenStructInfos(structInfos, 0)
 	for _, node := range v.nodes {
 		if genDecl, ok := node.(*ast.GenDecl); ok && genDecl.Tok == token.CONST {
+			v.emitter.PreVisitGenDeclConst(genDecl, 0)
 			for _, spec := range genDecl.Specs {
 				valueSpec := spec.(*ast.ValueSpec)
 				for i, name := range valueSpec.Names {
@@ -562,8 +563,7 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 					v.emitToFile(str)
 				}
 			}
-			str := v.emitAsString("\n", 0)
-			v.emitToFile(str)
+			v.emitter.PostVisitGenDeclConst(genDecl, 0)
 		}
 	}
 	for _, node := range v.nodes {

@@ -719,3 +719,8 @@ func (cppe *CPPEmitter) PostVisitFuncDeclSignatures(indent int) {
 	str := cppe.emitAsString("\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
+	str := cppe.emitAsString("\n", 0)
+	cppe.emitToFile(str)
+}

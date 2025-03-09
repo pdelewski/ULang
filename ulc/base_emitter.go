@@ -209,3 +209,5 @@ func (v *BaseEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int)     
 func (v *BaseEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int)               {}
 func (v *BaseEmitter) PreVisitFuncDeclSignatures(indent int)                               {}
 func (v *BaseEmitter) PostVisitFuncDeclSignatures(indent int)                              {}
+func (v *BaseEmitter) PreVisitGenDeclConst(node *ast.GenDecl, indent int)                  {}
+func (v *BaseEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int)                 {}
