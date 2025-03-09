@@ -84,17 +84,6 @@ func (v *BasePassVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
-func (v *BasePassVisitor) generateFields(st *ast.StructType, indent int) {
-	for _, field := range st.Fields.List {
-		for _, fieldName := range field.Names {
-			v.traverseExpression(field.Type, indent)
-			v.emitToFile(" ")
-			v.traverseExpression(fieldName, 0)
-			v.emitToFile(";\n")
-		}
-	}
-}
-
 func (v *BasePassVisitor) emitArgs(node *ast.CallExpr, indent int) {
 	v.emitter.PreVisitCallExprArgs(node.Args, indent)
 	for i, arg := range node.Args {
@@ -431,7 +420,6 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 }
 
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
-	v.emitter.PreVisitFuncDeclSignature(node, 0)
 
 	v.emitter.PreVisitFuncDeclSignatureTypeResults(node, 0)
 
@@ -445,6 +433,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 
 	v.emitter.PostVisitFuncDeclSignatureTypeResults(node, 0)
 
+	v.emitter.PreVisitFuncDeclSignatureTypeParams(node, 0)
 	for i := 0; i < len(node.Type.Params.List); i++ {
 		v.emitter.PreVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 		for j := 0; j < len(node.Type.Params.List[i].Names); j++ {
@@ -458,8 +447,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 		}
 		v.emitter.PostVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 	}
-
-	v.emitter.PostVisitFuncDeclSignature(node, 0)
+	v.emitter.PostVisitFuncDeclSignatureTypeParams(node, 0)
 	return v
 }
 
@@ -548,24 +536,20 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		precJ := precedence[v.pkg.Name+"::"+structInfos[j].Name]
 		return precI < precJ
 	})
+	v.emitter.PreVisitGenStructInfos(structInfos, 0)
 	for i := 0; i < len(structInfos); i++ {
-		str := v.emitAsString(fmt.Sprintf("struct %s\n", structInfos[i].Name), 0)
-		err := v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
+		v.emitter.PreVisitGenStructInfo(structInfos[i], 0)
+		for _, field := range structInfos[i].Struct.Fields.List {
+			for _, fieldName := range field.Names {
+				v.traverseExpression(field.Type, 2)
+				v.emitToFile(" ")
+				v.traverseExpression(fieldName, 0)
+				v.emitToFile(";\n")
+			}
 		}
-		str = v.emitAsString("{\n", 0)
-		err = v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
-		v.generateFields(structInfos[i].Struct, 2)
-		str = v.emitAsString("};\n\n", 0)
-		err = v.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
+		v.emitter.PostVisitGenStructInfo(structInfos[i], 0)
 	}
+	v.emitter.PostVisitGenStructInfos(structInfos, 0)
 	for _, node := range v.nodes {
 		if genDecl, ok := node.(*ast.GenDecl); ok && genDecl.Tok == token.CONST {
 			for _, spec := range genDecl.Specs {
@@ -573,19 +557,16 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 				for i, name := range valueSpec.Names {
 					str := v.emitAsString(fmt.Sprintf("constexpr auto %s = ", name.Name), 0)
 					v.emitToFile(str)
-					if valueSpec.Values != nil {
-						if i < len(valueSpec.Values) {
-							v.traverseExpression(valueSpec.Values[i], 0)
-							str = v.emitAsString(";\n", 0)
-							v.emitToFile(str)
-						}
-					}
+					v.traverseExpression(valueSpec.Values[i], 0)
+					str = v.emitAsString(";\n", 0)
+					v.emitToFile(str)
 				}
 			}
 			str := v.emitAsString("\n", 0)
 			v.emitToFile(str)
 		}
-
+	}
+	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
@@ -598,19 +579,16 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		}
 	}
 
-	// Generate forward function declarations
-	str := v.emitAsString("// Forward declarations\n", 0)
-	v.emitToFile(str)
+	v.emitter.PreVisitFuncDeclSignatures(0)
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.FuncDecl:
+			v.emitter.PreVisitFuncDeclSignature(node, 0)
 			v.generateFuncDeclSignature(node)
-			str = v.emitAsString(";\n", 0)
-			v.emitToFile(str)
+			v.emitter.PostVisitFuncDeclSignature(node, 0)
 		}
 	}
-	str = v.emitAsString("\n", 0)
-	v.emitToFile(str)
+	v.emitter.PostVisitFuncDeclSignatures(0)
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.FuncDecl:

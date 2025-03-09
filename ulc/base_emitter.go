@@ -200,3 +200,12 @@ func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeParamsListType(node ast.Expr,
 }
 func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
 }
+
+func (v *BaseEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int)  {}
+func (v *BaseEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {}
+func (v *BaseEmitter) PreVisitGenStructInfos(node []GenStructInfo, indent int)             {}
+func (v *BaseEmitter) PostVisitGenStructInfos(node []GenStructInfo, indent int)            {}
+func (v *BaseEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int)                {}
+func (v *BaseEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int)               {}
+func (v *BaseEmitter) PreVisitFuncDeclSignatures(indent int)                               {}
+func (v *BaseEmitter) PostVisitFuncDeclSignatures(indent int)                              {}

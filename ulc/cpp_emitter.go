@@ -630,7 +630,7 @@ func (cppe *CPPEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int) {
 	cppe.emitToFile(str)
 }
 
-func (cppe *CPPEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
 			str := cppe.emitAsString("std::tuple<", 0)
@@ -643,7 +643,7 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int
 	}
 }
 
-func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+func (cppe *CPPEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
@@ -682,4 +682,40 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 
 func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
 	cppe.emitToFile(" ")
+}
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	str := cppe.emitAsString(";\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
+	str := cppe.emitAsString(fmt.Sprintf("struct %s\n", node.Name), 0)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+	str = cppe.emitAsString("{\n", 0)
+	err = cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
+func (cppe *CPPEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
+	str := cppe.emitAsString("};\n\n", 0)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatures(indent int) {
+	// Generate forward function declarations
+	str := cppe.emitAsString("// Forward declarations\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignatures(indent int) {
+	str := cppe.emitAsString("\n", 0)
+	cppe.emitToFile(str)
 }
