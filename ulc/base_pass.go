@@ -71,15 +71,6 @@ func (v *BasePass) Visitors(pkg *packages.Package) []ast.Visitor {
 	return []ast.Visitor{v.visitor}
 }
 
-func (v *BasePassVisitor) emitToFile(s string) error {
-	_, err := v.pass.file.WriteString(s)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return err
-	}
-	return nil
-}
-
 func (v *BasePassVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
@@ -541,10 +532,12 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		v.emitter.PreVisitGenStructInfo(structInfos[i], 0)
 		for _, field := range structInfos[i].Struct.Fields.List {
 			for _, fieldName := range field.Names {
+				v.emitter.PreVisitGenStructFieldType(field.Type, 2)
 				v.traverseExpression(field.Type, 2)
-				v.emitToFile(" ")
+				v.emitter.PostVisitGenStructFieldType(field.Type, 2)
+				v.emitter.PreVisitGenStructFieldName(fieldName, 0)
 				v.traverseExpression(fieldName, 0)
-				v.emitToFile(";\n")
+				v.emitter.PostVisitGenStructFieldName(fieldName, 0)
 			}
 		}
 		v.emitter.PostVisitGenStructInfo(structInfos[i], 0)
@@ -552,29 +545,28 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 	v.emitter.PostVisitGenStructInfos(structInfos, 0)
 	for _, node := range v.nodes {
 		if genDecl, ok := node.(*ast.GenDecl); ok && genDecl.Tok == token.CONST {
+			v.emitter.PreVisitGenDeclConst(genDecl, 0)
 			for _, spec := range genDecl.Specs {
 				valueSpec := spec.(*ast.ValueSpec)
 				for i, name := range valueSpec.Names {
-					str := v.emitAsString(fmt.Sprintf("constexpr auto %s = ", name.Name), 0)
-					v.emitToFile(str)
+					v.emitter.PreVisitGenDeclConstName(name, 0)
 					v.traverseExpression(valueSpec.Values[i], 0)
-					str = v.emitAsString(";\n", 0)
-					v.emitToFile(str)
+					v.emitter.PostVisitGenDeclConstName(name, 0)
 				}
 			}
-			str := v.emitAsString("\n", 0)
-			v.emitToFile(str)
+			v.emitter.PostVisitGenDeclConst(genDecl, 0)
 		}
 	}
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
-				v.emitToFile(fmt.Sprintf("using "))
+				v.emitter.PreVisitTypeAliasName(node.Name, 0)
 				v.traverseExpression(node.Name, 0)
-				v.emitToFile(" = ")
+				v.emitter.PostVisitTypeAliasName(node.Name, 0)
+				v.emitter.PreVisitTypeAliasType(node.Type, 0)
 				v.traverseExpression(node.Type, 0)
-				v.emitToFile(";\n\n")
+				v.emitter.PostVisitTypeAliasType(node.Type, 0)
 			}
 		}
 	}

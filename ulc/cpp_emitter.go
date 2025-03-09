@@ -719,3 +719,37 @@ func (cppe *CPPEmitter) PostVisitFuncDeclSignatures(indent int) {
 	str := cppe.emitAsString("\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
+	str := cppe.emitAsString("\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
+	cppe.emitToFile(" ")
+}
+
+func (cppe *CPPEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
+	cppe.emitToFile(";\n")
+}
+
+func (cppe *CPPEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
+	str := cppe.emitAsString(fmt.Sprintf("constexpr auto %s = ", node.Name), 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
+	str := cppe.emitAsString(";\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
+	cppe.emitToFile(fmt.Sprintf("using "))
+}
+
+func (cppe *CPPEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
+	cppe.emitToFile(" = ")
+}
+
+func (cppe *CPPEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
+	cppe.emitToFile(";\n\n")
+}

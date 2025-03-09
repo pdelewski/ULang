@@ -209,3 +209,15 @@ func (v *BaseEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int)     
 func (v *BaseEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int)               {}
 func (v *BaseEmitter) PreVisitFuncDeclSignatures(indent int)                               {}
 func (v *BaseEmitter) PostVisitFuncDeclSignatures(indent int)                              {}
+func (v *BaseEmitter) PreVisitGenDeclConst(node *ast.GenDecl, indent int)                  {}
+func (v *BaseEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int)                 {}
+func (v *BaseEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int)                {}
+func (v *BaseEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int)               {}
+func (v *BaseEmitter) PreVisitGenStructFieldName(node *ast.Ident, indent int)              {}
+func (v *BaseEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int)             {}
+func (v *BaseEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int)                {}
+func (v *BaseEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int)               {}
+func (v *BaseEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int)                   {}
+func (v *BaseEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int)                  {}
+func (v *BaseEmitter) PreVisitTypeAliasType(node ast.Expr, indent int)                     {}
+func (v *BaseEmitter) PostVisitTypeAliasType(node ast.Expr, indent int)                    {}
