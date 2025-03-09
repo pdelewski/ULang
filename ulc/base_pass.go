@@ -557,12 +557,10 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 				for i, name := range valueSpec.Names {
 					str := v.emitAsString(fmt.Sprintf("constexpr auto %s = ", name.Name), 0)
 					v.emitToFile(str)
-					if valueSpec.Values != nil {
-						if i < len(valueSpec.Values) {
-							v.traverseExpression(valueSpec.Values[i], 0)
-							str = v.emitAsString(";\n", 0)
-							v.emitToFile(str)
-						}
+					if i < len(valueSpec.Values) {
+						v.traverseExpression(valueSpec.Values[i], 0)
+						str = v.emitAsString(";\n", 0)
+						v.emitToFile(str)
 					}
 				}
 			}
