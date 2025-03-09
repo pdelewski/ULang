@@ -579,9 +579,7 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		}
 	}
 
-	// Generate forward function declarations
-	str := v.emitAsString("// Forward declarations\n", 0)
-	v.emitToFile(str)
+	v.emitter.PreVisitFuncDeclSignatures(0)
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.FuncDecl:
@@ -590,8 +588,7 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 			v.emitter.PostVisitFuncDeclSignature(node, 0)
 		}
 	}
-	str = v.emitAsString("\n", 0)
-	v.emitToFile(str)
+	v.emitter.PostVisitFuncDeclSignatures(0)
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.FuncDecl:

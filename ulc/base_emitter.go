@@ -207,3 +207,5 @@ func (v *BaseEmitter) PreVisitGenStructInfos(node []GenStructInfo, indent int)  
 func (v *BaseEmitter) PostVisitGenStructInfos(node []GenStructInfo, indent int)            {}
 func (v *BaseEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int)                {}
 func (v *BaseEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int)               {}
+func (v *BaseEmitter) PreVisitFuncDeclSignatures(indent int)                               {}
+func (v *BaseEmitter) PostVisitFuncDeclSignatures(indent int)                              {}

@@ -380,4 +380,6 @@ type Emitter interface {
 	PostVisitGenStructInfos(node []GenStructInfo, indent int)
 	PreVisitGenStructInfo(node GenStructInfo, indent int)
 	PostVisitGenStructInfo(node GenStructInfo, indent int)
+	PreVisitFuncDeclSignatures(indent int)
+	PostVisitFuncDeclSignatures(indent int)
 }

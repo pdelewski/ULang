@@ -708,3 +708,14 @@ func (cppe *CPPEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
 		fmt.Println("Error writing to file:", err)
 	}
 }
+
+func (cppe *CPPEmitter) PreVisitFuncDeclSignatures(indent int) {
+	// Generate forward function declarations
+	str := cppe.emitAsString("// Forward declarations\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CPPEmitter) PostVisitFuncDeclSignatures(indent int) {
+	str := cppe.emitAsString("\n", 0)
+	cppe.emitToFile(str)
+}
