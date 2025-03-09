@@ -217,3 +217,7 @@ func (v *BaseEmitter) PreVisitGenStructFieldName(node *ast.Ident, indent int)   
 func (v *BaseEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int)             {}
 func (v *BaseEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int)                {}
 func (v *BaseEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int)               {}
+func (v *BaseEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int)                   {}
+func (v *BaseEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int)                  {}
+func (v *BaseEmitter) PreVisitTypeAliasType(node ast.Expr, indent int)                     {}
+func (v *BaseEmitter) PostVisitTypeAliasType(node ast.Expr, indent int)                    {}

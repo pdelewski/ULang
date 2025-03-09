@@ -71,15 +71,6 @@ func (v *BasePass) Visitors(pkg *packages.Package) []ast.Visitor {
 	return []ast.Visitor{v.visitor}
 }
 
-func (v *BasePassVisitor) emitToFile(s string) error {
-	_, err := v.pass.file.WriteString(s)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return err
-	}
-	return nil
-}
-
 func (v *BasePassVisitor) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
@@ -570,11 +561,12 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		switch node := node.(type) {
 		case *ast.TypeSpec:
 			if _, ok := node.Type.(*ast.StructType); !ok {
-				v.emitToFile(fmt.Sprintf("using "))
+				v.emitter.PreVisitTypeAliasName(node.Name, 0)
 				v.traverseExpression(node.Name, 0)
-				v.emitToFile(" = ")
+				v.emitter.PostVisitTypeAliasName(node.Name, 0)
+				v.emitter.PreVisitTypeAliasType(node.Type, 0)
 				v.traverseExpression(node.Type, 0)
-				v.emitToFile(";\n\n")
+				v.emitter.PostVisitTypeAliasType(node.Type, 0)
 			}
 		}
 	}

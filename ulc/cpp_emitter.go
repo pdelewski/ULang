@@ -741,3 +741,15 @@ func (cppe *CPPEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
 	str := cppe.emitAsString(";\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
+	cppe.emitToFile(fmt.Sprintf("using "))
+}
+
+func (cppe *CPPEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
+	cppe.emitToFile(" = ")
+}
+
+func (cppe *CPPEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
+	cppe.emitToFile(";\n\n")
+}
