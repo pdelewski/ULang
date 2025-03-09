@@ -541,10 +541,12 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 		v.emitter.PreVisitGenStructInfo(structInfos[i], 0)
 		for _, field := range structInfos[i].Struct.Fields.List {
 			for _, fieldName := range field.Names {
+				v.emitter.PreVisitGenStructFieldType(field.Type, 2)
 				v.traverseExpression(field.Type, 2)
-				v.emitToFile(" ")
+				v.emitter.PostVisitGenStructFieldType(field.Type, 2)
+				v.emitter.PreVisitGenStructFieldName(fieldName, 0)
 				v.traverseExpression(fieldName, 0)
-				v.emitToFile(";\n")
+				v.emitter.PostVisitGenStructFieldName(fieldName, 0)
 			}
 		}
 		v.emitter.PostVisitGenStructInfo(structInfos[i], 0)

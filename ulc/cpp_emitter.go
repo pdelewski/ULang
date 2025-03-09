@@ -724,3 +724,11 @@ func (cppe *CPPEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
 	str := cppe.emitAsString("\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CPPEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
+	cppe.emitToFile(" ")
+}
+
+func (cppe *CPPEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
+	cppe.emitToFile(";\n")
+}

@@ -384,4 +384,8 @@ type Emitter interface {
 	PostVisitFuncDeclSignatures(indent int)
 	PreVisitGenDeclConst(node *ast.GenDecl, indent int)
 	PostVisitGenDeclConst(node *ast.GenDecl, indent int)
+	PreVisitGenStructFieldType(node ast.Expr, indent int)
+	PostVisitGenStructFieldType(node ast.Expr, indent int)
+	PreVisitGenStructFieldName(node *ast.Ident, indent int)
+	PostVisitGenStructFieldName(node *ast.Ident, indent int)
 }
