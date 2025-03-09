@@ -424,6 +424,9 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 
 	v.emitter.PostVisitFuncDeclSignatureTypeResults(node, 0)
 
+	v.emitter.PreVisitFuncDeclName(node.Name, 0)
+	v.emitter.PostVisitFuncDeclName(node.Name, 0)
+
 	v.emitter.PreVisitFuncDeclSignatureTypeParams(node, 0)
 	for i := 0; i < len(node.Type.Params.List); i++ {
 		v.emitter.PreVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
