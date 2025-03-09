@@ -558,11 +558,9 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 			for _, spec := range genDecl.Specs {
 				valueSpec := spec.(*ast.ValueSpec)
 				for i, name := range valueSpec.Names {
-					str := v.emitAsString(fmt.Sprintf("constexpr auto %s = ", name.Name), 0)
-					v.emitToFile(str)
+					v.emitter.PreVisitGenDeclConstName(name, 0)
 					v.traverseExpression(valueSpec.Values[i], 0)
-					str = v.emitAsString(";\n", 0)
-					v.emitToFile(str)
+					v.emitter.PostVisitGenDeclConstName(name, 0)
 				}
 			}
 			v.emitter.PostVisitGenDeclConst(genDecl, 0)

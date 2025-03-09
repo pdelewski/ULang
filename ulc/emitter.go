@@ -388,4 +388,6 @@ type Emitter interface {
 	PostVisitGenStructFieldType(node ast.Expr, indent int)
 	PreVisitGenStructFieldName(node *ast.Ident, indent int)
 	PostVisitGenStructFieldName(node *ast.Ident, indent int)
+	PreVisitGenDeclConstName(node *ast.Ident, indent int)
+	PostVisitGenDeclConstName(node *ast.Ident, indent int)
 }

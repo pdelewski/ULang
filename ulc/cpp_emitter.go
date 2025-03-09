@@ -732,3 +732,12 @@ func (cppe *CPPEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
 func (cppe *CPPEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
 	cppe.emitToFile(";\n")
 }
+
+func (cppe *CPPEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
+	str := cppe.emitAsString(fmt.Sprintf("constexpr auto %s = ", node.Name), 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CPPEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
+	str := cppe.emitAsString(";\n", 0)
+	cppe.emitToFile(str)
+}
