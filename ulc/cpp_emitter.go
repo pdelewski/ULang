@@ -14,6 +14,7 @@ type CPPEmitter struct {
 	Emitter
 	insideForPostCond bool
 	assignmentToken   string
+	forwardDecl       bool
 }
 
 func (*CPPEmitter) lowerToBuiltins(selector string) string {
@@ -694,8 +695,10 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ide
 }
 
 func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
-	str := cppe.emitAsString(";\n", 0)
-	cppe.emitToFile(str)
+	if cppe.forwardDecl {
+		str := cppe.emitAsString(";\n", 0)
+		cppe.emitToFile(str)
+	}
 }
 
 func (cppe *CPPEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
@@ -722,11 +725,13 @@ func (cppe *CPPEmitter) PreVisitFuncDeclSignatures(indent int) {
 	// Generate forward function declarations
 	str := cppe.emitAsString("// Forward declarations\n", 0)
 	cppe.emitToFile(str)
+	cppe.forwardDecl = true
 }
 
 func (cppe *CPPEmitter) PostVisitFuncDeclSignatures(indent int) {
 	str := cppe.emitAsString("\n", 0)
 	cppe.emitToFile(str)
+	cppe.forwardDecl = false
 }
 
 func (cppe *CPPEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {

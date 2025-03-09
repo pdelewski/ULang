@@ -411,7 +411,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 }
 
 func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visitor {
-
+	v.emitter.PreVisitFuncDeclSignature(node, 0)
 	v.emitter.PreVisitFuncDeclSignatureTypeResults(node, 0)
 
 	if node.Type.Results != nil {
@@ -442,6 +442,7 @@ func (v *BasePassVisitor) generateFuncDeclSignature(node *ast.FuncDecl) ast.Visi
 		v.emitter.PostVisitFuncDeclSignatureTypeParamsList(node.Type.Params.List[i], i, 0)
 	}
 	v.emitter.PostVisitFuncDeclSignatureTypeParams(node, 0)
+	v.emitter.PostVisitFuncDeclSignature(node, 0)
 	return v
 }
 
@@ -578,9 +579,7 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 	for _, node := range v.nodes {
 		switch node := node.(type) {
 		case *ast.FuncDecl:
-			v.emitter.PreVisitFuncDeclSignature(node, 0)
 			v.generateFuncDeclSignature(node)
-			v.emitter.PostVisitFuncDeclSignature(node, 0)
 		}
 	}
 	v.emitter.PostVisitFuncDeclSignatures(0)

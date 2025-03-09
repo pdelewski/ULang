@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"os"
 	"strings"
+	"unicode"
 )
 
 type CSharpEmitter struct {
@@ -12,6 +13,19 @@ type CSharpEmitter struct {
 	Emitter
 	insideForPostCond bool
 	assignmentToken   string
+	forwardDecls      bool
+}
+
+func capitalizeFirst(s string) string {
+	if len(s) == 0 {
+		return s // Return empty string if input is empty
+	}
+
+	// Convert string to rune slice to handle Unicode characters
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0]) // Change the first character to uppercase
+
+	return string(runes) // Convert runes back to string
 }
 
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
@@ -60,8 +74,11 @@ func (cppe *CSharpEmitter) PostVisitProgram(indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
 	if node.Name.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("class %s\n", "Main"), 0)
+		str := cppe.emitAsString(fmt.Sprintf("class %s\n", capitalizeFirst(node.Name.Name)), 0)
 		err := cppe.emitToFile(str)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
@@ -75,9 +92,20 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent 
 	}
 }
 
+func (cppe *CSharpEmitter) PreVisitFuncDeclSignatures(indent int) {
+	cppe.forwardDecls = true
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncDeclSignatures(indent int) {
+	cppe.forwardDecls = false
+}
+
 func (cppe *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
 	if node.Name.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("} // class %s\n\n", "Main"), 0)
+		str := cppe.emitAsString(fmt.Sprintf("\n} // class %s\n\n", capitalizeFirst(node.Name.Name)), 0)
 		err := cppe.emitToFile(str)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
@@ -87,8 +115,11 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
 	if node.Name == "main" {
-		str := cppe.emitAsString(node.Name, 0)
+		str := cppe.emitAsString(fmt.Sprintf("public static void %s()\n", capitalizeFirst(node.Name)), indent)
 		cppe.emitToFile(str)
 	}
 }
