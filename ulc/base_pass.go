@@ -13,17 +13,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var typesMap = map[string]string{
-	"int8":   "std::int8_t",
-	"int16":  "std::int16_t",
-	"int32":  "std::int32_t",
-	"int64":  "std::int64_t",
-	"uint8":  "std::uint8_t",
-	"uint16": "std::uint16_t",
-	"any":    "std::any",
-	"string": "std::string",
-}
-
 var primTypes = map[string]struct{}{
 	"int8":    {},
 	"int16":   {},

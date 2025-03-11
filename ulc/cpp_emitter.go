@@ -9,6 +9,17 @@ import (
 	"strings"
 )
 
+var cppTypesMap = map[string]string{
+	"int8":   "std::int8_t",
+	"int16":  "std::int16_t",
+	"int32":  "std::int32_t",
+	"int64":  "std::int64_t",
+	"uint8":  "std::uint8_t",
+	"uint16": "std::uint16_t",
+	"any":    "std::any",
+	"string": "std::string",
+}
+
 type CPPEmitter struct {
 	file *os.File
 	Emitter
@@ -134,7 +145,7 @@ func (cppe *CPPEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		str = cppe.emitAsString("{}", indent)
 		cppe.emitToFile(str)
 	} else {
-		if n, ok := typesMap[name]; ok {
+		if n, ok := cppTypesMap[name]; ok {
 			str = cppe.emitAsString(n, indent)
 			cppe.emitToFile(str)
 		} else {
