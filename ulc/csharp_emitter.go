@@ -73,22 +73,31 @@ func (cppe *CSharpEmitter) PostVisitProgram(indent int) {
 	cppe.file.Close()
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
-	if cppe.forwardDecls {
+func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
+	var packageName string
+	if name == "main" {
+		packageName = "MainClass"
+	} else {
+		packageName = capitalizeFirst(name)
+	}
+	str := cppe.emitAsString(fmt.Sprintf("class %s\n", packageName), 0)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
 		return
 	}
-	if node.Name.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("class %s\n", capitalizeFirst(node.Name.Name)), 0)
-		err := cppe.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return
-		}
-		err = cppe.emitToFile("{\n\n")
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return
-		}
+	err = cppe.emitToFile("{\n\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
+}
+
+func (cppe *CSharpEmitter) PostVisitPackage(name string, indent int) {
+	err := cppe.emitToFile("}\n")
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
 	}
 }
 
@@ -100,26 +109,38 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatures(indent int) {
 	cppe.forwardDecls = false
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
-	if cppe.forwardDecls {
-		return
-	}
-	if node.Name.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("\n} // class %s\n\n", capitalizeFirst(node.Name.Name)), 0)
-		err := cppe.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return
-		}
-	}
-}
-
 func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 	if cppe.forwardDecls {
 		return
 	}
 	if node.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("public static void %s()\n", capitalizeFirst(node.Name)), indent)
+		str := cppe.emitAsString(fmt.Sprintf("public static void Main()\n"), indent)
+		cppe.emitToFile(str)
+	} else {
+		str := cppe.emitAsString(fmt.Sprintf("public static void %s()\n", node.Name), indent)
 		cppe.emitToFile(str)
 	}
+}
+
+func (cppe *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("{\n", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("}", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int) {
+	str := cppe.emitAsString("\n", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
+	str := cppe.emitAsString("\n\n", 0)
+	cppe.emitToFile(str)
 }
