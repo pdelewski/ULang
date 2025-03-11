@@ -114,21 +114,21 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 		return
 	}
 	if node.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("public static void Main()\n"), indent)
+		str := cppe.emitAsString(fmt.Sprintf("public static void Main()\n"), indent+2)
 		cppe.emitToFile(str)
 	} else {
-		str := cppe.emitAsString(fmt.Sprintf("public static void %s()\n", node.Name), indent)
+		str := cppe.emitAsString(fmt.Sprintf("public static void %s()\n", node.Name), indent+2)
 		cppe.emitToFile(str)
 	}
 }
 
 func (cppe *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cppe.emitAsString("{\n", indent)
+	str := cppe.emitAsString("{\n", indent+2)
 	cppe.emitToFile(str)
 }
 
 func (cppe *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cppe.emitAsString("}", indent)
+	str := cppe.emitAsString("}", indent+2)
 	cppe.emitToFile(str)
 }
 
@@ -143,4 +143,25 @@ func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 	}
 	str := cppe.emitAsString("\n\n", 0)
 	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
+	str := cppe.emitAsString(fmt.Sprintf("struct %s\n", node.Name), indent+2)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+	str = cppe.emitAsString("{\n", indent+2)
+	err = cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
+
+func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
+	str := cppe.emitAsString("};\n\n", indent+2)
+	err := cppe.emitToFile(str)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
 }
