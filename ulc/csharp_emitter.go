@@ -22,10 +22,13 @@ var csTypesMap = map[string]string{
 type CSharpEmitter struct {
 	file *os.File
 	Emitter
-	insideForPostCond bool
-	assignmentToken   string
-	forwardDecls      bool
-	insideStruct      bool
+	insideForPostCond   bool
+	assignmentToken     string
+	forwardDecls        bool
+	insideStruct        bool
+	bufferFunResultFlag bool
+	bufferFunResult     []string
+	numParams           int
 }
 
 func capitalizeFirst(s string) string {
@@ -124,15 +127,17 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	name = cppe.lowerToBuiltins(name)
 	if name == "nil" {
 		str = cppe.emitAsString("{}", indent)
-		cppe.emitToFile(str)
 	} else {
 		if n, ok := csTypesMap[name]; ok {
 			str = cppe.emitAsString(n, indent)
-			cppe.emitToFile(str)
 		} else {
 			str = cppe.emitAsString(name, indent)
-			cppe.emitToFile(str)
 		}
+	}
+	if cppe.bufferFunResultFlag {
+		cppe.bufferFunResult = append(cppe.bufferFunResult, str)
+	} else {
+		cppe.emitToFile(str)
 	}
 }
 
@@ -248,22 +253,33 @@ func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
+	if !cppe.insideStruct {
+		return
+	}
 	str := cppe.emitAsString("Func<", indent)
 	cppe.emitToFile(str)
 }
 func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
+	if !cppe.insideStruct {
+		return
+	}
+	if cppe.numParams > 0 {
+		cppe.emitToFile(", ")
+	}
+	for _, v := range cppe.bufferFunResult {
+		cppe.emitToFile(v)
+	}
 	str := cppe.emitAsString(">", 0)
 	cppe.emitToFile(str)
-}
-
-func (cppe *CSharpEmitter) PreVisitFuncTypeParams(node *ast.FieldList, indent int) {
-	str := cppe.emitAsString("(", 0)
-	cppe.emitToFile(str)
+	cppe.bufferFunResult = make([]string, 0)
 }
 
 func (cppe *CSharpEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int) {
-	str := cppe.emitAsString(")", 0)
-	cppe.emitToFile(str)
+	if node != nil {
+		cppe.numParams = len(node.List)
+	} else {
+		cppe.numParams = 0
+	}
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
@@ -289,4 +305,12 @@ func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		str := cppe.emitAsString(".", 0)
 		cppe.emitToFile(str)
 	}
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
+	cppe.bufferFunResultFlag = true
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncTypeResults(node *ast.FieldList, indent int) {
+	cppe.bufferFunResultFlag = false
 }
