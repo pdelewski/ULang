@@ -8,12 +8,24 @@ import (
 	"unicode"
 )
 
+var csTypesMap = map[string]string{
+	"int8":   "sbyte",
+	"int16":  "short",
+	"int32":  "int",
+	"int64":  "long",
+	"uint8":  "byte",
+	"uint16": "ushort",
+	"any":    "object",
+	"string": "string",
+}
+
 type CSharpEmitter struct {
 	file *os.File
 	Emitter
 	insideForPostCond bool
 	assignmentToken   string
 	forwardDecls      bool
+	insideStruct      bool
 }
 
 func capitalizeFirst(s string) string {
@@ -29,9 +41,22 @@ func capitalizeFirst(s string) string {
 }
 
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
-	return ""
+	switch selector {
+	case "fmt":
+		return ""
+	case "Sprintf":
+		return "string.format"
+	case "Println":
+		return "Console.WriteLine"
+	case "Printf":
+		return "Console.Write"
+	case "Print":
+		return "Console.Write"
+	case "len":
+		return "Length"
+	}
+	return selector
 }
-
 func (e *CSharpEmitter) emitToFile(s string) error {
 	_, err := e.file.WriteString(s)
 	if err != nil {
@@ -73,14 +98,53 @@ func (cppe *CSharpEmitter) PostVisitProgram(indent int) {
 	cppe.file.Close()
 }
 
+func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	str := cppe.emitAsString(" ", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	cppe.emitToFile(";")
+}
+
+func (cppe *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
+	cppe.emitToFile(" ")
+}
+
+func (cppe *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
+	cppe.emitToFile(";\n")
+}
+
+func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
+	if !cppe.insideStruct {
+		return
+	}
+	var str string
+	name := e.Name
+	name = cppe.lowerToBuiltins(name)
+	if name == "nil" {
+		str = cppe.emitAsString("{}", indent)
+		cppe.emitToFile(str)
+	} else {
+		if n, ok := csTypesMap[name]; ok {
+			str = cppe.emitAsString(n, indent)
+			cppe.emitToFile(str)
+		} else {
+			str = cppe.emitAsString(name, indent)
+			cppe.emitToFile(str)
+		}
+	}
+}
+
 func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
 	var packageName string
 	if name == "main" {
 		packageName = "MainClass"
 	} else {
-		packageName = capitalizeFirst(name)
+		//packageName = capitalizeFirst(name)
+		packageName = name
 	}
-	str := cppe.emitAsString(fmt.Sprintf("class %s\n", packageName), 0)
+	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", packageName), 0)
 	err := cppe.emitToFile(str)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -146,7 +210,7 @@ func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
-	str := cppe.emitAsString(fmt.Sprintf("struct %s\n", node.Name), indent+2)
+	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
 	err := cppe.emitToFile(str)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -156,6 +220,7 @@ func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 	}
+	cppe.insideStruct = true
 }
 
 func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
@@ -163,5 +228,65 @@ func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int
 	err := cppe.emitToFile(str)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
+	}
+	cppe.insideStruct = false
+}
+
+func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
+	if !cppe.insideStruct {
+		return
+	}
+	str := cppe.emitAsString("List<", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
+	if !cppe.insideStruct {
+		return
+	}
+	str := cppe.emitAsString(">", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
+	str := cppe.emitAsString("Func<", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
+	str := cppe.emitAsString(">", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncTypeParams(node *ast.FieldList, indent int) {
+	str := cppe.emitAsString("(", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
+	if !cppe.insideStruct {
+		return
+	}
+	if ident, ok := node.(*ast.Ident); ok {
+		if cppe.lowerToBuiltins(ident.Name) == "" {
+			return
+		}
+		scopeOperator := "."
+
+		str := cppe.emitAsString(scopeOperator, 0)
+		cppe.emitToFile(str)
+	} else {
+		str := cppe.emitAsString(".", 0)
+		cppe.emitToFile(str)
 	}
 }
