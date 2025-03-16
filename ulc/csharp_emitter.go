@@ -26,7 +26,6 @@ type CSharpEmitter struct {
 	assignmentToken     string
 	forwardDecls        bool
 	insideStruct        bool
-	insideFuncSignature bool
 	bufferFunResultFlag bool
 	bufferFunResult     []string
 	numParams           int
@@ -120,7 +119,7 @@ func (cppe *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent i
 }
 
 func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
-	if !cppe.insideStruct && !cppe.insideFuncSignature {
+	if !cppe.insideStruct {
 		return
 	}
 	var str string
@@ -320,7 +319,7 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDec
 	if cppe.forwardDecls {
 		return
 	}
-	cppe.insideFuncSignature = true
+	cppe.insideStruct = true
 	str := cppe.emitAsString("(", 0)
 	cppe.emitToFile(str)
 }
@@ -329,7 +328,7 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDe
 	if cppe.forwardDecls {
 		return
 	}
-	cppe.insideFuncSignature = false
+	cppe.insideStruct = false
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
