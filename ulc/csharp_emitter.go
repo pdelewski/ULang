@@ -319,6 +319,7 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDec
 	if cppe.forwardDecls {
 		return
 	}
+	cppe.insideStruct = true
 	str := cppe.emitAsString("(", 0)
 	cppe.emitToFile(str)
 }
@@ -327,6 +328,24 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDe
 	if cppe.forwardDecls {
 		return
 	}
+	cppe.insideStruct = false
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
+	cppe.emitToFile(" ")
 }
