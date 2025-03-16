@@ -350,14 +350,100 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.
 	cppe.emitToFile(" ")
 }
 
+func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
+	if index > 0 {
+		str := cppe.emitAsString(",", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
+
+	cppe.insideStruct = true
+
+	str := cppe.emitAsString("public static ", indent+2)
+	cppe.emitToFile(str)
+	if node.Type.Results != nil {
+		if len(node.Type.Results.List) > 1 {
+			str := cppe.emitAsString("Tuple<", 0)
+			err := cppe.emitToFile(str)
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return
+			}
+		}
+	} else {
+		str := cppe.emitAsString("void", 0)
+		err := cppe.emitToFile(str)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return
+		}
+	}
+}
+
 func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
 	if cppe.forwardDecls {
 		return
 	}
 
-	str := cppe.emitAsString("public static void", indent+2)
-	cppe.emitToFile(str)
+	if node.Type.Results != nil {
+		if len(node.Type.Results.List) > 1 {
+			str := cppe.emitAsString(">", 0)
+			cppe.emitToFile(str)
+		}
+	}
 
-	str = cppe.emitAsString("", 1)
+	str := cppe.emitAsString("", 1)
 	cppe.emitToFile(str)
+	cppe.insideStruct = false
 }
+
+func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
+	cppe.emitToFile(fmt.Sprintf("using "))
+	cppe.insideStruct = true
+}
+
+func (cppe *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
+	cppe.emitToFile(" = ")
+}
+
+func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
+	cppe.emitToFile(";\n\n")
+	cppe.insideStruct = false
+}
+
+/*
+func (cppe *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	cppe.insideStruct = true
+	str := cppe.emitAsString("return ", indent)
+	cppe.emitToFile(str)
+	if len(node.Results) > 1 {
+		str := cppe.emitAsString("Tuple.Create(", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CSharpEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	if len(node.Results) > 1 {
+		str := cppe.emitAsString(")", 0)
+		cppe.emitToFile(str)
+	}
+	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+	cppe.insideStruct = false
+}
+
+func (cppe *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
+*/
