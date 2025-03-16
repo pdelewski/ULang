@@ -183,10 +183,10 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 		return
 	}
 	if node.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("public static void Main"), indent+2)
+		str := cppe.emitAsString(fmt.Sprintf("Main"), 0)
 		cppe.emitToFile(str)
 	} else {
-		str := cppe.emitAsString(fmt.Sprintf("public static void %s", node.Name), indent+2)
+		str := cppe.emitAsString(fmt.Sprintf("%s", node.Name), 0)
 		cppe.emitToFile(str)
 	}
 }
@@ -348,4 +348,16 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.
 		return
 	}
 	cppe.emitToFile(" ")
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
+
+	str := cppe.emitAsString("public static void", indent+2)
+	cppe.emitToFile(str)
+
+	str = cppe.emitAsString("", 1)
+	cppe.emitToFile(str)
 }
