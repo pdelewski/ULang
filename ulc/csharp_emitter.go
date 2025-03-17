@@ -158,19 +158,15 @@ func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
 		packageName = name
 	}
 
-	str := cppe.emitAsString(fmt.Sprintf("namespace %s{\n", packageName), indent)
+	str := cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
 	err := cppe.emitToFile(str)
 	for _, alias := range cppe.aliases {
-		cppe.emitToFile(alias)
+		str := cppe.emitAsString(alias, indent+2)
+		cppe.emitToFile(str)
 	}
 	cppe.currentPackage = packageName
-	str = cppe.emitAsString(fmt.Sprintf("public struct %s\n", "Api"), 0)
+	str = cppe.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
 	err = cppe.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return
-	}
-	err = cppe.emitToFile("{\n\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
@@ -178,7 +174,8 @@ func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
 }
 
 func (cppe *CSharpEmitter) PostVisitPackage(name string, indent int) {
-	cppe.emitToFile("}\n")
+	str := cppe.emitAsString("}\n", indent+2)
+	cppe.emitToFile(str)
 	err := cppe.emitToFile("}\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
