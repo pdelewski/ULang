@@ -406,7 +406,8 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncD
 }
 
 func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.emitToFile(fmt.Sprintf("using "))
+	str := cppe.emitAsString("using ", indent+2)
+	cppe.emitToFile(str)
 	cppe.insideStruct = true
 }
 
