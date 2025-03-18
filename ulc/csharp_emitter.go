@@ -143,9 +143,7 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	if cppe.bufferFunResultFlag {
 		cppe.bufferFunResult = append(cppe.bufferFunResult, str)
 	} else {
-		if cppe.isAlias {
-			cppe.aliases[len(cppe.aliases)-1] += str
-		} else if cppe.buffer {
+		if cppe.buffer {
 			cppe.stack = append(cppe.stack, str)
 		} else {
 			cppe.emitToFile(str)
@@ -259,27 +257,17 @@ func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 		return
 	}
 	str := cppe.emitAsString("List<", indent)
-	if cppe.isAlias {
-		cppe.aliases[len(cppe.aliases)-1] += str + cppe.currentPackage + "." + "Api."
-	}
-	if !cppe.isAlias {
-		cppe.stack = append(cppe.stack, str)
-		cppe.buffer = true
-	}
+
+	cppe.stack = append(cppe.stack, str)
+	cppe.buffer = true
 }
 func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
-	var str string
-	str = cppe.emitAsString(">", 0)
 
-	if !cppe.isAlias {
-		cppe.stack = append(cppe.stack, str)
-	}
-	if cppe.isAlias {
-		cppe.aliases[len(cppe.aliases)-1] += str
-	}
+	cppe.stack[len(cppe.stack)-1] += cppe.emitAsString(">", 0)
+
 	for _, v := range cppe.stack {
 		cppe.emitToFile(v)
 	}
@@ -443,19 +431,24 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncD
 }
 
 func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.aliases = append(cppe.aliases, "using ")
+	cppe.stack = append(cppe.stack, "using ")
 	cppe.insideStruct = true
-	cppe.isAlias = true
+	cppe.buffer = true
 }
 
 func (cppe *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.aliases[len(cppe.aliases)-1] += " = "
+	cppe.stack[len(cppe.stack)-1] += " = "
+	str := cppe.emitAsString(cppe.stack[0], indent+2)
+	cppe.emitToFile(str)
 }
 
 func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
-	cppe.aliases[len(cppe.aliases)-1] += ";\n\n"
+	str := cppe.emitAsString(";\n\n", 0)
+	cppe.emitToFile(str)
 	cppe.insideStruct = false
-	cppe.isAlias = false
+	cppe.buffer = false
+	cppe.stack = make([]string, 0)
+
 }
 
 /*
