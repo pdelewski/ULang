@@ -32,6 +32,8 @@ type CSharpEmitter struct {
 	aliases             []string
 	isAlias             bool
 	currentPackage      string
+	stack               []string
+	buffer              bool
 }
 
 func capitalizeFirst(s string) string {
@@ -143,6 +145,8 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	} else {
 		if cppe.isAlias {
 			cppe.aliases[len(cppe.aliases)-1] += str
+		} else if cppe.buffer {
+			cppe.stack = append(cppe.stack, str)
 		} else {
 			cppe.emitToFile(str)
 		}
@@ -257,20 +261,30 @@ func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	str := cppe.emitAsString("List<", indent)
 	if cppe.isAlias {
 		cppe.aliases[len(cppe.aliases)-1] += str + cppe.currentPackage + "." + "Api."
-	} else {
-		cppe.emitToFile(str)
+	}
+	if !cppe.isAlias {
+		cppe.stack = append(cppe.stack, str)
+		cppe.buffer = true
 	}
 }
 func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
-	str := cppe.emitAsString(">", 0)
+	var str string
+	str = cppe.emitAsString(">", 0)
+
+	if !cppe.isAlias {
+		cppe.stack = append(cppe.stack, str)
+	}
 	if cppe.isAlias {
 		cppe.aliases[len(cppe.aliases)-1] += str
-	} else {
-		cppe.emitToFile(str)
 	}
+	for _, v := range cppe.stack {
+		cppe.emitToFile(v)
+	}
+	cppe.stack = make([]string, 0)
+	cppe.buffer = false
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
@@ -314,18 +328,20 @@ func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
+	var str string
+	const scopeOperator = ".Api."
 	if ident, ok := node.(*ast.Ident); ok {
 		if cppe.lowerToBuiltins(ident.Name) == "" {
 			return
 		}
-		scopeOperator := ".Api."
-
-		str := cppe.emitAsString(scopeOperator, 0)
-		cppe.emitToFile(str)
+	}
+	str = cppe.emitAsString(scopeOperator, 0)
+	if cppe.buffer {
+		cppe.stack = append(cppe.stack, str)
 	} else {
-		str := cppe.emitAsString(".Api.", 0)
 		cppe.emitToFile(str)
 	}
+
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
