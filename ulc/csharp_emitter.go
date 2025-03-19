@@ -36,6 +36,29 @@ type CSharpEmitter struct {
 	buffer              bool
 }
 
+func (v *CSharpEmitter) mergeStackElements(marker string) {
+	var merged strings.Builder
+
+	// Process the stack in reverse until we find a marker
+	for len(v.stack) > 0 {
+		top := v.stack[len(v.stack)-1]
+		v.stack = v.stack[:len(v.stack)-1] // Pop element
+
+		// Stop merging when we find a marker
+		if strings.HasPrefix(top, marker) {
+			v.stack = append(v.stack, merged.String()) // Push merged string
+			return
+		}
+
+		// Prepend the element to the merged string (reverse order)
+		mergedString := top + merged.String() // Prepend instead of append
+		merged.Reset()
+		merged.WriteString(mergedString)
+	}
+
+	panic("unreachable")
+}
+
 func capitalizeFirst(s string) string {
 	if len(s) == 0 {
 		return s // Return empty string if input is empty
@@ -197,13 +220,14 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 	if cppe.forwardDecls {
 		return
 	}
+	var str string
 	if node.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("Main"), 0)
-		cppe.emitToFile(str)
+		str = cppe.emitAsString(fmt.Sprintf("Main"), 0)
 	} else {
-		str := cppe.emitAsString(fmt.Sprintf("%s", node.Name), 0)
-		cppe.emitToFile(str)
+		str = cppe.emitAsString(fmt.Sprintf("%s", node.Name), 0)
 	}
+	cppe.emitToFile(str)
+
 }
 
 func (cppe *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
@@ -231,24 +255,14 @@ func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 
 func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
 	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
-	err := cppe.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
-	str = cppe.emitAsString("{\n", indent+2)
-	err = cppe.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
+	str += cppe.emitAsString("{\n", indent+2)
+	cppe.emitToFile(str)
 	cppe.insideStruct = true
 }
 
 func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
 	str := cppe.emitAsString("};\n\n", indent+2)
-	err := cppe.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
+	cppe.emitToFile(str)
 	cppe.insideStruct = false
 }
 
@@ -256,6 +270,7 @@ func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
+	cppe.stack = append(cppe.stack, "@@PreVisitArrayType")
 	str := cppe.emitAsString("List<", indent)
 
 	cppe.stack = append(cppe.stack, str)
@@ -266,7 +281,9 @@ func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 		return
 	}
 
-	cppe.stack[len(cppe.stack)-1] += cppe.emitAsString(">", 0)
+	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
+
+	cppe.mergeStackElements("@@PreVisitArrayType")
 
 	for _, v := range cppe.stack {
 		cppe.emitToFile(v)
@@ -397,19 +414,11 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
 			str := cppe.emitAsString("Tuple<", 0)
-			err := cppe.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return
-			}
+			cppe.emitToFile(str)
 		}
 	} else {
 		str := cppe.emitAsString("void", 0)
-		err := cppe.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return
-		}
+		cppe.emitToFile(str)
 	}
 }
 
