@@ -285,10 +285,11 @@ func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 
 	cppe.mergeStackElements("@@PreVisitArrayType")
 
-	for _, v := range cppe.stack {
-		cppe.emitToFile(v)
+	if len(cppe.stack) == 1 {
+		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
+		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
-	cppe.stack = make([]string, 0)
+
 	cppe.buffer = false
 }
 
@@ -440,24 +441,25 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncD
 }
 
 func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.stack = append(cppe.stack, "using ")
+	cppe.stack = append(cppe.stack, "@@PreVisitTypeAliasName")
+	cppe.stack = append(cppe.stack, cppe.emitAsString("using ", indent+2))
 	cppe.insideStruct = true
 	cppe.buffer = true
 }
 
 func (cppe *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.stack[len(cppe.stack)-1] += " = "
-	str := cppe.emitAsString(cppe.stack[0], indent+2)
-	cppe.emitToFile(str)
+	cppe.buffer = true
+	cppe.stack = append(cppe.stack, " = ")
 }
 
 func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	str := cppe.emitAsString(";\n\n", 0)
-	cppe.emitToFile(str)
+	cppe.stack = append(cppe.stack, str)
+	cppe.mergeStackElements("@@PreVisitTypeAliasName")
+	cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
+	cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	cppe.insideStruct = false
 	cppe.buffer = false
-	cppe.stack = make([]string, 0)
-
 }
 
 /*
