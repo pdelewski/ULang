@@ -22,19 +22,16 @@ var csTypesMap = map[string]string{
 type CSharpEmitter struct {
 	file *os.File
 	Emitter
-	insideForPostCond   bool
-	assignmentToken     string
-	forwardDecls        bool
-	insideStruct        bool
-	bufferFunResultFlag bool
-	bufferFunResult     []string
-	numParams           int
-	numFuncResults      int
-	aliases             []string
-	isAlias             bool
-	currentPackage      string
-	stack               []string
-	buffer              bool
+	insideForPostCond bool
+	assignmentToken   string
+	forwardDecls      bool
+	insideStruct      bool
+	numFuncResults    int
+	aliases           []string
+	isAlias           bool
+	currentPackage    string
+	stack             []string
+	buffer            bool
 }
 
 func (v *CSharpEmitter) mergeStackElements(marker string) {
@@ -312,16 +309,7 @@ func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	}
 	str := cppe.emitAsString(">", 0)
 	cppe.emitToFile(str)
-	cppe.bufferFunResult = make([]string, 0)
 	cppe.buffer = false
-}
-
-func (cppe *CSharpEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int) {
-	if node != nil {
-		cppe.numParams = len(node.List)
-	} else {
-		cppe.numParams = 0
-	}
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
