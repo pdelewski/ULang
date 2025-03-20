@@ -304,8 +304,9 @@ func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
-	if cppe.numParams > 0 {
-		cppe.emitToFile(", ")
+	if len(cppe.bufferFunResult) > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
 	}
 	for _, v := range cppe.bufferFunResult {
 		cppe.emitToFile(v)
