@@ -32,6 +32,31 @@ type CSharpEmitter struct {
 	aliases             []string
 	isAlias             bool
 	currentPackage      string
+	stack               []string
+	buffer              bool
+}
+
+func (v *CSharpEmitter) mergeStackElements(marker string) {
+	var merged strings.Builder
+
+	// Process the stack in reverse until we find a marker
+	for len(v.stack) > 0 {
+		top := v.stack[len(v.stack)-1]
+		v.stack = v.stack[:len(v.stack)-1] // Pop element
+
+		// Stop merging when we find a marker
+		if strings.HasPrefix(top, marker) {
+			v.stack = append(v.stack, merged.String()) // Push merged string
+			return
+		}
+
+		// Prepend the element to the merged string (reverse order)
+		mergedString := top + merged.String() // Prepend instead of append
+		merged.Reset()
+		merged.WriteString(mergedString)
+	}
+
+	panic("unreachable")
 }
 
 func capitalizeFirst(s string) string {
@@ -141,8 +166,8 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	if cppe.bufferFunResultFlag {
 		cppe.bufferFunResult = append(cppe.bufferFunResult, str)
 	} else {
-		if cppe.isAlias {
-			cppe.aliases[len(cppe.aliases)-1] += str
+		if cppe.buffer {
+			cppe.stack = append(cppe.stack, str)
 		} else {
 			cppe.emitToFile(str)
 		}
@@ -195,13 +220,14 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 	if cppe.forwardDecls {
 		return
 	}
+	var str string
 	if node.Name == "main" {
-		str := cppe.emitAsString(fmt.Sprintf("Main"), 0)
-		cppe.emitToFile(str)
+		str = cppe.emitAsString(fmt.Sprintf("Main"), 0)
 	} else {
-		str := cppe.emitAsString(fmt.Sprintf("%s", node.Name), 0)
-		cppe.emitToFile(str)
+		str = cppe.emitAsString(fmt.Sprintf("%s", node.Name), 0)
 	}
+	cppe.emitToFile(str)
+
 }
 
 func (cppe *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
@@ -229,24 +255,14 @@ func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 
 func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
 	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
-	err := cppe.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
-	str = cppe.emitAsString("{\n", indent+2)
-	err = cppe.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
+	str += cppe.emitAsString("{\n", indent+2)
+	cppe.emitToFile(str)
 	cppe.insideStruct = true
 }
 
 func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
 	str := cppe.emitAsString("};\n\n", indent+2)
-	err := cppe.emitToFile(str)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
+	cppe.emitToFile(str)
 	cppe.insideStruct = false
 }
 
@@ -254,23 +270,27 @@ func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
+	cppe.stack = append(cppe.stack, "@@PreVisitArrayType")
 	str := cppe.emitAsString("List<", indent)
-	if cppe.isAlias {
-		cppe.aliases[len(cppe.aliases)-1] += str + cppe.currentPackage + "." + "Api."
-	} else {
-		cppe.emitToFile(str)
-	}
+
+	cppe.stack = append(cppe.stack, str)
+	cppe.buffer = true
 }
 func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
-	str := cppe.emitAsString(">", 0)
-	if cppe.isAlias {
-		cppe.aliases[len(cppe.aliases)-1] += str
-	} else {
-		cppe.emitToFile(str)
+
+	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
+
+	cppe.mergeStackElements("@@PreVisitArrayType")
+
+	if len(cppe.stack) == 1 {
+		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
+		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
+
+	cppe.buffer = false
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
@@ -314,18 +334,20 @@ func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	if !cppe.insideStruct {
 		return
 	}
+	var str string
+	const scopeOperator = ".Api."
 	if ident, ok := node.(*ast.Ident); ok {
 		if cppe.lowerToBuiltins(ident.Name) == "" {
 			return
 		}
-		scopeOperator := ".Api."
-
-		str := cppe.emitAsString(scopeOperator, 0)
-		cppe.emitToFile(str)
+	}
+	str = cppe.emitAsString(scopeOperator, 0)
+	if cppe.buffer {
+		cppe.stack = append(cppe.stack, str)
 	} else {
-		str := cppe.emitAsString(".Api.", 0)
 		cppe.emitToFile(str)
 	}
+
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
@@ -393,19 +415,11 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
 			str := cppe.emitAsString("Tuple<", 0)
-			err := cppe.emitToFile(str)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return
-			}
+			cppe.emitToFile(str)
 		}
 	} else {
 		str := cppe.emitAsString("void", 0)
-		err := cppe.emitToFile(str)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			return
-		}
+		cppe.emitToFile(str)
 	}
 }
 
@@ -427,19 +441,25 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncD
 }
 
 func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.aliases = append(cppe.aliases, "using ")
+	cppe.stack = append(cppe.stack, "@@PreVisitTypeAliasName")
+	cppe.stack = append(cppe.stack, cppe.emitAsString("using ", indent+2))
 	cppe.insideStruct = true
-	cppe.isAlias = true
+	cppe.buffer = true
 }
 
 func (cppe *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.aliases[len(cppe.aliases)-1] += " = "
+	cppe.buffer = true
+	cppe.stack = append(cppe.stack, " = ")
 }
 
 func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
-	cppe.aliases[len(cppe.aliases)-1] += ";\n\n"
+	str := cppe.emitAsString(";\n\n", 0)
+	cppe.stack = append(cppe.stack, str)
+	cppe.mergeStackElements("@@PreVisitTypeAliasName")
+	cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
+	cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	cppe.insideStruct = false
-	cppe.isAlias = false
+	cppe.buffer = false
 }
 
 /*
