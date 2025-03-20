@@ -456,8 +456,10 @@ func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	str := cppe.emitAsString(";\n\n", 0)
 	cppe.stack = append(cppe.stack, str)
 	cppe.mergeStackElements("@@PreVisitTypeAliasName")
-	cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
-	cppe.stack = cppe.stack[:len(cppe.stack)-1]
+	if len(cppe.stack) == 1 {
+		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
+		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+	}
 	cppe.insideStruct = false
 	cppe.buffer = false
 }
