@@ -121,6 +121,39 @@ func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
 		fmt.Println("Error writing to file:", err)
 		return
 	}
+	builtin := `public static class SliceBuiltins
+{
+  public static List<T> Append<T>(this List<T> list, T element)
+  {
+    var result = new List<T>(list);
+    result.Add(element);
+    return result;
+  }
+
+  public static List<T> Append<T>(this List<T> list, params T[] elements)
+  {
+    var result = new List<T>(list);
+    result.AddRange(elements);
+    return result;
+  }
+
+  public static List<T> Append<T>(this List<T> list, List<T> elements)
+  {
+    var result = new List<T>(list);
+    result.AddRange(elements);
+    return result;
+  }
+
+  // Fix: Ensure Length works for collections and not generic T
+  public static int Length<T>(ICollection<T> collection)
+  {
+    return collection.Count;
+  }
+}
+`
+	str := cppe.emitAsString(builtin, indent)
+	cppe.emitToFile(str)
+
 	cppe.insideForPostCond = false
 }
 
@@ -178,39 +211,7 @@ func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
 		//packageName = capitalizeFirst(name)
 		packageName = name
 	}
-	builtin := `public static class SliceBuiltins
-{
-	public static List<T> Append<T>(this List<T> list, T element)
-	{
-		var result = new List<T>(list);
-		result.Add(element);
-		return result;
-	}
-	
-	public static List<T> Append<T>(this List<T> list, params T[] elements)
-	{
-		var result = new List<T>(list);
-		result.AddRange(elements);
-		return result;
-	}
-	
-	public static List<T> Append<T>(this List<T> list, List<T> elements)
-	{
-		var result = new List<T>(list);
-		result.AddRange(elements);
-		return result;
-	}
-	
-	// Fix: Ensure Length works for collections and not generic T
-	public static int Length<T>(ICollection<T> collection)
-	{
-		return collection.Count;
-	}
-}
-`
-	str := cppe.emitAsString(builtin, indent)
-	cppe.emitToFile(str)
-	str = cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
+	str := cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
 	err := cppe.emitToFile(str)
 
 	for _, alias := range cppe.aliases {
