@@ -25,7 +25,7 @@ type CSharpEmitter struct {
 	insideForPostCond bool
 	assignmentToken   string
 	forwardDecls      bool
-	insideStruct      bool
+	shouldGenerate    bool
 	numFuncResults    int
 	aliases           []string
 	isAlias           bool
@@ -145,7 +145,7 @@ func (cppe *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent i
 }
 
 func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
-	if !cppe.insideStruct {
+	if !cppe.shouldGenerate {
 		return
 	}
 	var str string
@@ -252,17 +252,17 @@ func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int)
 	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
 	str += cppe.emitAsString("{\n", indent+2)
 	cppe.emitToFile(str)
-	cppe.insideStruct = true
+	cppe.shouldGenerate = true
 }
 
 func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
 	str := cppe.emitAsString("};\n\n", indent+2)
 	cppe.emitToFile(str)
-	cppe.insideStruct = false
+	cppe.shouldGenerate = false
 }
 
 func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
-	if !cppe.insideStruct {
+	if !cppe.shouldGenerate {
 		return
 	}
 	cppe.stack = append(cppe.stack, "@@PreVisitArrayType")
@@ -272,7 +272,7 @@ func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	cppe.buffer = true
 }
 func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
-	if !cppe.insideStruct {
+	if !cppe.shouldGenerate {
 		return
 	}
 
@@ -289,7 +289,7 @@ func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
-	if !cppe.insideStruct {
+	if !cppe.shouldGenerate {
 		return
 	}
 	cppe.buffer = true
@@ -298,7 +298,7 @@ func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	cppe.stack = append(cppe.stack, str)
 }
 func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
-	if !cppe.insideStruct {
+	if !cppe.shouldGenerate {
 		return
 	}
 	cppe.mergeStackElements("@@PreVisitFuncType")
@@ -324,7 +324,7 @@ func (cppe *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, ind
 }
 
 func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
-	if !cppe.insideStruct {
+	if !cppe.shouldGenerate {
 		return
 	}
 	var str string
@@ -353,7 +353,7 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDec
 	if cppe.forwardDecls {
 		return
 	}
-	cppe.insideStruct = true
+	cppe.shouldGenerate = true
 	str := cppe.emitAsString("(", 0)
 	cppe.emitToFile(str)
 }
@@ -362,7 +362,7 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDe
 	if cppe.forwardDecls {
 		return
 	}
-	cppe.insideStruct = false
+	cppe.shouldGenerate = false
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
@@ -399,7 +399,7 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 		return
 	}
 
-	cppe.insideStruct = true
+	cppe.shouldGenerate = true
 
 	str := cppe.emitAsString("public static ", indent+2)
 	cppe.emitToFile(str)
@@ -428,13 +428,13 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncD
 
 	str := cppe.emitAsString("", 1)
 	cppe.emitToFile(str)
-	cppe.insideStruct = false
+	cppe.shouldGenerate = false
 }
 
 func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 	cppe.stack = append(cppe.stack, "@@PreVisitTypeAliasName")
 	cppe.stack = append(cppe.stack, cppe.emitAsString("using ", indent+2))
-	cppe.insideStruct = true
+	cppe.shouldGenerate = true
 	cppe.buffer = true
 }
 
@@ -451,13 +451,13 @@ func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
 		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
-	cppe.insideStruct = false
+	cppe.shouldGenerate = false
 	cppe.buffer = false
 }
 
 /*
 func (cppe *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
-	cppe.insideStruct = true
+	cppe.shouldGenerate = true
 	str := cppe.emitAsString("return ", indent)
 	cppe.emitToFile(str)
 	if len(node.Results) > 1 {
@@ -473,7 +473,7 @@ func (cppe *CSharpEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int)
 	}
 	str := cppe.emitAsString(";", 0)
 	cppe.emitToFile(str)
-	cppe.insideStruct = false
+	cppe.shouldGenerate = false
 }
 
 func (cppe *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int) {
@@ -483,3 +483,17 @@ func (cppe *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, in
 	}
 }
 */
+
+func (v *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
+}
+
+func (v *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
+}
+
+func (v *CSharpEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
+	v.shouldGenerate = true
+}
+
+func (v *CSharpEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
+	v.shouldGenerate = false
+}
