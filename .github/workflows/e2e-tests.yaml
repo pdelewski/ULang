@@ -35,6 +35,19 @@ jobs:
       - name: Install GCC/G++
         run: sudo apt-get install -y g++
 
+      - name: Run tests_basic application
+        working-directory: ulc
+        run: |
+          go run . --source=./../tests/basic
+
+      - name: Run cpp compiler
+        working-directory: ulc
+        run: g++ -std=c++17 output.cpp
+
+      - name: Cleanup
+        working-directory: ulc
+        run: rm ./output.cpp
+
       - name: Run tests application
         working-directory: ulc
         run: |
