@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"os"
 	"strings"
 	"unicode"
@@ -82,7 +83,7 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	case "Print":
 		return "Console.Write"
 	case "len":
-		return "Length"
+		return "SliceBuiltins.Length"
 	}
 	return selector
 }
@@ -115,7 +116,7 @@ func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
 		fmt.Println("Error opening file:", err)
 		return
 	}
-	_, err = cppe.file.WriteString("using System;\n\n")
+	_, err = cppe.file.WriteString("using System;\nusing System.Collections;\nusing System.Collections.Generic;\n\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
@@ -177,9 +178,41 @@ func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
 		//packageName = capitalizeFirst(name)
 		packageName = name
 	}
-
-	str := cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
+	builtin := `public static class SliceBuiltins
+{
+	public static List<T> Append<T>(this List<T> list, T element)
+	{
+		var result = new List<T>(list);
+		result.Add(element);
+		return result;
+	}
+	
+	public static List<T> Append<T>(this List<T> list, params T[] elements)
+	{
+		var result = new List<T>(list);
+		result.AddRange(elements);
+		return result;
+	}
+	
+	public static List<T> Append<T>(this List<T> list, List<T> elements)
+	{
+		var result = new List<T>(list);
+		result.AddRange(elements);
+		return result;
+	}
+	
+	// Fix: Ensure Length works for collections and not generic T
+	public static int Length<T>(ICollection<T> collection)
+	{
+		return collection.Count;
+	}
+}
+`
+	str := cppe.emitAsString(builtin, indent)
+	cppe.emitToFile(str)
+	str = cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
 	err := cppe.emitToFile(str)
+
 	for _, alias := range cppe.aliases {
 		str := cppe.emitAsString(alias, indent+2)
 		cppe.emitToFile(str)
@@ -455,7 +488,6 @@ func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	cppe.buffer = false
 }
 
-/*
 func (cppe *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 	cppe.shouldGenerate = true
 	str := cppe.emitAsString("return ", indent)
@@ -482,12 +514,13 @@ func (cppe *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, in
 		cppe.emitToFile(str)
 	}
 }
-*/
 
 func (v *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
+	v.shouldGenerate = true
 }
 
 func (v *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
+	v.shouldGenerate = false
 }
 
 func (v *CSharpEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
@@ -496,4 +529,157 @@ func (v *CSharpEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
 
 func (v *CSharpEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
 	v.shouldGenerate = false
+}
+
+func (cppe *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	cppe.shouldGenerate = true
+	str := cppe.emitAsString("", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+	cppe.shouldGenerate = false
+}
+
+func (cppe *CSharpEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
+	cppe.shouldGenerate = true
+	str := cppe.emitAsString(cppe.assignmentToken+" ", indent+1)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
+	cppe.shouldGenerate = false
+}
+
+func (cppe *CSharpEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", indent)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	cppe.shouldGenerate = true
+	assignmentToken := node.Tok.String()
+	if assignmentToken == ":=" && len(node.Lhs) == 1 {
+		str := cppe.emitAsString("var ", indent)
+		cppe.emitToFile(str)
+	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString("var [", indent)
+		cppe.emitToFile(str)
+	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString("var(", indent)
+		cppe.emitToFile(str)
+	}
+	if assignmentToken != "+=" {
+		assignmentToken = "="
+	}
+	cppe.assignmentToken = assignmentToken
+}
+
+func (cppe *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString("]", indent)
+		cppe.emitToFile(str)
+	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
+		str := cppe.emitAsString(")", indent)
+		cppe.emitToFile(str)
+	}
+	cppe.shouldGenerate = false
+}
+
+func (cppe *CSharpEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	cppe.shouldGenerate = true
+	str := cppe.emitAsString("[", 0)
+	cppe.emitToFile(str)
+
+}
+func (cppe *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	cppe.shouldGenerate = false
+	str := cppe.emitAsString("]", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
+	str := cppe.emitAsString(op.String()+" ", 1)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	if e.Kind == token.STRING {
+		e.Value = strings.Replace(e.Value, "\"", "", -1)
+		if e.Value[0] == '`' {
+			e.Value = strings.Replace(e.Value, "`", "", -1)
+			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
+		} else {
+			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
+		}
+	} else {
+		cppe.emitToFile(cppe.emitAsString(e.Value, 0))
+	}
+}
+
+func (cppe *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := cppe.emitAsString("(", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
+}
+func (cppe *CSharpEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
+	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+}
+
+func (v *CSharpEmitter) PreVisitIfStmt(node *ast.IfStmt, indent int) {
+	v.shouldGenerate = true
+}
+func (v *CSharpEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int) {
+	v.shouldGenerate = false
+}
+
+func (cppe *CSharpEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	str := cppe.emitAsString("if (", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	str := cppe.emitAsString(")\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
+	str := cppe.emitAsString("for (", indent)
+	cppe.emitToFile(str)
+	cppe.shouldGenerate = true
+}
+
+func (cppe *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
+	if node == nil {
+		str := cppe.emitAsString(";", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CSharpEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
+	str := cppe.emitAsString("else", 1)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
+	str := cppe.emitAsString(";", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
+	cppe.shouldGenerate = false
 }
