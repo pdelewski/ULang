@@ -683,3 +683,18 @@ func (cppe *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
 func (cppe *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 	cppe.shouldGenerate = false
 }
+
+func (cppe *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	str := cppe.emitAsString("for (auto ", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
+	str := cppe.emitAsString(" : ", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
+	str := cppe.emitAsString(")\n", 0)
+	cppe.emitToFile(str)
+}

@@ -48,7 +48,7 @@ jobs:
         working-directory: ulc
         run: rm ./output.cpp
 
-     - name: Run tests_slice application
+      - name: Run tests_slice application
         working-directory: ulc
         run: |
           go run . --source=./../tests/slice
@@ -100,7 +100,6 @@ jobs:
         working-directory: ulc
         run: |
           go run . --source=./../lib
-
 
       - name: Run cpp compiler
         working-directory: ulc
