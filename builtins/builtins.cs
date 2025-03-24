@@ -23,5 +23,15 @@ public static class SliceBuiltins
         result.AddRange(elements);
         return result;
     }
-}
 
+    public static int Length<T>(T collection)
+    {
+        return collection switch
+        {
+            Array arr => arr.Length,
+            string str => str.Length,
+            ICollection coll => coll.Count,
+            _ => throw new ArgumentException("Unsupported type", nameof(collection))
+        };
+    }
+}

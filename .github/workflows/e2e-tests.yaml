@@ -48,10 +48,23 @@ jobs:
         working-directory: ulc
         run: rm ./output.cpp
 
+     - name: Run tests_slice application
+        working-directory: ulc
+        run: |
+          go run . --source=./../tests/slice
+
+      - name: Run cpp compiler
+        working-directory: ulc
+        run: g++ -std=c++17 output.cpp
+
+      - name: Cleanup
+        working-directory: ulc
+        run: rm ./output.cpp
+
       - name: Run tests application
         working-directory: ulc
         run: |
-          go run . --source=./../tests
+          go run . --source=./../tests/complex
 
       - name: Run cpp compiler
         working-directory: ulc
