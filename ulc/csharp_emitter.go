@@ -675,6 +675,7 @@ func (cppe *CSharpEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
+	cppe.insideForPostCond = true
 	str := cppe.emitAsString("for (", indent)
 	cppe.emitToFile(str)
 	cppe.shouldGenerate = true
@@ -703,6 +704,7 @@ func (cppe *CSharpEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
 func (cppe *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
 	str := cppe.emitAsString(";", 0)
 	cppe.emitToFile(str)
+	cppe.shouldGenerate = false
 }
 
 func (cppe *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
@@ -737,4 +739,19 @@ func (cppe *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int)
 	}
 	cppe.emitToFile(str)
 	cppe.shouldGenerate = false
+}
+
+func (v *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
+	str := v.emitAsString("new ", 0)
+	v.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
+	str := cppe.emitAsString("(", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
+	str := cppe.emitAsString(")", 0)
+	cppe.emitToFile(str)
 }
