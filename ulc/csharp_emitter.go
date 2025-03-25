@@ -579,7 +579,7 @@ func (cppe *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent in
 		str := cppe.emitAsString("var [", indent)
 		cppe.emitToFile(str)
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
-		str := cppe.emitAsString("var(", indent)
+		str := cppe.emitAsString("(", indent)
 		cppe.emitToFile(str)
 	}
 	if assignmentToken != "+=" {
