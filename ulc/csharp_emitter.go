@@ -611,6 +611,13 @@ func (cppe *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent i
 	cppe.emitToFile(str)
 }
 
+func (v *CSharpEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
+	v.shouldGenerate = true
+}
+func (v *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
+	v.shouldGenerate = false
+}
+
 func (cppe *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
 	str := cppe.emitAsString(op.String()+" ", 1)
 	cppe.emitToFile(str)
@@ -680,6 +687,14 @@ func (cppe *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 	}
 }
 
+func (cppe *CSharpEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
+	if node != nil {
+		cppe.insideForPostCond = false
+	}
+	str := cppe.emitAsString(")\n", 0)
+	cppe.emitToFile(str)
+}
+
 func (cppe *CSharpEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
 	str := cppe.emitAsString("else", 1)
 	cppe.emitToFile(str)
@@ -695,18 +710,20 @@ func (cppe *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
-	str := cppe.emitAsString("for (auto ", indent)
+	cppe.shouldGenerate = true
+	str := cppe.emitAsString("foreach (var ", indent)
 	cppe.emitToFile(str)
 }
 
 func (cppe *CSharpEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
-	str := cppe.emitAsString(" : ", 0)
+	str := cppe.emitAsString(" in ", 0)
 	cppe.emitToFile(str)
 }
 
 func (cppe *CSharpEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
 	str := cppe.emitAsString(")\n", 0)
 	cppe.emitToFile(str)
+	cppe.shouldGenerate = false
 }
 
 func (cppe *CSharpEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
