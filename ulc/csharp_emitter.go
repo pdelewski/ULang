@@ -708,3 +708,16 @@ func (cppe *CSharpEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
 	str := cppe.emitAsString(")\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CSharpEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	cppe.shouldGenerate = true
+}
+
+func (cppe *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	str := cppe.emitAsString(node.Tok.String(), 0)
+	if !cppe.insideForPostCond {
+		str += cppe.emitAsString(";", 0)
+	}
+	cppe.emitToFile(str)
+	cppe.shouldGenerate = false
+}
