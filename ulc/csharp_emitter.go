@@ -33,6 +33,8 @@ type CSharpEmitter struct {
 	currentPackage    string
 	stack             []string
 	buffer            bool
+	isArray           bool
+	arrayType         string
 }
 
 func (v *CSharpEmitter) mergeStackElements(marker string) {
@@ -167,6 +169,12 @@ func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index
 }
 
 func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	if cppe.isArray {
+		cppe.emitToFile(" = new ")
+		cppe.emitToFile(strings.TrimSpace(cppe.arrayType))
+		cppe.emitToFile("()")
+		cppe.isArray = false
+	}
 	cppe.emitToFile(";")
 }
 
@@ -313,8 +321,9 @@ func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
 
 	cppe.mergeStackElements("@@PreVisitArrayType")
-
 	if len(cppe.stack) == 1 {
+		cppe.isArray = true
+		cppe.arrayType = cppe.stack[len(cppe.stack)-1]
 		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
 		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
