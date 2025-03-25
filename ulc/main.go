@@ -48,4 +48,7 @@ func main() {
 	passManager.passes = append(passManager.passes, csBackend)
 
 	passManager.RunPasses()
+
+	format("output.cpp", "formatted.xx")
+	format("output.cs", "formatted.cs")
 }
