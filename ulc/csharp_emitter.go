@@ -747,11 +747,18 @@ func (v *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := cppe.emitAsString("(", 0)
+	str := cppe.emitAsString("{", 0)
 	cppe.emitToFile(str)
 }
 
 func (cppe *CSharpEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := cppe.emitAsString(")", 0)
+	str := cppe.emitAsString("}", 0)
 	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
 }
