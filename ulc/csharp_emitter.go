@@ -178,6 +178,11 @@ func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, inde
 	cppe.emitToFile(";")
 }
 
+func (cppe *CSharpEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
+	str := cppe.emitAsString("public", indent+2)
+	cppe.emitToFile(str)
+}
+
 func (cppe *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
 	cppe.emitToFile(" ")
 }
