@@ -185,6 +185,10 @@ func (cppe *CSharpEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int)
 
 func (cppe *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
 	cppe.emitToFile(" ")
+	// clean array marker as we should generate
+	// initializer only for expression statements
+	// not for struct fields
+	cppe.isArray = false
 }
 
 func (cppe *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
