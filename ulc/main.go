@@ -50,5 +50,5 @@ func main() {
 	passManager.RunPasses()
 
 	format("output.cpp", "formatted.xx")
-	format("output.cs", "formatted.cs")
+	format("Program.cs", "formatted.cs")
 }

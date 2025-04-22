@@ -51,9 +51,25 @@ jobs:
         run: |
           go run . --source=./../tests/basic
 
+      - name: Setup .NET project for tests/basic
+        run: |
+          mkdir dotnet_project
+          cd dotnet_project
+          dotnet new console --output app
+
       - name: Run cpp compiler
         working-directory: ulc
         run: g++ -std=c++17 output.cpp
+
+      - name: Move Program.cs to dotnet project
+        run: mv ulc/Program.cs dotnet_project/app/
+
+      - name: Build Program.cs with .NET
+        working-directory: dotnet_project/app
+        run: dotnet build
+
+      - name: Cleanup dotnet_project
+        run: rm -rf dotnet_project
 
       - name: Cleanup
         working-directory: ulc

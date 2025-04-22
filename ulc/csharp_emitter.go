@@ -110,7 +110,7 @@ func (cppe *CSharpEmitter) GetFile() *os.File {
 }
 
 func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
-	outputFile := "./output.cs"
+	outputFile := "./Program.cs"
 	var err error
 	cppe.file, err = os.Create(outputFile)
 	cppe.SetFile(cppe.file)
