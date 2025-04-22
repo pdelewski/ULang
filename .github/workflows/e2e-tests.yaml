@@ -61,10 +61,10 @@ jobs:
         working-directory: ulc
         run: g++ -std=c++17 output.cpp
 
-      - name: Move output.cs to dotnet project
-        run: mv ulc/output.cs dotnet_project/app/
+      - name: Move Program.cs to dotnet project
+        run: mv ulc/Program.cs dotnet_project/app/
 
-      - name: Build output.cs with .NET
+      - name: Build Program.cs with .NET
         working-directory: dotnet_project/app
         run: dotnet build
 
