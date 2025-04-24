@@ -36,6 +36,18 @@ func (a *Allocator) Alloc() int {
     return index
 }
 
+func (a *Allocator) AllocAndArena() (int, []int) {
+    index := a.Alloc()
+    if index == -1 {
+	return -1, nil
+    }
+    return index, a.Arena()
+}
+
+func new_(a *Allocator) (int, []int) {
+    return a.AllocAndArena()
+}
+
 // Free returns an index to the free list for reuse
 func (a *Allocator) Free(index int) {
     if index >= 0 && index < len(a.arena) {
@@ -50,18 +62,16 @@ func (a *Allocator) Arena() []int {
 
 // Example function using the allocator
 func foo(alloc *Allocator) {
-    index := alloc.Alloc()
-    if index == -1 {
+    x_slot, x := new_(alloc)
+    if x_slot == -1 {
 	return
     }
-
-    arena := alloc.Arena()
-    arena[index] = 42
-    fmt.Printf("Allocated value at index %d: %d\n", index, arena[index])
+    x[x_slot] = 42
+    fmt.Printf("Allocated value at index %d: %d\n", x_slot, x[x_slot])
 
     // Simulate we're done with this value
-    alloc.Free(index)
-    fmt.Printf("Freed index %d\n", index)
+    alloc.Free(x_slot)
+    fmt.Printf("Freed index %d\n", x_slot)
 }
 
 func bar(alloc *Allocator) {
