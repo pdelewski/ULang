@@ -380,7 +380,7 @@ func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		return
 	}
 	var str string
-	const scopeOperator = ".Api."
+	const scopeOperator = "."
 	if ident, ok := node.(*ast.Ident); ok {
 		if cppe.lowerToBuiltins(ident.Name) == "" {
 			return
