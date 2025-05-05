@@ -124,6 +124,35 @@ jobs:
         working-directory: ulc
         run: rm ./output.cpp
 
+      - name: Run gradual_complex
+        working-directory: ulc
+        run: |
+          go run . --source=./../tests/gradual_complex
+
+      - name: Run cpp compiler
+        working-directory: ulc
+        run: g++ -std=c++17 output.cpp
+
+      - name: Setup .NET project for tests/gradual_complex
+        run: |
+          mkdir dotnet_project
+          cd dotnet_project
+          dotnet new console --output app
+
+      - name: Move Program.cs to dotnet project
+        run: mv ulc/Program.cs dotnet_project/app/
+
+      - name: Build Program.cs with .NET
+        working-directory: dotnet_project/app
+        run: dotnet build
+
+      - name: Cleanup dotnet_project
+        run: rm -rf dotnet_project
+
+      - name: Cleanup
+        working-directory: ulc
+        run: rm ./output.cpp
+
       - name: Run iceberg application
         working-directory: ulc
         run: |
