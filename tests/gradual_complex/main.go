@@ -2,6 +2,9 @@ package main
 
 import "fmt"
 
+type Composite struct {
+        a []int
+}
 
 func sink(p int8) {
 }
