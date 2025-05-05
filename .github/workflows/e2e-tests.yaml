@@ -2,171 +2,77 @@ name: E2E Workflow
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  run-go:
+  run-tests:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        include:
+          - test_dir: tests/basic
+            dotnet: true
+          - test_dir: tests/slice
+            dotnet: true
+          - test_dir: tests/complex
+            dotnet: false
+          - test_dir: tests/gradual_complex
+            dotnet: true
+          - test_dir: iceberg
+            dotnet: false
+          - test_dir: lib
+            dotnet: false
+
     steps:
-      # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Go environment
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23 
-
-      - name: Initialize Go module
-        run: go mod init github.com/pdelewski/ULang
-
-      - name: Tidy Go dependencies
-        run: go mod tidy
-
-      - name: Debug current directory
-        run: ls -la
+          go-version: 1.23
 
       - name: Install GCC/G++
         run: sudo apt-get install -y g++
 
       - name: Setup .NET SDK
+        if: matrix.dotnet == true
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '9.0.x'
 
-      - name: Run tests_basic application
+      - name: Run Go application
         working-directory: ulc
-        run: |
-          go run . --source=./../tests/basic
+        run: go run . --source=./../${{ matrix.test_dir }}
 
-      - name: Run cpp compiler
+      - name: Compile C++ output
+        if: matrix.test_dir != 'iceberg' && matrix.test_dir != 'lib'
         working-directory: ulc
         run: g++ -std=c++17 output.cpp
 
-      - name: Setup .NET project for tests/basic
+      - name: Setup .NET project
+        if: matrix.dotnet == true
         run: |
           mkdir dotnet_project
           cd dotnet_project
           dotnet new console --output app
 
-      - name: Move Program.cs to dotnet project
+      - name: Move Program.cs
+        if: matrix.dotnet == true
         run: mv ulc/Program.cs dotnet_project/app/
 
-      - name: Build Program.cs with .NET
+      - name: Build .NET Program.cs
+        if: matrix.dotnet == true
         working-directory: dotnet_project/app
         run: dotnet build
 
-      - name: Cleanup dotnet_project
+      - name: Cleanup .NET project
+        if: matrix.dotnet == true
         run: rm -rf dotnet_project
 
-      - name: Cleanup
+      - name: Cleanup output.cpp
         working-directory: ulc
-        run: rm ./output.cpp
-
-      - name: Run tests_slice application
-        working-directory: ulc
-        run: |
-          go run . --source=./../tests/slice
-
-      - name: Run cpp compiler
-        working-directory: ulc
-        run: g++ -std=c++17 output.cpp
-
-      - name: Setup .NET project for tests/slice
-        run: |
-          mkdir dotnet_project
-          cd dotnet_project
-          dotnet new console --output app
-
-      - name: Move Program.cs to dotnet project
-        run: mv ulc/Program.cs dotnet_project/app/
-
-      - name: Build Program.cs with .NET
-        working-directory: dotnet_project/app
-        run: dotnet build
-
-      - name: Cleanup dotnet_project
-        run: rm -rf dotnet_project
-
-      - name: Cleanup
-        working-directory: ulc
-        run: rm ./output.cpp
-
-      - name: Run tests application
-        working-directory: ulc
-        run: |
-          go run . --source=./../tests/complex
-
-      - name: Run cpp compiler
-        working-directory: ulc
-        run: g++ -std=c++17 output.cpp
-
-      - name: Cleanup
-        working-directory: ulc
-        run: rm ./output.cpp
-
-      - name: Run uql application
-        working-directory: ulc
-        run: |
-          go run . --source=./../uql
-
-      - name: Run cpp compiler
-        working-directory: ulc
-        run: g++ -std=c++17 output.cpp
-
-      - name: Cleanup
-        working-directory: ulc
-        run: rm ./output.cpp
-
-      - name: Run gradual_complex
-        working-directory: ulc
-        run: |
-          go run . --source=./../tests/gradual_complex
-
-      - name: Run cpp compiler
-        working-directory: ulc
-        run: g++ -std=c++17 output.cpp
-
-      - name: Setup .NET project for tests/gradual_complex
-        run: |
-          mkdir dotnet_project
-          cd dotnet_project
-          dotnet new console --output app
-
-      - name: Move Program.cs to dotnet project
-        run: mv ulc/Program.cs dotnet_project/app/
-
-      - name: Build Program.cs with .NET
-        working-directory: dotnet_project/app
-        run: dotnet build
-
-      - name: Cleanup dotnet_project
-        run: rm -rf dotnet_project
-
-      - name: Cleanup
-        working-directory: ulc
-        run: rm ./output.cpp
-
-      - name: Run iceberg application
-        working-directory: ulc
-        run: |
-          go run . --source=./../iceberg
-
-      - name: Cleanup
-        working-directory: ulc
-        run: rm ./output.cpp
-
-      - name: Run iceberg application
-        working-directory: ulc
-        run: |
-          go run . --source=./../lib
-
-      - name: Run cpp compiler
-        working-directory: ulc
-        run: g++ -std=c++17 output.cpp
+        run: rm -f output.cpp
