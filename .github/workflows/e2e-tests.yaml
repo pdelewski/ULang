@@ -25,7 +25,8 @@ jobs:
             dotnet: false
           - test_dir: lib
             dotnet: false
-
+          - test_dir: uql
+            dotnet: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
