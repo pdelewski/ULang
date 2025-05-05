@@ -284,6 +284,7 @@ func (cppe *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 func (cppe *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	str := cppe.emitAsString("}", indent+2)
 	cppe.emitToFile(str)
+	cppe.isArray = false
 }
 
 func (cppe *CSharpEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int) {
