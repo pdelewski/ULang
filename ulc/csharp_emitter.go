@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
+	"golang.org/x/tools/go/packages"
 	"os"
 	"strings"
 	"unicode"
@@ -23,6 +25,7 @@ var csTypesMap = map[string]string{
 type CSharpEmitter struct {
 	file *os.File
 	Emitter
+	pkg               *packages.Package
 	insideForPostCond bool
 	assignmentToken   string
 	forwardDecls      bool
@@ -199,6 +202,13 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	if !cppe.shouldGenerate {
 		return
 	}
+
+	obj := cppe.pkg.TypesInfo.Defs[e]
+	if obj != nil {
+		if v, ok := obj.(*types.Var); ok {
+			fmt.Printf("Variable %s has type: %s\n", v.Name(), v.Type().String())
+		}
+	}
 	var str string
 	name := e.Name
 	name = cppe.lowerToBuiltins(name)
@@ -220,7 +230,9 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 
 }
 
-func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
+func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
+	name := pkg.Name
+	cppe.pkg = pkg
 	var packageName string
 	if name == "main" {
 		packageName = "MainClass"
@@ -244,7 +256,7 @@ func (cppe *CSharpEmitter) PreVisitPackage(name string, indent int) {
 	}
 }
 
-func (cppe *CSharpEmitter) PostVisitPackage(name string, indent int) {
+func (cppe *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	str := cppe.emitAsString("}\n", indent+2)
 	cppe.emitToFile(str)
 	err := cppe.emitToFile("}\n")

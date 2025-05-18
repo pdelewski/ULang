@@ -3,6 +3,7 @@ package main
 import (
 	"go/ast"
 	"go/token"
+	"golang.org/x/tools/go/packages"
 	"os"
 )
 
@@ -12,8 +13,8 @@ func (v *BaseEmitter) SetFile(file *os.File)                                    
 func (v *BaseEmitter) GetFile() *os.File                                                         { return nil }
 func (v *BaseEmitter) PreVisitProgram(indent int)                                                {}
 func (v *BaseEmitter) PostVisitProgram(indent int)                                               {}
-func (v *BaseEmitter) PreVisitPackage(name string, indent int)                                   {}
-func (v *BaseEmitter) PostVisitPackage(name string, indent int)                                  {}
+func (v *BaseEmitter) PreVisitPackage(pkg *packages.Package, indent int)                         {}
+func (v *BaseEmitter) PostVisitPackage(pkg *packages.Package, indent int)                        {}
 func (v *BaseEmitter) PreVisitBasicLit(node *ast.BasicLit, indent int)                           {}
 func (v *BaseEmitter) PostVisitBasicLit(node *ast.BasicLit, indent int)                          {}
 func (v *BaseEmitter) PreVisitIdent(node *ast.Ident, indent int)                                 {}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"golang.org/x/tools/go/packages"
 	"log"
 	"os"
 	"strings"
@@ -23,6 +24,7 @@ var cppTypesMap = map[string]string{
 type CPPEmitter struct {
 	file *os.File
 	Emitter
+	pkg               *packages.Package
 	insideForPostCond bool
 	assignmentToken   string
 	forwardDecl       bool
@@ -94,7 +96,8 @@ func (cppe *CPPEmitter) PostVisitProgram(indent int) {
 	cppe.file.Close()
 }
 
-func (cppe *CPPEmitter) PreVisitPackage(name string, indent int) {
+func (cppe *CPPEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
+	name := pkg.Name
 	if name == "main" {
 		return
 	}
@@ -111,7 +114,8 @@ func (cppe *CPPEmitter) PreVisitPackage(name string, indent int) {
 	}
 }
 
-func (cppe *CPPEmitter) PostVisitPackage(name string, indent int) {
+func (cppe *CPPEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
+	name := pkg.Name
 	if name == "main" {
 		return
 	}
