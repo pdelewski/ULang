@@ -598,7 +598,7 @@ func (v *BasePass) EpiLog() {
 func (v *BasePass) PreVisit(visitor ast.Visitor) {
 	cppVisitor := visitor.(*BasePassVisitor)
 	namespaces[cppVisitor.pkg.Name] = struct{}{}
-	v.emitter.PreVisitPackage(cppVisitor.pkg.Name, 0)
+	v.emitter.PreVisitPackage(cppVisitor.pkg, 0)
 }
 
 func (v *BasePassVisitor) complementPrecedenceMap(sortedTypes map[string]int) {
@@ -634,5 +634,5 @@ func (v *BasePass) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	}
 	fmt.Println("Types precedence:", typesPrecedence)
 	cppVisitor.gen(typesPrecedence)
-	v.emitter.PostVisitPackage(cppVisitor.pkg.Name, 0)
+	v.emitter.PostVisitPackage(cppVisitor.pkg, 0)
 }

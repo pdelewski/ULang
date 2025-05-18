@@ -4,6 +4,7 @@ package main
 import (
 	"go/ast"
 	"go/token"
+	"golang.org/x/tools/go/packages"
 	"os"
 )
 
@@ -34,9 +35,9 @@ type Emitter interface {
 	// PostVisitProgram is called after visiting the program node.
 	PostVisitProgram(indent int)
 	// PreVisitPackage is called before visiting a package node.
-	PreVisitPackage(name string, indent int)
+	PreVisitPackage(pkg *packages.Package, indent int)
 	// PostVisitPackage is called after visiting a package node.
-	PostVisitPackage(name string, indent int)
+	PostVisitPackage(pkg *packages.Package, indent int)
 
 	// PreVisitBasicLit is called before visiting a basic literal (e.g., string, number).
 	PreVisitBasicLit(node *ast.BasicLit, indent int)
