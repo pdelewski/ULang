@@ -199,16 +199,26 @@ func (cppe *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent i
 }
 
 func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
+	obj := cppe.pkg.TypesInfo.Defs[e]
+	if obj != nil {
+		if v, ok := obj.(*types.Var); ok {
+			pos := cppe.pkg.Fset.Position(v.Pos())
+			fmt.Printf("Variable %s has type: %s (declared at %s:%d)\n", v.Name(), v.Type().String(), pos.Filename, pos.Line)
+		}
+	}
+
+	obj = cppe.pkg.TypesInfo.Uses[e]
+	if obj != nil {
+		if v, ok := obj.(*types.Var); ok {
+			usagePos := cppe.pkg.Fset.Position(e.Pos()) // <- position of the usage, not the declaration
+			fmt.Printf("Variable %s has type: %s (used at %s:%d)\n", v.Name(), v.Type().String(), usagePos.Filename, usagePos.Line)
+		}
+	}
+
 	if !cppe.shouldGenerate {
 		return
 	}
 
-	obj := cppe.pkg.TypesInfo.Defs[e]
-	if obj != nil {
-		if v, ok := obj.(*types.Var); ok {
-			fmt.Printf("Variable %s has type: %s\n", v.Name(), v.Type().String())
-		}
-	}
 	var str string
 	name := e.Name
 	name = cppe.lowerToBuiltins(name)
