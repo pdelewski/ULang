@@ -39,6 +39,7 @@ type CSharpEmitter struct {
 	isArray           bool
 	arrayType         string
 	symbolType        string
+	isTuple           bool
 }
 
 func (v *CSharpEmitter) mergeStackElements(marker string) {
@@ -482,7 +483,7 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 	cppe.emitToFile(str)
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
-			str := cppe.emitAsString("Tuple<", 0)
+			str := cppe.emitAsString("(", 0)
 			cppe.emitToFile(str)
 		}
 	} else {
@@ -498,7 +499,7 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncD
 
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
-			str := cppe.emitAsString(">", 0)
+			str := cppe.emitAsString(")", 0)
 			cppe.emitToFile(str)
 		}
 	}
@@ -537,7 +538,7 @@ func (cppe *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) 
 	str := cppe.emitAsString("return ", indent)
 	cppe.emitToFile(str)
 	if len(node.Results) > 1 {
-		str := cppe.emitAsString("Tuple.Create(", 0)
+		str := cppe.emitAsString("(", 0)
 		cppe.emitToFile(str)
 	}
 }
@@ -594,10 +595,13 @@ func (cppe *CSharpEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent in
 
 func (cppe *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
 	cppe.shouldGenerate = false
+	cppe.isTuple = false
 }
 
 func (cppe *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	if cppe.symbolType != "" {
+	// This generates cast expression for the left-hand side of the assignment
+	// It is generated only if the symbolType is not empty and the expression is not a tuple
+	if cppe.symbolType != "" && !cppe.isTuple {
 		cppe.emitToFile("(")
 		cppe.emitToFile(cppe.symbolType)
 		cppe.emitToFile(")")
@@ -623,6 +627,7 @@ func (cppe *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent in
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
 		str := cppe.emitAsString("(", indent)
 		cppe.emitToFile(str)
+		cppe.isTuple = true
 	}
 	if assignmentToken != "+=" {
 		assignmentToken = "="
@@ -639,6 +644,7 @@ func (cppe *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent i
 		cppe.emitToFile(str)
 	}
 	cppe.shouldGenerate = false
+
 }
 
 func (cppe *CSharpEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
