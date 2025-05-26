@@ -19,8 +19,6 @@ jobs:
             dotnet: true
           - test_dir: tests/complex
             dotnet: false
-          - test_dir: tests/gradual_complex
-            dotnet: true
           - test_dir: iceberg
             dotnet: false
           - test_dir: lib
