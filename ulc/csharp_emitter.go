@@ -385,8 +385,7 @@ func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
 		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
-	str := cppe.emitAsString(">", 0)
-	cppe.emitToFile(str)
+	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
 	cppe.buffer = false
 }
 
