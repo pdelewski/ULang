@@ -154,7 +154,7 @@ func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
   // Fix: Ensure Length works for collections and not generic T
   public static int Length<T>(ICollection<T> collection)
   {
-    return collection.Count;
+    return collection == null ? 0 : collection.Count;
   }
 }
 `
