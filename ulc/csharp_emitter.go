@@ -878,3 +878,8 @@ func (cppe *CSharpEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int,
 		cppe.emitToFile(str)
 	}
 }
+
+func (cppe *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
+	str := cppe.emitAsString("object", indent)
+	cppe.stack = append(cppe.stack, str)
+}
