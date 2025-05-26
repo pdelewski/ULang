@@ -814,3 +814,18 @@ func (cppe *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, ind
 		cppe.emitToFile(str)
 	}
 }
+func (cppe *CSharpEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
+	str := cppe.emitAsString("[", 0)
+	cppe.emitToFile(str)
+	cppe.shouldGenerate = false
+}
+
+func (cppe *CSharpEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
+	str := cppe.emitAsString("]", 0)
+	cppe.emitToFile(str)
+	cppe.shouldGenerate = true
+}
+
+func (cppe *CSharpEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
+	cppe.emitToFile("..")
+}

@@ -62,9 +62,9 @@ func arraytype() {
 
 func sliceExpr() {
 	a := []int8{1, 2, 3}
-//	b := a[1:]
-//	if len(b) == 0 {
-//	}
+	b := a[1:]
+	if len(b) == 0 {
+	}
 }
 
 func foo() {
