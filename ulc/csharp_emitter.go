@@ -38,6 +38,7 @@ type CSharpEmitter struct {
 	buffer            bool
 	isArray           bool
 	arrayType         string
+	symbolType        string
 }
 
 func (v *CSharpEmitter) mergeStackElements(marker string) {
@@ -212,6 +213,7 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		if v, ok := obj.(*types.Var); ok {
 			usagePos := cppe.pkg.Fset.Position(e.Pos()) // <- position of the usage, not the declaration
 			fmt.Printf("Variable %s has type: %s (used at %s:%d)\n", v.Name(), v.Type().String(), usagePos.Filename, usagePos.Line)
+			cppe.symbolType = csTypesMap[v.Type().String()]
 		}
 	}
 
@@ -594,6 +596,14 @@ func (cppe *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent i
 	cppe.shouldGenerate = false
 }
 
+func (cppe *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
+	if cppe.symbolType != "" {
+		cppe.emitToFile("(")
+		cppe.emitToFile(cppe.symbolType)
+		cppe.emitToFile(")")
+	}
+}
+
 func (cppe *CSharpEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
 	if index > 0 {
 		str := cppe.emitAsString(", ", indent)
@@ -645,8 +655,12 @@ func (cppe *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent i
 
 func (v *CSharpEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	v.shouldGenerate = true
+	str := v.emitAsString("(", 1)
+	v.emitToFile(str)
 }
 func (v *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
+	str := v.emitAsString(")", 1)
+	v.emitToFile(str)
 	v.shouldGenerate = false
 }
 
