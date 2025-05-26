@@ -33,7 +33,6 @@ func bar() int8 {
 }
 
 func bar2() (int16, int16) {
-/*
 	x := []func(int){
 		func(a int) {
 			fmt.Println(a)
@@ -44,7 +43,6 @@ func bar2() (int16, int16) {
 	x[0](20)
 	if len(x) == 0 {
 	}
-*/
 	return 10, 20
 }
 

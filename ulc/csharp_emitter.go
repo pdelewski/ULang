@@ -372,7 +372,12 @@ func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	}
 	cppe.buffer = true
 	cppe.stack = append(cppe.stack, "@@PreVisitFuncType")
-	str := cppe.emitAsString("Func<", indent)
+	var str string
+	if node.Results != nil {
+		str = cppe.emitAsString("Func<", indent)
+	} else {
+		str = cppe.emitAsString("Action<", indent)
+	}
 	cppe.stack = append(cppe.stack, str)
 }
 func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
@@ -827,4 +832,49 @@ func (cppe *CSharpEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
 
 func (cppe *CSharpEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
 	cppe.emitToFile("..")
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cppe.emitAsString("(", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cppe.emitAsString("}", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
+	str := cppe.emitAsString(")", 0)
+	str += cppe.emitAsString("=>", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	str := ""
+	if index > 0 {
+		str += cppe.emitAsString(", ", 0)
+	}
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	str := cppe.emitAsString(" ", 0)
+	str += cppe.emitAsString(node.Names[0].Name, indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
+	str := cppe.emitAsString("{\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+
+}
+
+func (cppe *CSharpEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {
+	if index > 0 {
+		str := cppe.emitAsString(", ", 0)
+		cppe.emitToFile(str)
+	}
 }
