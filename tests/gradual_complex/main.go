@@ -6,9 +6,6 @@ type Composite struct {
 	a []int
 }
 
-func sink(p int8) {
-}
-
 func bar() int8 {
 	var a []int
 	c := Composite{}
@@ -35,6 +32,24 @@ func bar() int8 {
 	return 5
 }
 
+func bar2() (int16, int16) {
+/*
+	x := []func(int){
+		func(a int) {
+			fmt.Println(a)
+		},
+	}
+	f := x[0]
+	f(10)
+	x[0](20)
+	if len(x) == 0 {
+	}
+*/
+	return 10, 20
+}
+
+func sink(p int8) {
+}
 
 func arraytype() {
 	a := []int8{}
@@ -45,15 +60,21 @@ func arraytype() {
 	}
 }
 
+func sliceExpr() {
+	a := []int8{1, 2, 3}
+//	b := a[1:]
+//	if len(b) == 0 {
+//	}
+}
+
 func foo() {
 	var a int8
 	var b, c int16
-	b = 1
-	c = 1
 	a = 1
 	a = a + 5
 	d := 10
 	a = bar()
+	b, c = bar2()
 	if (a == 1) && (b == 10) {
 		a = 2
 		var aa int8
@@ -75,4 +96,5 @@ func foo() {
 
 func main() {
 	fmt.Print("Hello\n")
+	foo()
 }
