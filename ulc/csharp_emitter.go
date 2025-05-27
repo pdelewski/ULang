@@ -410,12 +410,20 @@ func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		return
 	}
 	var str string
-	const scopeOperator = "."
+	scopeOperator := "."
 	if ident, ok := node.(*ast.Ident); ok {
 		if cppe.lowerToBuiltins(ident.Name) == "" {
 			return
 		}
+		// if the identifier is a package name, we need to append "Api." to the scope operator
+		obj := cppe.pkg.TypesInfo.Uses[ident]
+		if obj != nil {
+			if _, ok := obj.(*types.PkgName); ok {
+				scopeOperator += "Api."
+			}
+		}
 	}
+
 	str = cppe.emitAsString(scopeOperator, 0)
 	if cppe.buffer {
 		cppe.stack = append(cppe.stack, str)

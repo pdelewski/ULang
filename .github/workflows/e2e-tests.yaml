@@ -20,7 +20,7 @@ jobs:
           - test_dir: tests/complex
             dotnet: true
           - test_dir: iceberg
-            dotnet: false
+            dotnet: true
           - test_dir: lib
             dotnet: false
           - test_dir: uql
