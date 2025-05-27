@@ -883,3 +883,11 @@ func (cppe *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent
 	str := cppe.emitAsString("object", indent)
 	cppe.stack = append(cppe.stack, str)
 }
+
+func (cppe *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent int) {
+	// emit only if it's not a complex type
+	if len(cppe.stack) == 1 {
+		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
+		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+	}
+}
