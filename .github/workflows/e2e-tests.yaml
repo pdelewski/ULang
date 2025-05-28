@@ -10,28 +10,6 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        include:
-          - test_dir: tests/basic
-            test_name: basic
-            dotnet: true
- #         - test_dir: tests/slice
- #           test_name: slice
- #           dotnet: true
- #         - test_dir: tests/complex
- #           test_name: complex
- #           dotnet: true
- #         - test_dir: iceberg
- #           test_name: iceberg
- #           dotnet: true
- #         - test_dir: lib
- #           test_name: lib
- #           dotnet: true
- #         - test_dir: uql
- #           test_name: uql
- #           dotnet: false
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,43 +23,47 @@ jobs:
         run: sudo apt-get install -y g++
 
       - name: Setup .NET SDK
-        if: matrix.dotnet == true
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '9.0.x'
 
-      - name: Run go generate
-        working-directory: ulc
-        run: go generate ./...
-
-      - name: Run Go application
-        working-directory: ulc
-        run: go run . --source=./../${{ matrix.test_dir }} --output=${{ matrix.test_name }}
-
-      - name: Compile C++ output
-        if: matrix.test_dir != 'iceberg' && matrix.test_dir != 'lib'
-        working-directory: ulc
-        run: g++ -std=c++17 "${{ matrix.test_name }}.cpp"
-
-      - name: Setup .NET project
-        if: matrix.dotnet == true
+      - name: Run tests sequentially
         run: |
-          mkdir -p dotnet_project/app
-          dotnet new console --output dotnet_project/app
+          tests=(
+            "tests/basic basic true"
+            "tests/slice slice true"
+            "tests/complex complex true"
+            "iceberg iceberg true"
+            "lib lib true"
+            "uql uql false"
+          )
 
-      - name: Move ${{ matrix.test_name }}.cs
-        if: matrix.dotnet == true
-        run: mv ulc/${{ matrix.test_name }}.cs dotnet_project/app/Program.cs
+          for test_case in "${tests[@]}"; do
+            read test_dir test_name dotnet_enabled <<< "$test_case"
 
-      - name: Build .NET ${{ matrix.test_name }}.cs
-        if: matrix.dotnet == true
-        working-directory: dotnet_project/app
-        run: dotnet build
+            echo "▶️ Running: $test_name"
 
-      - name: Cleanup .NET project
-        if: matrix.dotnet == true
-        run: rm -rf dotnet_project
+            echo "🔧 go generate"
+            (cd ulc && go generate ./...)
 
-      - name: Cleanup ${{ matrix.test_name }}.cpp
-        working-directory: ulc
-        run: rm -f "${{ matrix.test_name }}.cpp"
+            echo "🚀 go run"
+            (cd ulc && go run . --source=./../$test_dir --output=$test_name)
+
+            if [[ "$test_dir" != "iceberg" && "$test_dir" != "lib" ]]; then
+              echo "⚙️ C++ compile"
+              (cd ulc && g++ -std=c++17 $test_name.cpp)
+            fi
+
+            if [[ "$dotnet_enabled" == "true" ]]; then
+              echo "🧱 .NET setup"
+              mkdir -p dotnet_project/app
+              dotnet new console --output dotnet_project/app
+              mv ulc/$test_name.cs dotnet_project/app/Program.cs
+              (cd dotnet_project/app && dotnet build)
+              rm -rf dotnet_project
+            fi
+
+            echo "🧹 Cleanup"
+            rm -f ulc/$test_name.cpp
+            echo "✅ Done with: $test_name"
+          done
