@@ -22,7 +22,7 @@ jobs:
           - test_dir: iceberg
             dotnet: true
           - test_dir: lib
-            dotnet: false
+            dotnet: true
           - test_dir: uql
             dotnet: false
     steps:
