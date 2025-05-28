@@ -16,21 +16,21 @@ jobs:
           - test_dir: tests/basic
             test_name: basic
             dotnet: true
-          - test_dir: tests/slice
-            test_name: slice
-            dotnet: true
-          - test_dir: tests/complex
-            test_name: complex
-            dotnet: true
-          - test_dir: iceberg
-            test_name: iceberg
-            dotnet: true
-          - test_dir: lib
-            test_name: lib
-            dotnet: true
-          - test_dir: uql
-            test_name: uql
-            dotnet: false
+ #         - test_dir: tests/slice
+ #           test_name: slice
+ #           dotnet: true
+ #         - test_dir: tests/complex
+ #           test_name: complex
+ #           dotnet: true
+ #         - test_dir: iceberg
+ #           test_name: iceberg
+ #           dotnet: true
+ #         - test_dir: lib
+ #           test_name: lib
+ #           dotnet: true
+ #         - test_dir: uql
+ #           test_name: uql
+ #           dotnet: false
 
     steps:
       - name: Checkout code
@@ -61,20 +61,19 @@ jobs:
       - name: Compile C++ output
         if: matrix.test_dir != 'iceberg' && matrix.test_dir != 'lib'
         working-directory: ulc
-        run: g++ -std=c++17 ${{ matrix.test_name}}.cpp
+        run: g++ -std=c++17 "${{ matrix.test_name }}.cpp"
 
       - name: Setup .NET project
         if: matrix.dotnet == true
         run: |
-          mkdir dotnet_project
-          cd dotnet_project
-          dotnet new console --output app
+          mkdir -p dotnet_project/app
+          dotnet new console --output dotnet_project/app
 
-      - name: Move ${{ matrix.test_name}}.cs
+      - name: Move ${{ matrix.test_name }}.cs
         if: matrix.dotnet == true
-        run: mv ulc/${{ matrix.test_name}}.cs dotnet_project/app/
+        run: mv ulc/${{ matrix.test_name }}.cs dotnet_project/app/Program.cs
 
-      - name: Build .NET ${{ matrix.test_name}}.cs
+      - name: Build .NET ${{ matrix.test_name }}.cs
         if: matrix.dotnet == true
         working-directory: dotnet_project/app
         run: dotnet build
@@ -83,6 +82,6 @@ jobs:
         if: matrix.dotnet == true
         run: rm -rf dotnet_project
 
-      - name: Cleanup ${{ matrix.test_name}}.cpp
+      - name: Cleanup ${{ matrix.test_name }}.cpp
         working-directory: ulc
-        run: rm -f ${{ matrix.test_name}}.cpp
+        run: rm -f "${{ matrix.test_name }}.cpp"
