@@ -91,6 +91,8 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 		return "Console.Write"
 	case "len":
 		return "SliceBuiltins.Length"
+	case "append":
+		return "SliceBuiltins.Append"
 	}
 	return selector
 }
