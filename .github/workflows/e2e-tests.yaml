@@ -10,21 +10,6 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        include:
-          - test_dir: tests/basic
-            dotnet: true
-          - test_dir: tests/slice
-            dotnet: true
-          - test_dir: tests/complex
-            dotnet: true
-          - test_dir: iceberg
-            dotnet: true
-          - test_dir: lib
-            dotnet: true
-          - test_dir: uql
-            dotnet: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,40 +23,45 @@ jobs:
         run: sudo apt-get install -y g++
 
       - name: Setup .NET SDK
-        if: matrix.dotnet == true
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '9.0.x'
 
-      - name: Run Go application
-        working-directory: ulc
-        run: go run . --source=./../${{ matrix.test_dir }}
-
-      - name: Compile C++ output
-        if: matrix.test_dir != 'iceberg' && matrix.test_dir != 'lib'
-        working-directory: ulc
-        run: g++ -std=c++17 output.cpp
-
-      - name: Setup .NET project
-        if: matrix.dotnet == true
+      - name: Run tests sequentially
         run: |
-          mkdir dotnet_project
-          cd dotnet_project
-          dotnet new console --output app
+          tests=(
+            "tests/basic basic true"
+            "tests/slice slice true"
+            "tests/complex complex true"
+            "iceberg iceberg true"
+            "lib lib true"
+            "uql uql false"
+          )
 
-      - name: Move Program.cs
-        if: matrix.dotnet == true
-        run: mv ulc/Program.cs dotnet_project/app/
+          for test_case in "${tests[@]}"; do
+            read test_dir test_name dotnet_enabled <<< "$test_case"
 
-      - name: Build .NET Program.cs
-        if: matrix.dotnet == true
-        working-directory: dotnet_project/app
-        run: dotnet build
+            echo "▶️ Running: $test_name"
 
-      - name: Cleanup .NET project
-        if: matrix.dotnet == true
-        run: rm -rf dotnet_project
+            echo "🔧 go generate"
+            (cd ulc && go generate ./...)
 
-      - name: Cleanup output.cpp
-        working-directory: ulc
-        run: rm -f output.cpp
+            echo "🚀 go run"
+            (cd ulc && go run . --source=./../$test_dir --output=$test_name)
+
+            echo "⚙️ C++ compile"
+            (cd ulc && g++ -std=c++17 $test_name.cpp)
+
+            if [[ "$dotnet_enabled" == "true" ]]; then
+              echo "🧱 .NET setup"
+              mkdir -p dotnet_project/app
+              dotnet new console --output dotnet_project/app
+              mv ulc/$test_name.cs dotnet_project/app/Program.cs
+              (cd dotnet_project/app && dotnet build)
+              rm -rf dotnet_project
+            fi
+
+            echo "🧹 Cleanup"
+            rm -f ulc/$test_name.cpp
+            echo "✅ Done with: $test_name"
+          done
