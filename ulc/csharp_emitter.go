@@ -86,9 +86,9 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	case "Println":
 		return "Console.WriteLine"
 	case "Printf":
-		return "Console.Write"
+		return "Formatter.Printf"
 	case "Print":
-		return "Console.Write"
+		return "Formatter.Printf"
 	case "len":
 		return "SliceBuiltins.Length"
 	case "append":
@@ -158,6 +158,34 @@ func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
   {
     return collection == null ? 0 : collection.Count;
   }
+}
+public class Formatter
+{
+    public static void Printf(string format, params object[] args)
+    {
+        // Replace %d → {0}, %s → {1}, etc.
+        int argIndex = 0;
+        string converted = "";
+        for (int i = 0; i < format.Length; i++)
+        {
+            if (format[i] == '%' && i + 1 < format.Length)
+            {
+                char next = format[i + 1];
+                switch (next)
+                {
+                    case 'd':
+                    case 's':
+                    case 'f':
+                        converted += "{" + argIndex++ + "}";
+                        i++; // Skip format char
+                        continue;
+                }
+            }
+            converted += format[i];
+        }
+
+        Console.Write(converted, args);
+    }
 }
 `
 	str := cppe.emitAsString(builtin, indent)
@@ -903,5 +931,15 @@ func (cppe *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, inden
 
 func (cppe *CSharpEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
 	str := cppe.emitAsString("= ", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	str := cppe.emitAsString("(", 0)
+	str += cppe.emitAsString(node.Op.String(), 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
