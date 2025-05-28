@@ -22,7 +22,8 @@ var cppTypesMap = map[string]string{
 }
 
 type CPPEmitter struct {
-	file *os.File
+	Output string
+	file   *os.File
 	Emitter
 	pkg               *packages.Package
 	insideForPostCond bool
@@ -70,7 +71,7 @@ func (cppe *CPPEmitter) GetFile() *os.File {
 }
 
 func (cppe *CPPEmitter) PreVisitProgram(indent int) {
-	outputFile := "./output.cpp"
+	outputFile := cppe.Output
 	var err error
 	cppe.file, err = os.Create(outputFile)
 	cppe.SetFile(cppe.file)

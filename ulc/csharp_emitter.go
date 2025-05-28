@@ -23,7 +23,8 @@ var csTypesMap = map[string]string{
 }
 
 type CSharpEmitter struct {
-	file *os.File
+	Output string
+	file   *os.File
 	Emitter
 	pkg               *packages.Package
 	insideForPostCond bool
@@ -117,7 +118,7 @@ func (cppe *CSharpEmitter) GetFile() *os.File {
 }
 
 func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
-	outputFile := "./Program.cs"
+	outputFile := cppe.Output
 	var err error
 	cppe.file, err = os.Create(outputFile)
 	cppe.SetFile(cppe.file)
