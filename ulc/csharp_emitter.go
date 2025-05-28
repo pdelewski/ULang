@@ -668,7 +668,6 @@ func (cppe *CSharpEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent in
 
 }
 func (cppe *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
-	//cppe.shouldGenerate = false
 	str := cppe.emitAsString("]", 0)
 	cppe.emitToFile(str)
 }
