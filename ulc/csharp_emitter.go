@@ -899,3 +899,8 @@ func (cppe *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, inden
 		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
 }
+
+func (cppe *CSharpEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
+	str := cppe.emitAsString("= ", 0)
+	cppe.emitToFile(str)
+}
