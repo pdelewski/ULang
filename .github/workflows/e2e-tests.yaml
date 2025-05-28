@@ -25,6 +25,7 @@ jobs:
             dotnet: true
           - test_dir: uql
             dotnet: false
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,6 +43,10 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '9.0.x'
+
+      - name: Run go generate
+        working-directory: ulc
+        run: go generate ./...
 
       - name: Run Go application
         working-directory: ulc
