@@ -49,10 +49,8 @@ jobs:
             echo "🚀 go run"
             (cd ulc && go run . --source=./../$test_dir --output=$test_name)
 
-            if [[ "$test_dir" != "iceberg" && "$test_dir" != "lib" ]]; then
-              echo "⚙️ C++ compile"
-              (cd ulc && g++ -std=c++17 $test_name.cpp)
-            fi
+            echo "⚙️ C++ compile"
+            (cd ulc && g++ -std=c++17 $test_name.cpp)
 
             if [[ "$dotnet_enabled" == "true" ]]; then
               echo "🧱 .NET setup"
