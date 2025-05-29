@@ -257,7 +257,7 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	name := e.Name
 	name = cppe.lowerToBuiltins(name)
 	if name == "nil" {
-		str = cppe.emitAsString("{}", indent)
+		str = cppe.emitAsString("default", indent)
 	} else {
 		if n, ok := csTypesMap[name]; ok {
 			str = cppe.emitAsString(n, indent)
