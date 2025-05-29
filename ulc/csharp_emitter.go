@@ -972,3 +972,41 @@ func (cppe *CSharpEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) 
 	str := cppe.emitAsString("\n", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CSharpEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	cppe.shouldGenerate = true
+	str := cppe.emitAsString("switch (", indent)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	str := cppe.emitAsString("}", indent)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
+	str := cppe.emitAsString(") {\n", 0)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitCaseClause(node *ast.CaseClause, indent int) {
+	cppe.emitToFile("\n")
+	str := cppe.emitAsString("break;\n", indent+4)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) {
+	if len(node) == 0 {
+		str := cppe.emitAsString("default:\n", indent+2)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CSharpEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	str := cppe.emitAsString("case ", indent+2)
+	cppe.emitToFile(str)
+}
+
+func (cppe *CSharpEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	str := cppe.emitAsString(":\n", 0)
+	cppe.emitToFile(str)
+}
