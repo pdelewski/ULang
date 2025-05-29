@@ -944,3 +944,31 @@ func (cppe *CSharpEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
 	str := cppe.emitAsString(")", 0)
 	cppe.emitToFile(str)
 }
+
+func (cppe *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
+	// TODO dummy implementation
+	// not very well performed
+	for constIdent, obj := range cppe.pkg.TypesInfo.Defs {
+		if obj == nil {
+			continue
+		}
+		if con, ok := obj.(*types.Const); ok {
+			if constIdent.Name != node.Name {
+				continue
+			}
+			constType := con.Type().String()
+			constType = strings.TrimPrefix(constType, "untyped ")
+			str := cppe.emitAsString(fmt.Sprintf("const %s %s = ", node.Name, constType), 0)
+
+			cppe.emitToFile(str)
+		}
+	}
+}
+func (cppe *CSharpEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
+	str := cppe.emitAsString(";\n", 0)
+	cppe.emitToFile(str)
+}
+func (cppe *CSharpEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
+	str := cppe.emitAsString("\n", 0)
+	cppe.emitToFile(str)
+}
