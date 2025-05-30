@@ -39,7 +39,6 @@ type CSharpEmitter struct {
 	buffer            bool
 	isArray           bool
 	arrayType         string
-	symbolType        string
 	isTuple           bool
 }
 
@@ -245,7 +244,6 @@ func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		if v, ok := obj.(*types.Var); ok {
 			usagePos := cppe.pkg.Fset.Position(e.Pos()) // <- position of the usage, not the declaration
 			fmt.Printf("Variable %s has type: %s (used at %s:%d)\n", v.Name(), v.Type().String(), usagePos.Filename, usagePos.Line)
-			cppe.symbolType = csTypesMap[v.Type().String()]
 		}
 	}
 
@@ -643,12 +641,11 @@ func (cppe *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent i
 
 func (cppe *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
 	// This generates cast expression for the left-hand side of the assignment
-	// It is generated only if the symbolType is not empty and the expression is not a tuple
 	tv := cppe.pkg.TypesInfo.Types[node]
 	//pos := cppe.pkg.Fset.Position(node.Pos())
 	//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
 	if _, ok := csTypesMap[tv.Type.String()]; ok {
-		if cppe.symbolType != "" && !cppe.isTuple && tv.Type.String() != "func()" {
+		if !cppe.isTuple && tv.Type.String() != "func()" {
 			cppe.emitToFile("(")
 			if n, ok := csTypesMap[tv.Type.String()]; ok {
 				str := cppe.emitAsString(n, indent)
