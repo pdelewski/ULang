@@ -644,16 +644,11 @@ func (cppe *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 	tv := cppe.pkg.TypesInfo.Types[node]
 	//pos := cppe.pkg.Fset.Position(node.Pos())
 	//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-	if _, ok := csTypesMap[tv.Type.String()]; ok {
+	if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
 		if !cppe.isTuple && tv.Type.String() != "func()" {
 			cppe.emitToFile("(")
-			if n, ok := csTypesMap[tv.Type.String()]; ok {
-				str := cppe.emitAsString(n, indent)
-				cppe.emitToFile(str)
-			} else {
-				str := cppe.emitAsString(n, indent)
-				cppe.emitToFile(str)
-			}
+			str := cppe.emitAsString(typeVal, indent)
+			cppe.emitToFile(str)
 			cppe.emitToFile(")")
 		}
 	}
