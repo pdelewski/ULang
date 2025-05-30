@@ -721,17 +721,32 @@ func (cppe *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int
 }
 
 func (cppe *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	cppe.stack = append(cppe.stack, "@@PreVisitBasicLit")
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
 		if e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
-			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
+			str := (cppe.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
+			cppe.stack = append(cppe.stack, str)
 		} else {
-			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
+			str := (cppe.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
+			cppe.stack = append(cppe.stack, str)
 		}
 	} else {
-		cppe.emitToFile(cppe.emitAsString(e.Value, 0))
+		str := (cppe.emitAsString(e.Value, 0))
+		cppe.stack = append(cppe.stack, str)
 	}
+	cppe.buffer = true
+}
+
+func (cppe *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
+	cppe.mergeStackElements("@@PreVisitBasicLit")
+	if len(cppe.stack) == 1 {
+		cppe.emitToFile(cppe.stack[len(cppe.stack)-1])
+		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+	}
+
+	cppe.buffer = false
 }
 
 func (cppe *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
