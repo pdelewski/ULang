@@ -83,7 +83,7 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	case "fmt":
 		return ""
 	case "Sprintf":
-		return "string.format"
+		return "Formatter.Sprintf"
 	case "Println":
 		return "Console.WriteLine"
 	case "Printf":
@@ -191,6 +191,35 @@ public class Formatter
         }
 
         Console.Write(converted, args);
+    }
+	public static string Sprintf(string format, params object[] args)
+    {
+        int argIndex = 0;
+        string converted = "";
+
+        for (int i = 0; i < format.Length; i++)
+        {
+            if (format[i] == '%' && i + 1 < format.Length)
+            {
+                char next = format[i + 1];
+                switch (next)
+                {
+                    case 'd':
+                    case 's':
+                    case 'f':
+                        converted += "{" + argIndex++ + "}";
+                        i++; // Skip format character
+                        continue;
+                    case '%':
+                        converted += "%"; // Escaped percent
+                        i++;
+                        continue;
+                }
+            }
+
+            converted += format[i];
+        }
+        return string.Format(converted, args);
     }
 }
 `
