@@ -211,13 +211,15 @@ func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index
 }
 
 func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	var str string
 	if cppe.isArray {
-		cppe.emitToFileBuffer(" = new ")
-		cppe.emitToFileBuffer(strings.TrimSpace(cppe.arrayType))
-		cppe.emitToFileBuffer("()")
+		str += " = new "
+		str += strings.TrimSpace(cppe.arrayType)
+		str += "()"
 		cppe.isArray = false
 	}
-	cppe.emitToFileBuffer(";")
+	str += ";"
+	cppe.emitToFileBuffer(str)
 }
 
 func (cppe *CSharpEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
