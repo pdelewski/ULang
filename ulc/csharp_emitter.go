@@ -248,10 +248,11 @@ func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, inde
 	if cppe.isArray {
 		str += " = new "
 		str += strings.TrimSpace(cppe.arrayType)
-		str += "()"
+		str += "();"
 		cppe.isArray = false
+	} else {
+		str += " = default;"
 	}
-	str += ";"
 	cppe.emitToFileBuffer(str)
 }
 
