@@ -164,6 +164,10 @@ func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
   {
     return collection == null ? 0 : collection.Count;
   }
+  public static int Length(string s)
+  {
+    return s == null ? 0 : s.Length;
+  }
 }
 public class Formatter
 {
