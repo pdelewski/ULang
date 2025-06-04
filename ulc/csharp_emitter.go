@@ -359,6 +359,10 @@ func (cppe *CSharpEmitter) PostVisitFuncDeclSignatures(indent int) {
 	cppe.forwardDecls = false
 }
 
+func (cppe *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	cppe.isArray = false
+}
+
 func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 	if cppe.forwardDecls {
 		return
@@ -1064,6 +1068,10 @@ func (cppe *CSharpEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) 
 
 func (cppe *CSharpEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
 	str := cppe.emitAsString("case ", indent+2)
+	tv := cppe.pkg.TypesInfo.Types[node]
+	if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
+		str += "(" + typeVal + ")"
+	}
 	cppe.emitToFileBuffer(str)
 }
 
