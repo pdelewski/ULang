@@ -33,14 +33,15 @@ func bar() int8 {
 }
 
 func bar2() (int16, int16) {
-	x := []func(int){
-		func(a int) {
+	x := []func(int, int){
+		func(a int, b int) {
 			fmt.Println(a)
+			fmt.Println(b)
 		},
 	}
 	f := x[0]
-	f(10)
-	x[0](20)
+	f(10, 20)
+	x[0](20, 30)
 	if len(x) == 0 {
 	}
 	return 10, 20
