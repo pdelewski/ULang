@@ -500,13 +500,14 @@ func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	if !cppe.shouldGenerate {
 		return
 	}
+	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
+
 	cppe.mergeStackElements("@@PreVisitFuncType")
 
 	if len(cppe.stack) == 1 {
 		cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
 		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
-	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
 	cppe.buffer = false
 }
 
