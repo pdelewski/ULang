@@ -1124,3 +1124,13 @@ func (cppe *CSharpEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int,
 	str := cppe.emitAsString(":\n", 0)
 	cppe.emitToFileBuffer(str, "")
 }
+
+func (cppe *CSharpEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int) {
+	str := cppe.emitAsString("(", indent)
+	cppe.emitToFileBuffer(str, "")
+}
+
+func (cppe *CSharpEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int) {
+	str := cppe.emitAsString(")", indent)
+	cppe.emitToFileBuffer(str, "")
+}
