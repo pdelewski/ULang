@@ -920,6 +920,7 @@ func (cppe *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
 
 func (cppe *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 	cppe.shouldGenerate = false
+	cppe.insideForPostCond = false
 }
 
 func (cppe *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
@@ -1133,4 +1134,8 @@ func (cppe *CSharpEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int)
 func (cppe *CSharpEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int) {
 	str := cppe.emitAsString(")", indent)
 	cppe.emitToFileBuffer(str, "")
+}
+
+func (cppe *CSharpEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
+	cppe.shouldGenerate = true
 }
