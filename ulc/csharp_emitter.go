@@ -1024,14 +1024,7 @@ func (cppe *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) 
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
-
-}
-
-func (cppe *CSharpEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {
-	if index > 0 {
-		str := cppe.emitAsString(", ", 0)
-		cppe.emitToFileBuffer(str, "")
-	}
+	cppe.shouldGenerate = false
 }
 
 func (cppe *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
