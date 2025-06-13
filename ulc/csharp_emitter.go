@@ -825,10 +825,10 @@ func (cppe *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
 		if e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
-			str := (cppe.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
+			str := (cppe.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
 			cppe.stack = append(cppe.stack, str)
 		} else {
-			str := (cppe.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
+			str := (cppe.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
 			cppe.stack = append(cppe.stack, str)
 		}
 	} else {
