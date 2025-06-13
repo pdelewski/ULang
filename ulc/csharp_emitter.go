@@ -1069,7 +1069,7 @@ func (cppe *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int)
 			}
 			constType := con.Type().String()
 			constType = strings.TrimPrefix(constType, "untyped ")
-			str := cppe.emitAsString(fmt.Sprintf("const %s %s = ", constType, node.Name), 0)
+			str := cppe.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), 0)
 
 			cppe.emitToFileBuffer(str, "")
 		}
