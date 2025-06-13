@@ -500,6 +500,16 @@ func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	if !cppe.shouldGenerate {
 		return
 	}
+
+	// move return type to the end of the stack
+	// return type is traversed first therefore it has to be moved
+	// to the end of the stack due to C# syntax
+	if len(cppe.stack) > 2 && cppe.numFuncResults > 0 {
+		returnType := cppe.stack[2]
+		cppe.stack = append(cppe.stack[:2], cppe.stack[3:]...)
+		cppe.stack = append(cppe.stack, ",")
+		cppe.stack = append(cppe.stack, returnType)
+	}
 	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
 
 	cppe.mergeStackElements("@@PreVisitFuncType")
@@ -512,10 +522,6 @@ func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
-	if index == 0 && cppe.numFuncResults > 0 {
-		str := cppe.emitAsString(", ", 0)
-		cppe.stack = append(cppe.stack, str)
-	}
 	if index > 0 {
 		str := cppe.emitAsString(", ", 0)
 		cppe.stack = append(cppe.stack, str)
