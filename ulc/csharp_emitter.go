@@ -1138,6 +1138,7 @@ func (cppe *CSharpEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, 
 		str += "(" + typeVal + ")"
 	}
 	cppe.emitToFileBuffer(str, "")
+	cppe.shouldGenerate = true
 }
 
 func (cppe *CSharpEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
