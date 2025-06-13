@@ -666,6 +666,19 @@ func (cppe *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) 
 	cppe.shouldGenerate = true
 	str := cppe.emitAsString("return ", indent)
 	cppe.emitToFileBuffer(str, "")
+	if len(node.Results) == 1 {
+		tv := cppe.pkg.TypesInfo.Types[node.Results[0]]
+		//pos := cppe.pkg.Fset.Position(node.Pos())
+		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
+		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
+			if !cppe.isTuple && tv.Type.String() != "func()" {
+				cppe.emitToFileBuffer("(", "")
+				str := cppe.emitAsString(typeVal, 0)
+				cppe.emitToFileBuffer(str, "")
+				cppe.emitToFileBuffer(")", "")
+			}
+		}
+	}
 	if len(node.Results) > 1 {
 		str := cppe.emitAsString("(", 0)
 		cppe.emitToFileBuffer(str, "")
