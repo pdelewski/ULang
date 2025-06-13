@@ -800,7 +800,7 @@ func (cppe *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent in
 		str := cppe.emitAsString("var ", indent)
 		cppe.emitToFileBuffer(str, "")
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
-		str := cppe.emitAsString("var [", indent)
+		str := cppe.emitAsString("var (", indent)
 		cppe.emitToFileBuffer(str, "")
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
 		str := cppe.emitAsString("(", indent)
@@ -815,7 +815,7 @@ func (cppe *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent in
 
 func (cppe *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
-		str := cppe.emitAsString("]", indent)
+		str := cppe.emitAsString(")", indent)
 		cppe.emitToFileBuffer(str, "")
 	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
 		str := cppe.emitAsString(")", indent)
