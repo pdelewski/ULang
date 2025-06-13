@@ -758,16 +758,30 @@ func (cppe *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent i
 }
 
 func (cppe *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	// This generates cast expression for the left-hand side of the assignment
-	tv := cppe.pkg.TypesInfo.Types[node]
-	//pos := cppe.pkg.Fset.Position(node.Pos())
-	//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-	if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
-		if !cppe.isTuple && tv.Type.String() != "func()" {
-			cppe.emitToFileBuffer("(", "")
-			str := cppe.emitAsString(typeVal, indent)
-			cppe.emitToFileBuffer(str, "")
-			cppe.emitToFileBuffer(")", "")
+	cppe.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
+}
+
+func (cppe *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
+	pointerAndPosition := cppe.SearchPointerReverse("@PreVisitAssignStmtRhsExpr")
+	rewritten := false
+	if pointerAndPosition != nil {
+		str, _ := cppe.ExtractSubstring(pointerAndPosition.Position)
+		for _, t := range destTypes {
+			matchStr := t + "("
+			if strings.Contains(str, matchStr) {
+				cppe.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
+				rewritten = true
+			}
+		}
+	}
+	if !rewritten {
+		tv := cppe.pkg.TypesInfo.Types[node]
+		//pos := cppe.pkg.Fset.Position(node.Pos())
+		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
+		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
+			if !cppe.isTuple && tv.Type.String() != "func()" {
+				cppe.RewriteFileBuffer(pointerAndPosition.Position, "", "("+typeVal+")")
+			}
 		}
 	}
 }
