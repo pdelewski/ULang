@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"uql/lexer"
 )
 
@@ -12,6 +11,7 @@ type Node struct {
 	Nodes    []Node
 }
 
+/*
 func ParsePipeSql(statement string) Node {
 	fmt.Println("Parsing SQL statement")
 	var Nodes []Node
@@ -40,3 +40,4 @@ func traverseTree(nodes []Node, index int) {
 		traverseTree(nodes, int(childIdx)) // Recurse for each child
 	}
 }
+*/
