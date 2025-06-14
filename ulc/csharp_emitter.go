@@ -418,12 +418,12 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cppe.emitAsString("{\n", indent+2)
+	str := cppe.emitAsString("{\n", 1)
 	cppe.emitToFileBuffer(str, "")
 }
 
 func (cppe *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cppe.emitAsString("}", indent+2)
+	str := cppe.emitAsString("}", 1)
 	cppe.emitToFileBuffer(str, "")
 	cppe.isArray = false
 }
@@ -909,7 +909,7 @@ func (v *CSharpEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
-	str := cppe.emitAsString("if (", indent)
+	str := cppe.emitAsString("if (", 1)
 	cppe.emitToFileBuffer(str, "")
 }
 
