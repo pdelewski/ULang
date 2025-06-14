@@ -278,6 +278,13 @@ func (cppe *CSharpEmitter) PostVisitProgram(indent int) {
 	cppe.file.Close()
 }
 
+func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+}
+
+func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+
+}
+
 func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
 	str := cppe.emitAsString(" ", 0)
 	cppe.emitToFileBuffer(str, "")
@@ -528,6 +535,10 @@ func (cppe *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, ind
 	}
 }
 
+func (cppe *CSharpEmitter) PostVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+
+}
+
 func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	if !cppe.shouldGenerate {
 		return
@@ -654,6 +665,10 @@ func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 func (cppe *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
 	cppe.buffer = true
 	cppe.stack = append(cppe.stack, " = ")
+}
+
+func (cppe *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
+
 }
 
 func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
@@ -991,6 +1006,9 @@ func (v *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 	v.emitToFileBuffer(str, "")
 }
 
+func (v *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
+}
+
 func (cppe *CSharpEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
 	str := cppe.emitAsString("{", 0)
 	cppe.emitToFileBuffer(str, "")
@@ -1172,4 +1190,9 @@ func (cppe *CSharpEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int
 
 func (cppe *CSharpEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
 	cppe.shouldGenerate = true
+}
+
+func (cppe *CSharpEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
+	str := cppe.emitAsString(node.Tok.String()+";", indent)
+	cppe.emitToFileBuffer(str, "")
 }
