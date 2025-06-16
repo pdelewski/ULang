@@ -35,28 +35,50 @@ public static class SliceBuiltins {
     }
 }
 public class Formatter {
-    public static void Printf(string format, params object[] args)
+public static void Printf(string format, params object[] args)
+{
+    int argIndex = 0;
+    string converted = "";
+    List<object> formattedArgs = new List<object>();
+
+    for (int i = 0; i < format.Length; i++)
     {
-        // Replace %d → {0}, %s → {1}, etc.
-        int argIndex = 0;
-        string converted = "";
-        for (int i = 0; i < format.Length; i++) {
-            if (format[i] == '%' && i + 1 < format.Length) {
-                char next = format[i + 1];
-                switch (next) {
+        if (format[i] == '%' && i + 1 < format.Length)
+        {
+            char next = format[i + 1];
+            switch (next)
+            {
                 case 'd':
                 case 's':
                 case 'f':
-                    converted += "{" + argIndex++ + "}";
-                    i++; // Skip format char
+                    converted += "{" + argIndex + "}";
+                    formattedArgs.Add(args[argIndex]);
+                    argIndex++;
+                    i++; // skip format char
                     continue;
-                }
+                case 'c':
+                    converted += "{" + argIndex + "}";
+                    object arg = args[argIndex];
+                    if (arg is sbyte sb)
+                        formattedArgs.Add((char)sb); // sbyte to char
+                    else if (arg is int iVal)
+                        formattedArgs.Add((char)iVal);
+                    else if (arg is char cVal)
+                        formattedArgs.Add(cVal);
+                    else
+                        throw new ArgumentException($"Argument {argIndex} for %c must be a char, int, or sbyte");
+                    argIndex++;
+                    i++; // skip format char
+                    continue;
             }
-            converted += format[i];
         }
 
-        Console.Write(converted, args);
+        converted += format[i];
     }
+
+    Console.Write(string.Format(converted, formattedArgs.ToArray()));
+}
+
     public static string Sprintf(string format, params object[] args)
     {
         int argIndex = 0;
@@ -69,6 +91,7 @@ public class Formatter {
                 case 'd':
                 case 's':
                 case 'f':
+                case 'c':
                     converted += "{" + argIndex++ + "}";
                     i++; // Skip format character
                     continue;
@@ -613,6 +636,7 @@ public class Api {
     {
         AST resultAst = new AST();
         var tokens = lexer.Api.GetTokens(lexer.Api.StringToToken(text));
+        lexer.Api.DumpTokens(tokens);
         for (; (SliceBuiltins.Length(tokens) > 0 );) {
             lexer.Api.Token token = default;
             (token, tokens) = lexer.Api.GetNextToken(tokens);
@@ -783,7 +807,7 @@ public class Api {
                 break;
             }
         }
-        lexer.Api.TokenizeTest();
+        //lexer.Api.TokenizeTest();
     }
 
 }
