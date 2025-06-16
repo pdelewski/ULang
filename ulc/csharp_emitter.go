@@ -422,7 +422,7 @@ func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 		cppe.emitToFileBuffer(str, "")
 	}
 	cppe.currentPackage = packageName
-	str = cppe.emitAsString(fmt.Sprintf("public class %s {\n\n", "Api"), indent+2)
+	str = cppe.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
 	err = cppe.emitToFileBuffer(str, "")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
@@ -491,7 +491,7 @@ func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
-	str := cppe.emitAsString(fmt.Sprintf("public class %s\n", node.Name), indent+2)
+	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
 	str += cppe.emitAsString("{\n", indent+2)
 	cppe.emitToFileBuffer(str, "")
 	cppe.shouldGenerate = true
