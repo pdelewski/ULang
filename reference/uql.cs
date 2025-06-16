@@ -35,76 +35,101 @@ public static class SliceBuiltins {
     }
 }
 public class Formatter {
-public static void Printf(string format, params object[] args)
-{
-    int argIndex = 0;
-    string converted = "";
-    List<object> formattedArgs = new List<object>();
-
-    for (int i = 0; i < format.Length; i++)
-    {
-        if (format[i] == '%' && i + 1 < format.Length)
-        {
-            char next = format[i + 1];
-            switch (next)
-            {
-                case 'd':
-                case 's':
-                case 'f':
-                    converted += "{" + argIndex + "}";
-                    formattedArgs.Add(args[argIndex]);
-                    argIndex++;
-                    i++; // skip format char
-                    continue;
-                case 'c':
-                    converted += "{" + argIndex + "}";
-                    object arg = args[argIndex];
-                    if (arg is sbyte sb)
-                        formattedArgs.Add((char)sb); // sbyte to char
-                    else if (arg is int iVal)
-                        formattedArgs.Add((char)iVal);
-                    else if (arg is char cVal)
-                        formattedArgs.Add(cVal);
-                    else
-                        throw new ArgumentException($"Argument {argIndex} for %c must be a char, int, or sbyte");
-                    argIndex++;
-                    i++; // skip format char
-                    continue;
-            }
-        }
-
-        converted += format[i];
-    }
-
-    Console.Write(string.Format(converted, formattedArgs.ToArray()));
-}
-
-    public static string Sprintf(string format, params object[] args)
+    public static void Printf(string format, params object[] args)
     {
         int argIndex = 0;
         string converted = "";
+        List<object> formattedArgs = new List<object>();
 
-        for (int i = 0; i < format.Length; i++) {
-            if (format[i] == '%' && i + 1 < format.Length) {
+        for (int i = 0; i < format.Length; i++)
+        {
+            if (format[i] == '%' && i + 1 < format.Length)
+            {
                 char next = format[i + 1];
-                switch (next) {
-                case 'd':
-                case 's':
-                case 'f':
-                case 'c':
-                    converted += "{" + argIndex++ + "}";
-                    i++; // Skip format character
-                    continue;
-                case '%':
-                    converted += "%"; // Escaped percent
-                    i++;
-                    continue;
+                switch (next)
+                {
+                    case 'd':
+                    case 's':
+                    case 'f':
+                        converted += "{" + argIndex + "}";
+                        formattedArgs.Add(args[argIndex]);
+                        argIndex++;
+                        i++; // skip format char
+                        continue;
+                    case 'c':
+                        converted += "{" + argIndex + "}";
+                        object arg = args[argIndex];
+                        if (arg is sbyte sb)
+                            formattedArgs.Add((char)sb); // sbyte to char
+                        else if (arg is int iVal)
+                            formattedArgs.Add((char)iVal);
+                        else if (arg is char cVal)
+                            formattedArgs.Add(cVal);
+                        else
+                            throw new ArgumentException($"Argument {argIndex} for %c must be a char, int, or sbyte");
+                        argIndex++;
+                        i++; // skip format char
+                        continue;
                 }
             }
 
             converted += format[i];
         }
-        return string.Format(converted, args);
+
+        converted = converted
+            .Replace(@"\n", "\n")
+            .Replace(@"\t", "\t")
+            .Replace(@"\\", "\\");
+
+        Console.Write(string.Format(converted, formattedArgs.ToArray()));
+    }
+
+    public static string Sprintf(string format, params object[] args)
+     {
+        int argIndex = 0;
+        string converted = "";
+        List<object> formattedArgs = new List<object>();
+
+        for (int i = 0; i < format.Length; i++)
+        {
+            if (format[i] == '%' && i + 1 < format.Length)
+            {
+                char next = format[i + 1];
+                switch (next)
+                {
+                    case 'd':
+                    case 's':
+                    case 'f':
+                        converted += "{" + argIndex + "}";
+                        formattedArgs.Add(args[argIndex]);
+                        argIndex++;
+                        i++; // skip format char
+                        continue;
+                    case 'c':
+                        converted += "{" + argIndex + "}";
+                        object arg = args[argIndex];
+                        if (arg is sbyte sb)
+                            formattedArgs.Add((char)sb); // sbyte to char
+                        else if (arg is int iVal)
+                            formattedArgs.Add((char)iVal);
+                        else if (arg is char cVal)
+                            formattedArgs.Add(cVal);
+                        else
+                            throw new ArgumentException($"Argument {argIndex} for %c must be a char, int, or sbyte");
+                        argIndex++;
+                        i++; // skip format char
+                        continue;
+                }
+            }
+
+            converted += format[i];
+        }
+        converted = converted
+            .Replace(@"\n", "\n")
+            .Replace(@"\t", "\t")
+            .Replace(@"\\", "\\");
+
+        return string.Format(converted, formattedArgs.ToArray());
     }
 }
 namespace lexer {
@@ -265,7 +290,7 @@ public class Api {
                     };
                 }
                 tokens = SliceBuiltins.Append(tokens, new Token {Type= TokenTypeSemicolon, Representation= new List<sbyte>{b}});
-
+                continue;
             }
             if ( ( ( (b == ' ' ) ||  (b == '\t' ) ) ||  (b == '\n' ) )) {
                 if ( (SliceBuiltins.Length(currentToken.Representation) > 0 )) {
@@ -574,7 +599,7 @@ public class Api {
             var token = tokens[i];
             var tokenPrecedence = (sbyte)precedence(token.Representation);
             if ( ( (tokenPrecedence == (-1) ) ||  (tokenPrecedence < minPrecedence ) )) {
-
+                break;
             }
             var nextPrecedence = (sbyte)tokenPrecedence;
             if ( (associativity(token.Representation) == 'L' )) {
@@ -620,9 +645,13 @@ public class Api {
 
     public static (ast.Api.Select,List<lexer.Api.Token>) parseSelect(List<lexer.Api.Token> tokens, lexer.Api.Token lhs)
     {
-        var project = new ast.Api.Select {ResultTableExpr= lhs};
+        var project = new ast.Api.Select {ResultTableExpr= lhs,
+            Fields = new List<lexer.Api.Token>()
+        };
         for (;;) {
-            lexer.Api.Token token = default;
+            lexer.Api.Token token = new lexer.Api.Token{
+                Representation = new List<sbyte>()
+            };
             (token, tokens) = lexer.Api.GetNextToken(tokens);
             project.Fields = SliceBuiltins.Append(project.Fields, token);
             if (lexer.Api.IsSemicolon(token.Representation[0])) {
@@ -659,13 +688,14 @@ public class Api {
                 continue;
             }
             if (lexer.Api.IsWhere(token)) {
-                ast.Api.Where where = default;
+                ast.Api.Where where = new ast.Api.Where();
                 (where, tokens) = parseWhere(tokens, lhs);
                 resultAst = SliceBuiltins.Append(resultAst, new ast.Api.Statement {Type= ast.Api.StatementTypeWhere, WhereF= where});
                 continue;
             }
             if (lexer.Api.IsSelect(token)) {
-                ast.Api.Select project = default;
+                ast.Api.Select project = new ast.Api.Select();
+
                 (project, tokens) = parseSelect(tokens, lhs);
                 resultAst = SliceBuiltins.Append(resultAst, new ast.Api.Statement {Type= ast.Api.StatementTypeSelect, SelectF= project});
                 (token, tokens) = lexer.Api.GetNextToken(tokens);
