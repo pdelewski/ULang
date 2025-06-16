@@ -209,13 +209,13 @@ func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
     return s == null ? 0 : s.Length;
   }
 }
-public class Formatter
-{
+public class Formatter {
     public static void Printf(string format, params object[] args)
     {
-        // Replace %d → {0}, %s → {1}, etc.
         int argIndex = 0;
         string converted = "";
+        List<object> formattedArgs = new List<object>();
+
         for (int i = 0; i < format.Length; i++)
         {
             if (format[i] == '%' && i + 1 < format.Length)
@@ -226,20 +226,44 @@ public class Formatter
                     case 'd':
                     case 's':
                     case 'f':
-                        converted += "{" + argIndex++ + "}";
-                        i++; // Skip format char
+                        converted += "{" + argIndex + "}";
+                        formattedArgs.Add(args[argIndex]);
+                        argIndex++;
+                        i++; // skip format char
+                        continue;
+                    case 'c':
+                        converted += "{" + argIndex + "}";
+                        object arg = args[argIndex];
+                        if (arg is sbyte sb)
+                            formattedArgs.Add((char)sb); // sbyte to char
+                        else if (arg is int iVal)
+                            formattedArgs.Add((char)iVal);
+                        else if (arg is char cVal)
+                            formattedArgs.Add(cVal);
+                        else
+                            throw new ArgumentException($"Argument {argIndex} for %c must be a char, int, or sbyte");
+                        argIndex++;
+                        i++; // skip format char
                         continue;
                 }
             }
+
             converted += format[i];
         }
 
-        Console.Write(converted, args);
+        converted = converted
+            .Replace(@"\n", "\n")
+            .Replace(@"\t", "\t")
+            .Replace(@"\\", "\\");
+
+        Console.Write(string.Format(converted, formattedArgs.ToArray()));
     }
-	public static string Sprintf(string format, params object[] args)
-    {
+
+    public static string Sprintf(string format, params object[] args)
+     {
         int argIndex = 0;
         string converted = "";
+        List<object> formattedArgs = new List<object>();
 
         for (int i = 0; i < format.Length; i++)
         {
@@ -251,21 +275,39 @@ public class Formatter
                     case 'd':
                     case 's':
                     case 'f':
-                        converted += "{" + argIndex++ + "}";
-                        i++; // Skip format character
+                        converted += "{" + argIndex + "}";
+                        formattedArgs.Add(args[argIndex]);
+                        argIndex++;
+                        i++; // skip format char
                         continue;
-                    case '%':
-                        converted += "%"; // Escaped percent
-                        i++;
+                    case 'c':
+                        converted += "{" + argIndex + "}";
+                        object arg = args[argIndex];
+                        if (arg is sbyte sb)
+                            formattedArgs.Add((char)sb); // sbyte to char
+                        else if (arg is int iVal)
+                            formattedArgs.Add((char)iVal);
+                        else if (arg is char cVal)
+                            formattedArgs.Add(cVal);
+                        else
+                            throw new ArgumentException($"Argument {argIndex} for %c must be a char, int, or sbyte");
+                        argIndex++;
+                        i++; // skip format char
                         continue;
                 }
             }
 
             converted += format[i];
         }
-        return string.Format(converted, args);
+        converted = converted
+            .Replace(@"\n", "\n")
+            .Replace(@"\t", "\t")
+            .Replace(@"\\", "\\");
+
+        return string.Format(converted, formattedArgs.ToArray());
     }
 }
+
 `
 	str := cppe.emitAsString(builtin, indent)
 	cppe.emitToFileBuffer(str, "")
