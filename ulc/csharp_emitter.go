@@ -180,21 +180,21 @@ func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
 {
   public static List<T> Append<T>(this List<T> list, T element)
   {
-    var result = new List<T>(list);
+    var result = list != null ? new List<T>(list) : new List<T>();
     result.Add(element);
     return result;
   }
 
   public static List<T> Append<T>(this List<T> list, params T[] elements)
   {
-    var result = new List<T>(list);
+    var result = list != null ? new List<T>(list) : new List<T>();
     result.AddRange(elements);
     return result;
   }
 
   public static List<T> Append<T>(this List<T> list, List<T> elements)
   {
-    var result = new List<T>(list);
+    var result = list != null ? new List<T>(list) : new List<T>();
     result.AddRange(elements);
     return result;
   }

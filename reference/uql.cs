@@ -5,21 +5,21 @@ using System.Collections.Generic;
 public static class SliceBuiltins {
     public static List<T> Append<T>(this List<T> list, T element)
     {
-        var result = new List<T>(list);
+        var result = list != null ? new List<T>(list) : new List<T>();
         result.Add(element);
         return result;
     }
 
     public static List<T> Append<T>(this List<T> list, params T[] elements)
     {
-        var result = new List<T>(list);
+        var result = list != null ? new List<T>(list) : new List<T>();
         result.AddRange(elements);
         return result;
     }
 
     public static List<T> Append<T>(this List<T> list, List<T> elements)
     {
-        var result = new List<T>(list);
+        var result = list != null ? new List<T>(list) : new List<T>();
         result.AddRange(elements);
         return result;
     }
@@ -274,12 +274,11 @@ public struct Api {
     {
         List<Token> tokens = new List<Token>();
         Token currentToken = default;
-        currentToken.Representation = new List<sbyte>();
         foreach (var b in token.Representation) {
             if ( (b == ';' )) {
                 if ( (SliceBuiltins.Length(currentToken.Representation) > 0 )) {
                     tokens = SliceBuiltins.Append(tokens, currentToken);
-                    currentToken.Representation = new List<sbyte>();
+                    currentToken.Representation = default;
                 }
                 tokens = SliceBuiltins.Append(tokens, new Token {Type= TokenTypeSemicolon, Representation= new List<sbyte>{b}});
                 continue;
@@ -287,7 +286,7 @@ public struct Api {
             if ( ( ( (b == ' ' ) ||  (b == '\t' ) ) ||  (b == '\n' ) )) {
                 if ( (SliceBuiltins.Length(currentToken.Representation) > 0 )) {
                     tokens = SliceBuiltins.Append(tokens, currentToken);
-                    currentToken.Representation = new List<sbyte>();
+                    currentToken.Representation = default;
                 }
             } else {
                 currentToken.Type = (sbyte)TokenTypeIdentifier;
@@ -311,7 +310,6 @@ public struct Api {
     public static Token StringToToken(string s)
     {
         Token token = default;
-        token.Representation = new List<sbyte>();
         foreach (var r in s) {
             token.Representation = SliceBuiltins.Append(token.Representation, (sbyte)(r));
         }
@@ -367,7 +365,7 @@ public struct Api {
             {
                 if ( (SliceBuiltins.Length(currentToken) > 0 )) {
                     tokens = SliceBuiltins.Append(tokens, new Token {Type= currentType, Representation= currentToken});
-                    currentToken = new List<sbyte>();
+                    currentToken = default;
                 }
             }
         };
@@ -466,8 +464,6 @@ public struct Api {
     public const int StatementTypeFrom = 1;
     public const int StatementTypeWhere = 2;
     public const int StatementTypeSelect = 3;
-
-    //using AST = List<Statement>;
 
     public static object WalkFrom(From expr, object state, Visitor visitor)
     {
@@ -603,9 +599,7 @@ public struct Api {
 
     public static (ast.Api.From,List<lexer.Api.Token>) parseFrom(List<lexer.Api.Token> tokens, lexer.Api.Token lhs)
     {
-        var from = new ast.Api.From {ResultTableExpr= lhs,
-            TableExpr= new List<lexer.Api.Token> {}
-        };
+        var from = new ast.Api.From {ResultTableExpr= lhs};
         for (;;) {
             lexer.Api.Token token = default;
             (token, tokens) = lexer.Api.GetNextToken(tokens);
@@ -633,9 +627,7 @@ public struct Api {
 
     public static (ast.Api.Select,List<lexer.Api.Token>) parseSelect(List<lexer.Api.Token> tokens, lexer.Api.Token lhs)
     {
-        var project = new ast.Api.Select {ResultTableExpr= lhs,
-            Fields = new List<lexer.Api.Token> {}
-        };
+        var project = new ast.Api.Select {ResultTableExpr= lhs};
         for (;;) {
             lexer.Api.Token token = default;
             (token, tokens) = lexer.Api.GetNextToken(tokens);
@@ -649,9 +641,8 @@ public struct Api {
 
     public static (AST,sbyte) Parse(string text)
     {
-        AST resultAst = new AST{};
+        AST resultAst = default;
         var tokens = lexer.Api.GetTokens(lexer.Api.StringToToken(text));
-        lexer.Api.DumpTokens(tokens);
         for (; (SliceBuiltins.Length(tokens) > 0 );) {
             lexer.Api.Token token = default;
             (token, tokens) = lexer.Api.GetNextToken(tokens);
