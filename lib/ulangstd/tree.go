@@ -44,10 +44,22 @@ func Insert(t BinaryTree, value int) BinaryTree {
 
 		if insertIndex%2 == 1 {
 			// Left child
-			t.nodes[parentIndex].left = insertIndex
+			// TODO original code  code was about mutating this in-place
+			// this is problematic now from c# perspective
+			// as it causes Cannot modify the return value of 'List<Api.ListNode>.this[int]' because it is not a variable
+			// to fix that we have to discover this case and transform code as below
+			tmp := t.nodes[parentIndex]
+			tmp.left = insertIndex
+			t.nodes[parentIndex] = tmp
 		} else {
 			// Right child
-			t.nodes[parentIndex].right = insertIndex
+			// TODO original code  code was about mutating this in-place
+			// this is problematic now from c# perspective
+			// as it causes Cannot modify the return value of 'List<Api.ListNode>.this[int]' because it is not a variable
+			// to fix that we have to discover this case and transform code as below
+			tmp := t.nodes[parentIndex]
+			tmp.right = insertIndex // Update the parent's right child index
+			t.nodes[parentIndex] = tmp
 		}
 	}
 

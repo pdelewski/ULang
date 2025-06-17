@@ -41,7 +41,13 @@ func Add(l List, value int) List {
 		for l.nodes[lastNodeIndex].next != -1 {
 			lastNodeIndex = l.nodes[lastNodeIndex].next
 		}
-		l.nodes[lastNodeIndex].next = len(l.nodes) - 1
+		// TODO original code was about mutating this in-place l.nodes[lastNodeIndex].next = len(l.nodes) - 1
+		// this is problematic now from c# perspective
+		// as it causes Cannot modify the return value of 'List<Api.ListNode>.this[int]' because it is not a variable
+		// to fix that we have to discover this case and transform code as below
+		tmp := l.nodes[lastNodeIndex]
+		tmp.next = len(l.nodes) - 1 // Set the next of the last node to the new node's index
+		l.nodes[lastNodeIndex] = tmp
 	}
 
 	return l // Return the updated list
@@ -67,7 +73,13 @@ func Remove(l List, value int) List {
 			if prevIndex == -1 {
 				l.head = l.nodes[currIndex].next
 			} else {
-				l.nodes[prevIndex].next = l.nodes[currIndex].next
+				// TODO original code  code was about mutating this in-place l.nodes[currIndex].next = l.nodes[prevIndex]
+				// this is problematic now from c# perspective
+				// as it causes Cannot modify the return value of 'List<Api.ListNode>.this[int]' because it is not a variable
+				// to fix that we have to discover this case and transform code as below
+				tmp := l.nodes[prevIndex]
+				tmp.next = l.nodes[currIndex].next
+				l.nodes[prevIndex] = tmp // Update the previous node's next pointer
 			}
 			return l
 		}
