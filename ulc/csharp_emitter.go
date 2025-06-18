@@ -39,8 +39,7 @@ type CSharpEmitter struct {
 	forwardDecls          bool
 	shouldGenerate        bool
 	numFuncResults        int
-	aliases               []string
-	isAlias               bool
+	aliases               map[string]string
 	currentPackage        string
 	stack                 []string
 	buffer                bool
@@ -417,10 +416,6 @@ func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	str := cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
 	err := cppe.emitToFileBuffer(str, "")
 
-	for _, alias := range cppe.aliases {
-		str := cppe.emitAsString(alias, indent+2)
-		cppe.emitToFileBuffer(str, "")
-	}
 	cppe.currentPackage = packageName
 	str = cppe.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
 	err = cppe.emitToFileBuffer(str, "")
@@ -508,9 +503,11 @@ func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 		return
 	}
 	cppe.stack = append(cppe.stack, "@@PreVisitArrayType")
-	str := cppe.emitAsString("List<", indent)
-
+	str := cppe.emitAsString("List", indent)
 	cppe.stack = append(cppe.stack, str)
+	str = cppe.emitAsString("<", indent)
+	cppe.stack = append(cppe.stack, str)
+
 	cppe.buffer = true
 }
 func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
