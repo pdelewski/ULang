@@ -415,7 +415,7 @@ func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	}
 	str := cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
 	err := cppe.emitToFileBuffer(str, "")
-
+	err = cppe.emitToFileBuffer("", pkg.Name)
 	cppe.currentPackage = packageName
 	str = cppe.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
 	err = cppe.emitToFileBuffer(str, "")
@@ -426,6 +426,12 @@ func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 }
 
 func (cppe *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
+	pointerAndPosition := cppe.SearchPointerReverse(pkg.Name)
+	if pointerAndPosition != nil && pkg.Name == "parser" {
+		newStr := "using AST = List<" + "ast" + "." + "Api" + "." + "Statement" + ">;\n\n"
+		cppe.RewriteFileBuffer(pointerAndPosition.Position, "", newStr)
+	}
+
 	str := cppe.emitAsString("}\n", indent+2)
 	cppe.emitToFileBuffer(str, "")
 	err := cppe.emitToFileBuffer("}\n", "")
@@ -710,12 +716,33 @@ func (cppe *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
 
 }
 
+func ParseNestedTypes(s string) []string {
+	var result []string
+	s = strings.TrimSpace(s)
+
+	for strings.HasPrefix(s, "List<") {
+		result = append(result, "List")
+		s = strings.TrimPrefix(s, "List<")
+		s = strings.TrimSuffix(s, ">")
+	}
+
+	// Add the final inner type (e.g., "int", "string", "MyType")
+	s = strings.TrimSpace(s)
+	if s != "" {
+		result = append(result, s)
+	}
+
+	return result
+}
+
 func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	str := cppe.emitAsString(";\n\n", 0)
 	cppe.stack = append(cppe.stack, str)
+
 	cppe.mergeStackElements("@@PreVisitTypeAliasName")
 	if len(cppe.stack) == 1 {
-		cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
+		// TODO emit to aliases
+		//cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
 		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
 	cppe.shouldGenerate = false
