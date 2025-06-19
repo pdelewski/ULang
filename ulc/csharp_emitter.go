@@ -29,6 +29,16 @@ type PointerAndPosition struct {
 	Position int
 }
 
+type AliasRepr struct {
+	PackageName string // Package name of the alias
+	TypeName    string
+}
+
+type Alias struct {
+	PackageName    string
+	representation []AliasRepr // Representation of the alias
+}
+
 type CSharpEmitter struct {
 	Output string
 	file   *os.File
@@ -39,8 +49,7 @@ type CSharpEmitter struct {
 	forwardDecls          bool
 	shouldGenerate        bool
 	numFuncResults        int
-	aliases               []string
-	isAlias               bool
+	aliases               map[string]Alias
 	currentPackage        string
 	stack                 []string
 	buffer                bool
@@ -163,6 +172,7 @@ func (cppe *CSharpEmitter) GetFile() *os.File {
 
 func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
 	cppe.PointerAndPositionVec = make([]PointerAndPosition, 0)
+	cppe.aliases = make(map[string]Alias)
 	outputFile := cppe.Output
 	var err error
 	cppe.file, err = os.Create(outputFile)
@@ -416,11 +426,7 @@ func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	}
 	str := cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
 	err := cppe.emitToFileBuffer(str, "")
-
-	for _, alias := range cppe.aliases {
-		str := cppe.emitAsString(alias, indent+2)
-		cppe.emitToFileBuffer(str, "")
-	}
+	err = cppe.emitToFileBuffer("", pkg.Name)
 	cppe.currentPackage = packageName
 	str = cppe.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
 	err = cppe.emitToFileBuffer(str, "")
@@ -430,7 +436,46 @@ func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	}
 }
 
+func JoinAliasTypeNames(reprs []AliasRepr, sep string) string {
+	var names []string
+	for _, r := range reprs {
+		names = append(names, r.TypeName)
+	}
+	return strings.Join(names, sep)
+}
+
+func RebuildNestedType(reprs []AliasRepr) string {
+	if len(reprs) == 0 {
+		return ""
+	}
+
+	// Start from the innermost type
+	result := formatAlias(reprs[len(reprs)-1])
+	for i := len(reprs) - 2; i >= 0; i-- {
+		result = fmt.Sprintf("%s<%s>", formatAlias(reprs[i]), result)
+	}
+	return result
+}
+
+func formatAlias(r AliasRepr) string {
+	if r.PackageName != "" {
+		return r.PackageName + "." + r.TypeName
+	}
+	return r.TypeName
+}
+
 func (cppe *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
+	pointerAndPosition := cppe.SearchPointerReverse(pkg.Name)
+	if pointerAndPosition != nil && pkg.Name == "parser" {
+		var newStr string
+		for aliasKey, aliasVal := range cppe.aliases {
+			aliasRepr := RebuildNestedType(aliasVal.representation)
+			newStr += "using " + aliasKey + " = " + aliasRepr + ";\n"
+		}
+		newStr += "\n"
+		cppe.RewriteFileBuffer(pointerAndPosition.Position, "", newStr)
+	}
+
 	str := cppe.emitAsString("}\n", indent+2)
 	cppe.emitToFileBuffer(str, "")
 	err := cppe.emitToFileBuffer("}\n", "")
@@ -508,9 +553,11 @@ func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 		return
 	}
 	cppe.stack = append(cppe.stack, "@@PreVisitArrayType")
-	str := cppe.emitAsString("List<", indent)
-
+	str := cppe.emitAsString("List", indent)
 	cppe.stack = append(cppe.stack, str)
+	str = cppe.emitAsString("<", indent)
+	cppe.stack = append(cppe.stack, str)
+
 	cppe.buffer = true
 }
 func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
@@ -713,12 +760,48 @@ func (cppe *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
 
 }
 
+func ParseNestedTypes(s string) []string {
+	var result []string
+	s = strings.TrimSpace(s)
+
+	for strings.HasPrefix(s, "List<") {
+		result = append(result, "List")
+		s = strings.TrimPrefix(s, "List<")
+		s = strings.TrimSuffix(s, ">")
+	}
+
+	// Add the final inner type (e.g., "int", "string", "MyType")
+	s = strings.TrimSpace(s)
+	if s != "" {
+		result = append(result, s)
+	}
+
+	return result
+}
+
+func ConvertToAliasRepr(types []string, pkgName []string) []AliasRepr {
+	var result []AliasRepr
+	for i, t := range types {
+		result = append(result, AliasRepr{
+			PackageName: pkgName[i], // or derive if format is pkg.Type
+			TypeName:    t,
+		})
+	}
+	return result
+}
+
 func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	str := cppe.emitAsString(";\n\n", 0)
 	cppe.stack = append(cppe.stack, str)
+
+	cppe.aliases[cppe.stack[2]] = Alias{
+		PackageName:    cppe.pkg.Name + ".Api",
+		representation: ConvertToAliasRepr(ParseNestedTypes(cppe.stack[4]), []string{"", cppe.pkg.Name + ".Api"}),
+	}
 	cppe.mergeStackElements("@@PreVisitTypeAliasName")
 	if len(cppe.stack) == 1 {
-		cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
+		// TODO emit to aliases
+		//cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
 		cppe.stack = cppe.stack[:len(cppe.stack)-1]
 	}
 	cppe.shouldGenerate = false
