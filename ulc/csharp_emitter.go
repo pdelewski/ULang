@@ -37,6 +37,7 @@ type AliasRepr struct {
 type Alias struct {
 	PackageName    string
 	representation []AliasRepr // Representation of the alias
+	UnderlyingType string      // Underlying type of the alias as string for now  It's type to what the alias points to
 }
 
 type CSharpEmitter struct {
@@ -74,6 +75,14 @@ func (e *CSharpEmitter) ExtractSubstring(position int) (string, error) {
 		return "", fmt.Errorf("position %d is out of bounds", position)
 	}
 	return e.fileBuffer[position:], nil
+}
+
+func (e *CSharpEmitter) RewriteFileBufferBetween(begin int, end int, content string) error {
+	if begin < 0 || end > len(e.fileBuffer) || begin > end {
+		return fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	e.fileBuffer = e.fileBuffer[:begin] + content + e.fileBuffer[end:]
+	return nil
 }
 
 func (e *CSharpEmitter) RewriteFileBuffer(position int, oldContent, newContent string) error {
@@ -793,10 +802,10 @@ func ConvertToAliasRepr(types []string, pkgName []string) []AliasRepr {
 func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	str := cppe.emitAsString(";\n\n", 0)
 	cppe.stack = append(cppe.stack, str)
-
 	cppe.aliases[cppe.stack[2]] = Alias{
 		PackageName:    cppe.pkg.Name + ".Api",
 		representation: ConvertToAliasRepr(ParseNestedTypes(cppe.stack[4]), []string{"", cppe.pkg.Name + ".Api"}),
+		UnderlyingType: cppe.pkg.TypesInfo.Types[node].Type.String(),
 	}
 	cppe.mergeStackElements("@@PreVisitTypeAliasName")
 	if len(cppe.stack) == 1 {
@@ -812,6 +821,7 @@ func (cppe *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) 
 	cppe.shouldGenerate = true
 	str := cppe.emitAsString("return ", indent)
 	cppe.emitToFileBuffer(str, "")
+
 	if len(node.Results) == 1 {
 		tv := cppe.pkg.TypesInfo.Types[node.Results[0]]
 		//pos := cppe.pkg.Fset.Position(node.Pos())
@@ -1129,9 +1139,20 @@ func (cppe *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int)
 func (v *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 	str := v.emitAsString("new ", 0)
 	v.emitToFileBuffer(str, "")
+	v.emitToFileBuffer("", "@PreVisitCompositeLitType")
 }
 
 func (v *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
+	pointerAndPosition := v.SearchPointerReverse("@PreVisitCompositeLitType")
+	if pointerAndPosition != nil {
+		// TODO not very effective
+		// go through all aliases and check if the underlying type matches
+		for aliasName, alias := range v.aliases {
+			if alias.UnderlyingType == v.pkg.TypesInfo.Types[node].Type.Underlying().String() {
+				v.RewriteFileBufferBetween(pointerAndPosition.Position, len(v.fileBuffer), aliasName)
+			}
+		}
+	}
 }
 
 func (cppe *CSharpEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
@@ -1150,6 +1171,7 @@ func (cppe *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, ind
 		cppe.emitToFileBuffer(str, "")
 	}
 }
+
 func (cppe *CSharpEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
 	str := cppe.emitAsString("[", 0)
 	cppe.emitToFileBuffer(str, "")
