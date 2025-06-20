@@ -33,8 +33,8 @@ jobs:
             "tests/basic basic true"
             "tests/slice slice true"
             "tests/complex complex true"
-            "iceberg iceberg true"
-            "lib lib true"
+            "libs/iceberg iceberg true"
+            "libs/contlib contlib true"
             "uql uql false"
           )
 
