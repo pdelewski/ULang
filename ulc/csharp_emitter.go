@@ -77,6 +77,13 @@ func (e *CSharpEmitter) ExtractSubstring(position int) (string, error) {
 	return e.fileBuffer[position:], nil
 }
 
+func (e *CSharpEmitter) ExtractSubstringBetween(begin int, end int) (string, error) {
+	if begin < 0 || end > len(e.fileBuffer) || begin > end {
+		return "", fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	return e.fileBuffer[begin:end], nil
+}
+
 func (e *CSharpEmitter) RewriteFileBufferBetween(begin int, end int, content string) error {
 	if begin < 0 || end > len(e.fileBuffer) || begin > end {
 		return fmt.Errorf("invalid range: begin %d, end %d", begin, end)
@@ -340,10 +347,18 @@ func (cppe *CSharpEmitter) PostVisitProgram(indent int) {
 }
 
 func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	cppe.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
 }
 
 func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
-
+	pointerAndPosition := cppe.SearchPointerReverse("@PreVisitDeclStmtValueSpecType")
+	if pointerAndPosition != nil {
+		for aliasName, alias := range cppe.aliases {
+			if alias.UnderlyingType == cppe.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
+				cppe.RewriteFileBufferBetween(pointerAndPosition.Position, len(cppe.fileBuffer), aliasName)
+			}
+		}
+	}
 }
 
 func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
@@ -475,6 +490,7 @@ func formatAlias(r AliasRepr) string {
 
 func (cppe *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	pointerAndPosition := cppe.SearchPointerReverse(pkg.Name)
+	// TODO hardcoded package name
 	if pointerAndPosition != nil && pkg.Name == "parser" {
 		var newStr string
 		for aliasKey, aliasVal := range cppe.aliases {
