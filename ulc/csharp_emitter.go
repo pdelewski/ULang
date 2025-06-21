@@ -490,8 +490,7 @@ func formatAlias(r AliasRepr) string {
 
 func (cppe *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	pointerAndPosition := cppe.SearchPointerReverse(pkg.Name)
-	// TODO hardcoded package name
-	if pointerAndPosition != nil && pkg.Name == "parser" {
+	if pointerAndPosition != nil {
 		var newStr string
 		for aliasKey, aliasVal := range cppe.aliases {
 			aliasRepr := RebuildNestedType(aliasVal.representation)
