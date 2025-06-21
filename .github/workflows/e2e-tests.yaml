@@ -35,7 +35,7 @@ jobs:
             "tests/complex complex true"
             "libs/iceberg iceberg true"
             "libs/contlib contlib true"
-            "libs/uql uql false"
+            "libs/uql uql true"
           )
 
           for test_case in "${tests[@]}"; do
