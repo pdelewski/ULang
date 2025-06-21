@@ -730,6 +730,21 @@ func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Fi
 		str := cppe.emitAsString(",", 0)
 		cppe.emitToFileBuffer(str, "")
 	}
+	cppe.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResultsList")
+}
+
+func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+	if cppe.forwardDecls {
+		return
+	}
+	pointerAndPosition := cppe.SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList")
+	if pointerAndPosition != nil {
+		for aliasName, alias := range cppe.aliases {
+			if alias.UnderlyingType == cppe.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
+				cppe.RewriteFileBufferBetween(pointerAndPosition.Position, len(cppe.fileBuffer), aliasName)
+			}
+		}
+	}
 }
 
 func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
