@@ -36,6 +36,7 @@ jobs:
             "libs/iceberg iceberg true"
             "libs/contlib contlib true"
             "libs/uql uql true"
+            "libs/substrait substrait true"
           )
 
           for test_case in "${tests[@]}"; do
