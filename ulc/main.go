@@ -53,21 +53,18 @@ func main() {
 		return
 	}
 
-	sema := &Sema{
-		structs: make(map[string]StructInfo),
-	}
+	sema := &BasePass{PassName: "Sema", emitter: &SemaChecker{Emitter: &BaseEmitter{}}}
+	cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{Emitter: &BaseEmitter{}, Output: output + ".cpp"}}
+	csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{Emitter: &BaseEmitter{}, Output: output + ".cs"}}
 
 	passManager := &PassManager{
 		pkgs: pkgs,
 		passes: []Pass{
 			sema,
+			cppBackend,
+			csBackend,
 		},
 	}
-
-	cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{Emitter: &BaseEmitter{}, Output: output + ".cpp"}}
-	csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{Emitter: &BaseEmitter{}, Output: output + ".cs"}}
-	passManager.passes = append(passManager.passes, cppBackend)
-	passManager.passes = append(passManager.passes, csBackend)
 
 	passManager.RunPasses()
 
