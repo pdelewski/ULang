@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 	"golang.org/x/tools/go/packages"
+	"os"
 )
 
 type SemaChecker struct {
@@ -18,7 +20,8 @@ func (sema *SemaChecker) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
 	if sema.constCtx {
 		if node.String() == "iota" {
-			panic("\033[31m\033[1miota is not allowed for now\033[0m")
+			fmt.Println("\033[31m\033[1mCompilation error : iota is not allowed for now\033[0m")
+			os.Exit(-1)
 		}
 	}
 }
@@ -30,7 +33,8 @@ func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) 
 func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	if node.Key != nil {
 		if node.Key.(*ast.Ident).Name != "_" {
-			panic("\033[31m\033[1mfor key, value := range is not allowed for now\033[0m")
+			fmt.Println("\033[31m\033[1mCompilation error : for key, value := range is not allowed for now\033[0m")
+			os.Exit(-1)
 		}
 	}
 	node.Key = nil
