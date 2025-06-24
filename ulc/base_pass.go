@@ -595,7 +595,9 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 				valueSpec := spec.(*ast.ValueSpec)
 				for i, name := range valueSpec.Names {
 					v.emitter.PreVisitGenDeclConstName(name, 0)
-					v.traverseExpression(valueSpec.Values[i], 0)
+					if i < len(valueSpec.Values) {
+						v.traverseExpression(valueSpec.Values[i], 0)
+					}
 					v.emitter.PostVisitGenDeclConstName(name, 0)
 				}
 			}
