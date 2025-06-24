@@ -11,6 +11,7 @@ const (
 )
 
 type ExprKind int
+type RelNodeKind int
 
 type ExprNode struct {
 	Kind     ExprKind
@@ -20,13 +21,13 @@ type ExprNode struct {
 }
 
 const (
-	RelOpScan    int = 0
-	RelOpFilter  int = 1
-	RelOpProject int = 2
+	RelOpScan    RelNodeKind = 0
+	RelOpFilter  RelNodeKind = 1
+	RelOpProject RelNodeKind = 2
 )
 
 type RelNode struct {
-	Kind     int
+	Kind     RelNodeKind
 	InputIdx int
 	ExprIdxs []int
 	NameIdx  int
