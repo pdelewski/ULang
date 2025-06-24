@@ -28,11 +28,13 @@ var primTypes = map[string]struct{}{
 
 var namespaces = map[string]struct{}{}
 
-type GenStructInfo struct {
+type GenTypeInfo struct {
 	Name       string
 	Struct     *ast.StructType
+	Other      ast.Node
 	IsExternal bool // Whether this struct is external or local
 	Pkg        string
+	BaseType   string
 }
 
 type BasePass struct {
@@ -497,45 +499,95 @@ func (v *BasePassVisitor) buildTypesGraph() map[string][]string {
 	return typesGraph
 }
 
+// GetBaseTypeNameFromSlices unwraps nested slices and returns the base type name.
+func (v *BasePassVisitor) GetBaseTypeNameFromSlices(node *ast.TypeSpec) string {
+	typ := v.pkg.TypesInfo.Types[node.Type].Type
+	if typ == nil {
+		return ""
+	}
+
+	// Unwrap nested slices
+	for {
+		slice, ok := typ.Underlying().(*types.Slice)
+		if !ok {
+			break
+		}
+		typ = slice.Elem()
+	}
+
+	// Return base type name
+	switch t := typ.Underlying().(type) {
+	case *types.Basic:
+		return t.Name()
+	case *types.Named:
+		return t.Obj().Name()
+	default:
+		return typ.String()
+	}
+}
+
 func (v *BasePassVisitor) gen(precedence map[string]int) {
-	structInfos := make([]GenStructInfo, 0)
+	typeInfos := make([]GenTypeInfo, 0)
 	for i := 0; i < len(v.nodes); i++ {
 		switch node := v.nodes[i].(type) {
 		case *ast.TypeSpec:
 			if st, ok := node.Type.(*ast.StructType); ok {
-				structInfos = append(structInfos, GenStructInfo{
+				typeInfos = append(typeInfos, GenTypeInfo{
 					Name:       node.Name.Name,
 					Struct:     st, // We don't have type info for local structs yet
 					IsExternal: false,
 					Pkg:        v.pkg.Name,
+					BaseType:   v.pkg.Name + "::" + node.Name.Name,
+				})
+			} else {
+				typeInfos = append(typeInfos, GenTypeInfo{
+					Name:       node.Name.Name,
+					Struct:     nil, // We don't have type info for local structs yet
+					Other:      node,
+					IsExternal: false,
+					Pkg:        v.pkg.Name,
+					BaseType:   v.pkg.Name + "::" + trimBeforeChar(v.GetBaseTypeNameFromSlices(node), '.'),
 				})
 			}
+
 		}
 	}
 	// Sort structs based on the precedence map
-	sort.Slice(structInfos, func(i, j int) bool {
+	sort.Slice(typeInfos, func(i, j int) bool {
 		// If the struct name is in the map, use its precedence value
 		// Otherwise, treat it with the highest precedence (e.g., 0 or max int)
-		precI := precedence[v.pkg.Name+"::"+structInfos[i].Name]
-		precJ := precedence[v.pkg.Name+"::"+structInfos[j].Name]
+		precI := precedence[typeInfos[i].BaseType]
+		precJ := precedence[typeInfos[j].BaseType]
 		return precI < precJ
 	})
-	v.emitter.PreVisitGenStructInfos(structInfos, 0)
-	for i := 0; i < len(structInfos); i++ {
-		v.emitter.PreVisitGenStructInfo(structInfos[i], 0)
-		for _, field := range structInfos[i].Struct.Fields.List {
-			for _, fieldName := range field.Names {
-				v.emitter.PreVisitGenStructFieldType(field.Type, 2)
-				v.traverseExpression(field.Type, 2)
-				v.emitter.PostVisitGenStructFieldType(field.Type, 2)
-				v.emitter.PreVisitGenStructFieldName(fieldName, 0)
-				v.traverseExpression(fieldName, 0)
-				v.emitter.PostVisitGenStructFieldName(fieldName, 0)
+
+	v.emitter.PreVisitGenStructInfos(typeInfos, 0)
+	for i := 0; i < len(typeInfos); i++ {
+		if typeInfos[i].Struct != nil {
+			v.emitter.PreVisitGenStructInfo(typeInfos[i], 0)
+			for _, field := range typeInfos[i].Struct.Fields.List {
+				for _, fieldName := range field.Names {
+					v.emitter.PreVisitGenStructFieldType(field.Type, 2)
+					v.traverseExpression(field.Type, 2)
+					v.emitter.PostVisitGenStructFieldType(field.Type, 2)
+					v.emitter.PreVisitGenStructFieldName(fieldName, 0)
+					v.traverseExpression(fieldName, 0)
+					v.emitter.PostVisitGenStructFieldName(fieldName, 0)
+				}
+			}
+			v.emitter.PostVisitGenStructInfo(typeInfos[i], 0)
+		} else if node, ok := typeInfos[i].Other.(*ast.TypeSpec); ok {
+			if _, ok2 := typeInfos[i].Other.(*ast.StructType); !ok2 {
+				v.emitter.PreVisitTypeAliasName(node.Name, 0)
+				v.traverseExpression(node.Name, 0)
+				v.emitter.PostVisitTypeAliasName(node.Name, 0)
+				v.emitter.PreVisitTypeAliasType(node.Type, 0)
+				v.traverseExpression(node.Type, 0)
+				v.emitter.PostVisitTypeAliasType(node.Type, 0)
 			}
 		}
-		v.emitter.PostVisitGenStructInfo(structInfos[i], 0)
 	}
-	v.emitter.PostVisitGenStructInfos(structInfos, 0)
+	v.emitter.PostVisitGenStructInfos(typeInfos, 0)
 	for _, node := range v.nodes {
 		if genDecl, ok := node.(*ast.GenDecl); ok && genDecl.Tok == token.CONST {
 			v.emitter.PreVisitGenDeclConst(genDecl, 0)
@@ -548,19 +600,6 @@ func (v *BasePassVisitor) gen(precedence map[string]int) {
 				}
 			}
 			v.emitter.PostVisitGenDeclConst(genDecl, 0)
-		}
-	}
-	for _, node := range v.nodes {
-		switch node := node.(type) {
-		case *ast.TypeSpec:
-			if _, ok := node.Type.(*ast.StructType); !ok {
-				v.emitter.PreVisitTypeAliasName(node.Name, 0)
-				v.traverseExpression(node.Name, 0)
-				v.emitter.PostVisitTypeAliasName(node.Name, 0)
-				v.emitter.PreVisitTypeAliasType(node.Type, 0)
-				v.traverseExpression(node.Type, 0)
-				v.emitter.PostVisitTypeAliasType(node.Type, 0)
-			}
 		}
 	}
 

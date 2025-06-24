@@ -559,14 +559,14 @@ func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 	cppe.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
+func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
 	str += cppe.emitAsString("{\n", indent+2)
 	cppe.emitToFileBuffer(str, "")
 	cppe.shouldGenerate = true
 }
 
-func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
+func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
 	str := cppe.emitAsString("};\n\n", indent+2)
 	cppe.emitToFileBuffer(str, "")
 	cppe.shouldGenerate = false
@@ -1284,6 +1284,14 @@ func (cppe *CSharpEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
 	cppe.emitToFileBuffer(str, "")
 }
 
+func trimBeforeChar(s string, ch byte) string {
+	pos := strings.IndexByte(s, ch)
+	if pos == -1 {
+		return s // character not found
+	}
+	return s[pos+1:]
+}
+
 func (cppe *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 	// TODO dummy implementation
 	// not very well performed
@@ -1297,6 +1305,9 @@ func (cppe *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int)
 			}
 			constType := con.Type().String()
 			constType = strings.TrimPrefix(constType, "untyped ")
+			if constType == cppe.pkg.TypesInfo.Defs[node].Type().String() {
+				constType = trimBeforeChar(constType, '.')
+			}
 			str := cppe.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), 0)
 
 			cppe.emitToFileBuffer(str, "")

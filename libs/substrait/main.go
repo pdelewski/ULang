@@ -5,13 +5,15 @@ import "fmt"
 // ---------- Core Types ----------
 
 const (
-	ExprLiteral  int = 0
-	ExprColumn   int = 1
-	ExprFunction int = 2
+	ExprLiteral  ExprKind = 0
+	ExprColumn   ExprKind = 1
+	ExprFunction ExprKind = 2
 )
 
+type ExprKind int
+
 type ExprNode struct {
-	Kind     int
+	Kind     ExprKind
 	Children []int
 	ValueIdx int
 	Function string
