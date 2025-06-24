@@ -5,26 +5,29 @@ import "fmt"
 // ---------- Core Types ----------
 
 const (
-	ExprLiteral  int = 0
-	ExprColumn   int = 1
-	ExprFunction int = 2
+	ExprLiteral  ExprKind = 0
+	ExprColumn   ExprKind = 1
+	ExprFunction ExprKind = 2
 )
 
+type ExprKind int
+type RelNodeKind int
+
 type ExprNode struct {
-	Kind     int
+	Kind     ExprKind
 	Children []int
 	ValueIdx int
 	Function string
 }
 
 const (
-	RelOpScan    int = 0
-	RelOpFilter  int = 1
-	RelOpProject int = 2
+	RelOpScan    RelNodeKind = 0
+	RelOpFilter  RelNodeKind = 1
+	RelOpProject RelNodeKind = 2
 )
 
 type RelNode struct {
-	Kind     int
+	Kind     RelNodeKind
 	InputIdx int
 	ExprIdxs []int
 	NameIdx  int

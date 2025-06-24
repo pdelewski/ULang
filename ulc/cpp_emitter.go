@@ -793,7 +793,7 @@ func (cppe *CPPEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent in
 	}
 }
 
-func (cppe *CPPEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
+func (cppe *CPPEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 	str := cppe.emitAsString(fmt.Sprintf("struct %s\n", node.Name), 0)
 	err := cppe.emitToFile(str)
 	if err != nil {
@@ -805,7 +805,7 @@ func (cppe *CPPEmitter) PreVisitGenStructInfo(node GenStructInfo, indent int) {
 		fmt.Println("Error writing to file:", err)
 	}
 }
-func (cppe *CPPEmitter) PostVisitGenStructInfo(node GenStructInfo, indent int) {
+func (cppe *CPPEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
 	str := cppe.emitAsString("};\n\n", 0)
 	err := cppe.emitToFile(str)
 	if err != nil {
