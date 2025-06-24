@@ -85,7 +85,7 @@ func formatIntSlice(s []int) string {
 func printPlan(plan Plan) {
 	fmt.Printf("Root RelNode Index: %d\n", plan.Root)
 
-	fmt.Println("\nRelNodes:")
+	fmt.Println("RelNodes:")
 	i := 0
 	for _, r := range plan.RelNodes {
 		fmt.Printf("  [%d] Kind=%d, InputIdx=%d, NameIdx=%d\n",
@@ -94,7 +94,7 @@ func printPlan(plan Plan) {
 		i++
 	}
 
-	fmt.Println("\nExprs:")
+	fmt.Println("Exprs:")
 	i = 0
 	for _, e := range plan.Exprs {
 		fmt.Printf("  [%d] Kind=%d, ValueIdx=%d\n",
@@ -103,7 +103,7 @@ func printPlan(plan Plan) {
 		i++
 	}
 
-	fmt.Println("\nLiterals:")
+	fmt.Println("Literals:")
 }
 
 // ---------- Main ----------
