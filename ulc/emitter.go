@@ -341,6 +341,8 @@ type Emitter interface {
 	PostVisitIfStmtElse(node *ast.IfStmt, indent int)
 	PreVisitRangeStmt(node *ast.RangeStmt, indent int)
 	PostVisitRangeStmt(node *ast.RangeStmt, indent int)
+	PreVisitRangeStmtKey(node ast.Expr, indent int)
+	PostVisitRangeStmtKey(node ast.Expr, indent int)
 	PreVisitRangeStmtValue(node ast.Expr, indent int)
 	PostVisitRangeStmtValue(node ast.Expr, indent int)
 	PreVisitRangeStmtX(node ast.Expr, indent int)

@@ -345,7 +345,12 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.PostVisitForStmt(stmt, indent)
 	case *ast.RangeStmt:
 		v.emitter.PreVisitRangeStmt(stmt, indent)
-
+		v.emitter.PreVisitRangeStmtKey(stmt.Key, indent)
+		if stmt.Key != nil {
+			// TODO handle Key as an expression
+			//v.traverseExpression(stmt.Key, 0)
+		}
+		v.emitter.PostVisitRangeStmtKey(stmt.Key, indent)
 		v.emitter.PreVisitRangeStmtValue(stmt.Value, indent)
 		if stmt.Value != nil {
 			v.traverseExpression(stmt.Value, 0)
