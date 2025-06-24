@@ -26,3 +26,12 @@ func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
 func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
 	sema.constCtx = false
 }
+
+func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	if node.Key != nil {
+		if node.Key.(*ast.Ident).Name != "_" {
+			panic("\033[31m\033[1mfor key, value := range is not allowed for now\033[0m")
+		}
+	}
+	node.Key = nil
+}
