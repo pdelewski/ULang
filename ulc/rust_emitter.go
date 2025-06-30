@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go/ast"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -133,4 +134,60 @@ pub fn string_format(fmt_str: &str, args: &[&dyn fmt::Display]) -> String {
 func (re *RustEmitter) PostVisitProgram(indent int) {
 	re.emitToFile()
 	re.file.Close()
+}
+
+func (re *RustEmitter) PreVisitFuncDeclSignatures(indent int) {
+	re.forwardDecls = true
+}
+
+func (re *RustEmitter) PostVisitFuncDeclSignatures(indent int) {
+	re.forwardDecls = false
+}
+
+func (re *RustEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
+	if re.forwardDecls {
+		return
+	}
+	var str string
+	str = re.emitAsString(fmt.Sprintf("fn %s", node.Name), 0)
+	re.emitToFileBuffer(str, "")
+}
+
+func (re *RustEmitter) PreVisitFuncTypeParams(node *ast.FieldList, indent int) {
+	str := re.emitAsString("(", 0)
+	re.emitToFileBuffer("", str)
+}
+
+func (re *RustEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int) {
+	str := re.emitAsString(")", 0)
+	re.emitToFileBuffer("", str)
+}
+
+func (re *RustEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := re.emitAsString("{\n", 1)
+	re.emitToFileBuffer(str, "")
+}
+
+func (re *RustEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := re.emitAsString("}", 1)
+	re.emitToFileBuffer(str, "")
+	re.isArray = false
+}
+
+func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
+	if re.forwardDecls {
+		return
+	}
+	re.shouldGenerate = true
+	str := re.emitAsString("(", 0)
+	re.emitToFileBuffer(str, "")
+}
+
+func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
+	if re.forwardDecls {
+		return
+	}
+	re.shouldGenerate = false
+	str := re.emitAsString(")", 0)
+	re.emitToFileBuffer(str, "")
 }
