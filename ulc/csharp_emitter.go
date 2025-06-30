@@ -61,59 +61,59 @@ type CSharpEmitter struct {
 	PointerAndPositionVec []PointerAndPosition
 }
 
-func (e *CSharpEmitter) SearchPointerReverse(target string) *PointerAndPosition {
-	for i := len(e.PointerAndPositionVec) - 1; i >= 0; i-- {
-		if e.PointerAndPositionVec[i].Pointer == target {
-			return &e.PointerAndPositionVec[i]
+func (cse *CSharpEmitter) SearchPointerReverse(target string) *PointerAndPosition {
+	for i := len(cse.PointerAndPositionVec) - 1; i >= 0; i-- {
+		if cse.PointerAndPositionVec[i].Pointer == target {
+			return &cse.PointerAndPositionVec[i]
 		}
 	}
 	return nil // Return nil if the pointer is not found
 }
 
-func (e *CSharpEmitter) ExtractSubstring(position int) (string, error) {
-	if position < 0 || position >= len(e.fileBuffer) {
+func (cse *CSharpEmitter) ExtractSubstring(position int) (string, error) {
+	if position < 0 || position >= len(cse.fileBuffer) {
 		return "", fmt.Errorf("position %d is out of bounds", position)
 	}
-	return e.fileBuffer[position:], nil
+	return cse.fileBuffer[position:], nil
 }
 
-func (e *CSharpEmitter) ExtractSubstringBetween(begin int, end int) (string, error) {
-	if begin < 0 || end > len(e.fileBuffer) || begin > end {
+func (cse *CSharpEmitter) ExtractSubstringBetween(begin int, end int) (string, error) {
+	if begin < 0 || end > len(cse.fileBuffer) || begin > end {
 		return "", fmt.Errorf("invalid range: begin %d, end %d", begin, end)
 	}
-	return e.fileBuffer[begin:end], nil
+	return cse.fileBuffer[begin:end], nil
 }
 
-func (e *CSharpEmitter) RewriteFileBufferBetween(begin int, end int, content string) error {
-	if begin < 0 || end > len(e.fileBuffer) || begin > end {
+func (cse *CSharpEmitter) RewriteFileBufferBetween(begin int, end int, content string) error {
+	if begin < 0 || end > len(cse.fileBuffer) || begin > end {
 		return fmt.Errorf("invalid range: begin %d, end %d", begin, end)
 	}
-	e.fileBuffer = e.fileBuffer[:begin] + content + e.fileBuffer[end:]
+	cse.fileBuffer = cse.fileBuffer[:begin] + content + cse.fileBuffer[end:]
 	return nil
 }
 
-func (e *CSharpEmitter) RewriteFileBuffer(position int, oldContent, newContent string) error {
-	if position < 0 || position+len(oldContent) > len(e.fileBuffer) {
+func (cse *CSharpEmitter) RewriteFileBuffer(position int, oldContent, newContent string) error {
+	if position < 0 || position+len(oldContent) > len(cse.fileBuffer) {
 		return fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
 	}
-	if e.fileBuffer[position:position+len(oldContent)] != oldContent {
+	if cse.fileBuffer[position:position+len(oldContent)] != oldContent {
 		return fmt.Errorf("oldContent does not match the existing content at position %d", position)
 	}
-	e.fileBuffer = e.fileBuffer[:position] + newContent + e.fileBuffer[position+len(oldContent):]
+	cse.fileBuffer = cse.fileBuffer[:position] + newContent + cse.fileBuffer[position+len(oldContent):]
 	return nil
 }
 
-func (v *CSharpEmitter) mergeStackElements(marker string) {
+func (cse *CSharpEmitter) mergeStackElements(marker string) {
 	var merged strings.Builder
 
 	// Process the stack in reverse until we find a marker
-	for len(v.stack) > 0 {
-		top := v.stack[len(v.stack)-1]
-		v.stack = v.stack[:len(v.stack)-1] // Pop element
+	for len(cse.stack) > 0 {
+		top := cse.stack[len(cse.stack)-1]
+		cse.stack = cse.stack[:len(cse.stack)-1] // Pop element
 
 		// Stop merging when we find a marker
 		if strings.HasPrefix(top, marker) {
-			v.stack = append(v.stack, merged.String()) // Push merged string
+			cse.stack = append(cse.stack, merged.String()) // Push merged string
 			return
 		}
 
@@ -157,17 +157,17 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	}
 	return selector
 }
-func (e *CSharpEmitter) emitToFileBuffer(s string, pointer string) error {
-	e.PointerAndPositionVec = append(e.PointerAndPositionVec, PointerAndPosition{
+func (cse *CSharpEmitter) emitToFileBuffer(s string, pointer string) error {
+	cse.PointerAndPositionVec = append(cse.PointerAndPositionVec, PointerAndPosition{
 		Pointer:  pointer,
-		Position: len(e.fileBuffer),
+		Position: len(cse.fileBuffer),
 	})
-	e.fileBuffer += s
+	cse.fileBuffer += s
 	return nil
 }
 
-func (e *CSharpEmitter) emitToFile() error {
-	_, err := e.file.WriteString(e.fileBuffer)
+func (cse *CSharpEmitter) emitToFile() error {
+	_, err := cse.file.WriteString(cse.fileBuffer)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return err
@@ -175,29 +175,29 @@ func (e *CSharpEmitter) emitToFile() error {
 	return nil
 }
 
-func (e *CSharpEmitter) emitAsString(s string, indent int) string {
+func (cse *CSharpEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
-func (cppe *CSharpEmitter) SetFile(file *os.File) {
-	cppe.file = file
+func (cse *CSharpEmitter) SetFile(file *os.File) {
+	cse.file = file
 }
 
-func (cppe *CSharpEmitter) GetFile() *os.File {
-	return cppe.file
+func (cse *CSharpEmitter) GetFile() *os.File {
+	return cse.file
 }
 
-func (cppe *CSharpEmitter) PreVisitProgram(indent int) {
-	cppe.PointerAndPositionVec = make([]PointerAndPosition, 0)
-	cppe.aliases = make(map[string]Alias)
-	outputFile := cppe.Output
+func (cse *CSharpEmitter) PreVisitProgram(indent int) {
+	cse.PointerAndPositionVec = make([]PointerAndPosition, 0)
+	cse.aliases = make(map[string]Alias)
+	outputFile := cse.Output
 	var err error
-	cppe.file, err = os.Create(outputFile)
-	cppe.SetFile(cppe.file)
+	cse.file, err = os.Create(outputFile)
+	cse.SetFile(cse.file)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
 	}
-	_, err = cppe.file.WriteString("using System;\nusing System.Collections;\nusing System.Collections.Generic;\n\n")
+	_, err = cse.file.WriteString("using System;\nusing System.Collections;\nusing System.Collections.Generic;\n\n")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
@@ -335,112 +335,112 @@ public class Formatter {
 }
 
 `
-	str := cppe.emitAsString(builtin, indent)
-	cppe.emitToFileBuffer(str, "")
+	str := cse.emitAsString(builtin, indent)
+	cse.emitToFileBuffer(str, "")
 
-	cppe.insideForPostCond = false
+	cse.insideForPostCond = false
 }
 
-func (cppe *CSharpEmitter) PostVisitProgram(indent int) {
-	cppe.emitToFile()
-	cppe.file.Close()
+func (cse *CSharpEmitter) PostVisitProgram(indent int) {
+	cse.emitToFile()
+	cse.file.Close()
 }
 
-func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
-	cppe.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
+func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	cse.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
 }
 
-func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
-	pointerAndPosition := cppe.SearchPointerReverse("@PreVisitDeclStmtValueSpecType")
+func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	pointerAndPosition := cse.SearchPointerReverse("@PreVisitDeclStmtValueSpecType")
 	if pointerAndPosition != nil {
-		for aliasName, alias := range cppe.aliases {
-			if alias.UnderlyingType == cppe.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				cppe.RewriteFileBufferBetween(pointerAndPosition.Position, len(cppe.fileBuffer), aliasName)
+		for aliasName, alias := range cse.aliases {
+			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
+				cse.RewriteFileBufferBetween(pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
 			}
 		}
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
-	str := cppe.emitAsString(" ", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	str := cse.emitAsString(" ", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
 	var str string
-	if cppe.isArray {
+	if cse.isArray {
 		str += " = new "
-		str += strings.TrimSpace(cppe.arrayType)
+		str += strings.TrimSpace(cse.arrayType)
 		str += "();"
-		cppe.isArray = false
+		cse.isArray = false
 	} else {
 		str += " = default;"
 	}
-	cppe.emitToFileBuffer(str, "")
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
-	str := cppe.emitAsString("public", indent+2)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
+	str := cse.emitAsString("public", indent+2)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
-	cppe.emitToFileBuffer(" ", "")
+func (cse *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
+	cse.emitToFileBuffer(" ", "")
 	// clean array marker as we should generate
 	// initializer only for expression statements
 	// not for struct fields
-	cppe.isArray = false
+	cse.isArray = false
 }
 
-func (cppe *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
-	cppe.emitToFileBuffer(";\n", "")
+func (cse *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
+	cse.emitToFileBuffer(";\n", "")
 }
 
-func (cppe *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
-	obj := cppe.pkg.TypesInfo.Defs[e]
+func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
+	obj := cse.pkg.TypesInfo.Defs[e]
 	if obj != nil {
 		if v, ok := obj.(*types.Var); ok {
-			pos := cppe.pkg.Fset.Position(v.Pos())
+			pos := cse.pkg.Fset.Position(v.Pos())
 			fmt.Printf("Variable %s has type: %s (declared at %s:%d)\n", v.Name(), v.Type().String(), pos.Filename, pos.Line)
 		}
 	}
 
-	obj = cppe.pkg.TypesInfo.Uses[e]
+	obj = cse.pkg.TypesInfo.Uses[e]
 	if obj != nil {
 		if v, ok := obj.(*types.Var); ok {
-			usagePos := cppe.pkg.Fset.Position(e.Pos()) // <- position of the usage, not the declaration
+			usagePos := cse.pkg.Fset.Position(e.Pos()) // <- position of the usage, not the declaration
 			fmt.Printf("Variable %s has type: %s (used at %s:%d)\n", v.Name(), v.Type().String(), usagePos.Filename, usagePos.Line)
 		}
 	}
 
-	if !cppe.shouldGenerate {
+	if !cse.shouldGenerate {
 		return
 	}
 
 	var str string
 	name := e.Name
-	name = cppe.lowerToBuiltins(name)
+	name = cse.lowerToBuiltins(name)
 	if name == "nil" {
-		str = cppe.emitAsString("default", indent)
+		str = cse.emitAsString("default", indent)
 	} else {
 		if n, ok := csTypesMap[name]; ok {
-			str = cppe.emitAsString(n, indent)
+			str = cse.emitAsString(n, indent)
 		} else {
-			str = cppe.emitAsString(name, indent)
+			str = cse.emitAsString(name, indent)
 		}
 	}
 
-	if cppe.buffer {
-		cppe.stack = append(cppe.stack, str)
+	if cse.buffer {
+		cse.stack = append(cse.stack, str)
 	} else {
-		cppe.emitToFileBuffer(str, "")
+		cse.emitToFileBuffer(str, "")
 	}
 
 }
 
-func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
+func (cse *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	name := pkg.Name
-	cppe.pkg = pkg
+	cse.pkg = pkg
 	var packageName string
 	if name == "main" {
 		packageName = "MainClass"
@@ -448,12 +448,12 @@ func (cppe *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 		//packageName = capitalizeFirst(name)
 		packageName = name
 	}
-	str := cppe.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
-	err := cppe.emitToFileBuffer(str, "")
-	err = cppe.emitToFileBuffer("", pkg.Name)
-	cppe.currentPackage = packageName
-	str = cppe.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
-	err = cppe.emitToFileBuffer(str, "")
+	str := cse.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
+	err := cse.emitToFileBuffer(str, "")
+	err = cse.emitToFileBuffer("", pkg.Name)
+	cse.currentPackage = packageName
+	str = cse.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
+	err = cse.emitToFileBuffer(str, "")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
@@ -488,182 +488,182 @@ func formatAlias(r AliasRepr) string {
 	return r.TypeName
 }
 
-func (cppe *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
-	pointerAndPosition := cppe.SearchPointerReverse(pkg.Name)
+func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
+	pointerAndPosition := cse.SearchPointerReverse(pkg.Name)
 	if pointerAndPosition != nil {
 		var newStr string
-		for aliasKey, aliasVal := range cppe.aliases {
+		for aliasKey, aliasVal := range cse.aliases {
 			aliasRepr := RebuildNestedType(aliasVal.representation)
 			newStr += "using " + aliasKey + " = " + aliasRepr + ";\n"
 		}
 		newStr += "\n"
-		cppe.RewriteFileBuffer(pointerAndPosition.Position, "", newStr)
+		cse.RewriteFileBuffer(pointerAndPosition.Position, "", newStr)
 	}
 
-	str := cppe.emitAsString("}\n", indent+2)
-	cppe.emitToFileBuffer(str, "")
-	err := cppe.emitToFileBuffer("}\n", "")
+	str := cse.emitAsString("}\n", indent+2)
+	cse.emitToFileBuffer(str, "")
+	err := cse.emitToFileBuffer("}\n", "")
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncDeclSignatures(indent int) {
-	cppe.forwardDecls = true
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatures(indent int) {
+	cse.forwardDecls = true
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncDeclSignatures(indent int) {
-	cppe.forwardDecls = false
+func (cse *CSharpEmitter) PostVisitFuncDeclSignatures(indent int) {
+	cse.forwardDecls = false
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
-	cppe.isArray = false
+func (cse *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	cse.isArray = false
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
+	if cse.forwardDecls {
 		return
 	}
 	var str string
 	if node.Name == "main" {
-		str = cppe.emitAsString(fmt.Sprintf("Main"), 0)
+		str = cse.emitAsString(fmt.Sprintf("Main"), 0)
 	} else {
-		str = cppe.emitAsString(fmt.Sprintf("%s", node.Name), 0)
+		str = cse.emitAsString(fmt.Sprintf("%s", node.Name), 0)
 	}
-	cppe.emitToFileBuffer(str, "")
+	cse.emitToFileBuffer(str, "")
 
 }
 
-func (cppe *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cppe.emitAsString("{\n", 1)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cse.emitAsString("{\n", 1)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cppe.emitAsString("}", 1)
-	cppe.emitToFileBuffer(str, "")
-	cppe.isArray = false
+func (cse *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cse.emitAsString("}", 1)
+	cse.emitToFileBuffer(str, "")
+	cse.isArray = false
 }
 
-func (cppe *CSharpEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int) {
-	str := cppe.emitAsString("\n", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int) {
+	str := cse.emitAsString("\n", indent)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
 		return
 	}
-	str := cppe.emitAsString("\n\n", 0)
-	cppe.emitToFileBuffer(str, "")
+	str := cse.emitAsString("\n\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
-	str := cppe.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
-	str += cppe.emitAsString("{\n", indent+2)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = true
+func (cse *CSharpEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
+	str := cse.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
+	str += cse.emitAsString("{\n", indent+2)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 
-func (cppe *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
-	str := cppe.emitAsString("};\n\n", indent+2)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
+func (cse *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
+	str := cse.emitAsString("};\n\n", indent+2)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
-	if !cppe.shouldGenerate {
+func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
+	if !cse.shouldGenerate {
 		return
 	}
-	cppe.stack = append(cppe.stack, "@@PreVisitArrayType")
-	str := cppe.emitAsString("List", indent)
-	cppe.stack = append(cppe.stack, str)
-	str = cppe.emitAsString("<", indent)
-	cppe.stack = append(cppe.stack, str)
+	cse.stack = append(cse.stack, "@@PreVisitArrayType")
+	str := cse.emitAsString("List", indent)
+	cse.stack = append(cse.stack, str)
+	str = cse.emitAsString("<", indent)
+	cse.stack = append(cse.stack, str)
 
-	cppe.buffer = true
+	cse.buffer = true
 }
-func (cppe *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
-	if !cppe.shouldGenerate {
+func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
+	if !cse.shouldGenerate {
 		return
 	}
 
-	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
+	cse.stack = append(cse.stack, cse.emitAsString(">", 0))
 
-	cppe.mergeStackElements("@@PreVisitArrayType")
-	if len(cppe.stack) == 1 {
-		cppe.isArray = true
-		cppe.arrayType = cppe.stack[len(cppe.stack)-1]
-		cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
-		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+	cse.mergeStackElements("@@PreVisitArrayType")
+	if len(cse.stack) == 1 {
+		cse.isArray = true
+		cse.arrayType = cse.stack[len(cse.stack)-1]
+		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
+		cse.stack = cse.stack[:len(cse.stack)-1]
 	}
 
-	cppe.buffer = false
+	cse.buffer = false
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
-	if !cppe.shouldGenerate {
+func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
+	if !cse.shouldGenerate {
 		return
 	}
-	cppe.buffer = true
-	cppe.stack = append(cppe.stack, "@@PreVisitFuncType")
+	cse.buffer = true
+	cse.stack = append(cse.stack, "@@PreVisitFuncType")
 	var str string
 	if node.Results != nil {
-		str = cppe.emitAsString("Func<", indent)
+		str = cse.emitAsString("Func<", indent)
 	} else {
-		str = cppe.emitAsString("Action<", indent)
+		str = cse.emitAsString("Action<", indent)
 	}
-	cppe.stack = append(cppe.stack, str)
+	cse.stack = append(cse.stack, str)
 }
-func (cppe *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
-	if !cppe.shouldGenerate {
+func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
+	if !cse.shouldGenerate {
 		return
 	}
 
 	// move return type to the end of the stack
 	// return type is traversed first therefore it has to be moved
 	// to the end of the stack due to C# syntax
-	if len(cppe.stack) > 2 && cppe.numFuncResults > 0 {
-		returnType := cppe.stack[2]
-		cppe.stack = append(cppe.stack[:2], cppe.stack[3:]...)
-		cppe.stack = append(cppe.stack, ",")
-		cppe.stack = append(cppe.stack, returnType)
+	if len(cse.stack) > 2 && cse.numFuncResults > 0 {
+		returnType := cse.stack[2]
+		cse.stack = append(cse.stack[:2], cse.stack[3:]...)
+		cse.stack = append(cse.stack, ",")
+		cse.stack = append(cse.stack, returnType)
 	}
-	cppe.stack = append(cppe.stack, cppe.emitAsString(">", 0))
+	cse.stack = append(cse.stack, cse.emitAsString(">", 0))
 
-	cppe.mergeStackElements("@@PreVisitFuncType")
+	cse.mergeStackElements("@@PreVisitFuncType")
 
-	if len(cppe.stack) == 1 {
-		cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
-		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+	if len(cse.stack) == 1 {
+		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
+		cse.stack = cse.stack[:len(cse.stack)-1]
 	}
-	cppe.buffer = false
+	cse.buffer = false
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+func (cse *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
 	if index > 0 {
-		str := cppe.emitAsString(", ", 0)
-		cppe.stack = append(cppe.stack, str)
+		str := cse.emitAsString(", ", 0)
+		cse.stack = append(cse.stack, str)
 	}
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+func (cse *CSharpEmitter) PostVisitFuncTypeParam(node *ast.Field, index int, indent int) {
 
 }
 
-func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
-	if !cppe.shouldGenerate {
+func (cse *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
+	if !cse.shouldGenerate {
 		return
 	}
 	var str string
 	scopeOperator := "."
 	if ident, ok := node.(*ast.Ident); ok {
-		if cppe.lowerToBuiltins(ident.Name) == "" {
+		if cse.lowerToBuiltins(ident.Name) == "" {
 			return
 		}
 		// if the identifier is a package name, we need to append "Api." to the scope operator
-		obj := cppe.pkg.TypesInfo.Uses[ident]
+		obj := cse.pkg.TypesInfo.Uses[ident]
 		if obj != nil {
 			if _, ok := obj.(*types.PkgName); ok {
 				scopeOperator += "Api."
@@ -671,131 +671,131 @@ func (cppe *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		}
 	}
 
-	str = cppe.emitAsString(scopeOperator, 0)
-	if cppe.buffer {
-		cppe.stack = append(cppe.stack, str)
+	str = cse.emitAsString(scopeOperator, 0)
+	if cse.buffer {
+		cse.stack = append(cse.stack, str)
 	} else {
-		cppe.emitToFileBuffer(str, "")
+		cse.emitToFileBuffer(str, "")
 	}
 
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
+func (cse *CSharpEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
 	if node != nil {
-		cppe.numFuncResults = len(node.List)
+		cse.numFuncResults = len(node.List)
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
 		return
 	}
-	cppe.shouldGenerate = true
-	str := cppe.emitAsString("(", 0)
-	cppe.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
+	str := cse.emitAsString("(", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
 		return
 	}
-	cppe.shouldGenerate = false
-	str := cppe.emitAsString(")", 0)
-	cppe.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
+	str := cse.emitAsString(")", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
-	if cppe.forwardDecls {
-		return
-	}
-	if index > 0 {
-		str := cppe.emitAsString(", ", 0)
-		cppe.emitToFileBuffer(str, "")
-	}
-}
-
-func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
-	if cppe.forwardDecls {
-		return
-	}
-	cppe.emitToFileBuffer(" ", "")
-}
-
-func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
+	if cse.forwardDecls {
 		return
 	}
 	if index > 0 {
-		str := cppe.emitAsString(",", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(", ", 0)
+		cse.emitToFileBuffer(str, "")
 	}
-	cppe.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResultsList")
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
+	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := cppe.SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList")
+	cse.emitToFileBuffer(" ", "")
+}
+
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
+	if index > 0 {
+		str := cse.emitAsString(",", 0)
+		cse.emitToFileBuffer(str, "")
+	}
+	cse.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResultsList")
+}
+
+func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
+	pointerAndPosition := cse.SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList")
 	if pointerAndPosition != nil {
-		for aliasName, alias := range cppe.aliases {
-			if alias.UnderlyingType == cppe.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				cppe.RewriteFileBufferBetween(pointerAndPosition.Position, len(cppe.fileBuffer), aliasName)
+		for aliasName, alias := range cse.aliases {
+			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
+				cse.RewriteFileBufferBetween(pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
 			}
 		}
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
 		return
 	}
 
-	cppe.shouldGenerate = true
+	cse.shouldGenerate = true
 
-	str := cppe.emitAsString("public static ", indent+2)
-	cppe.emitToFileBuffer(str, "")
+	str := cse.emitAsString("public static ", indent+2)
+	cse.emitToFileBuffer(str, "")
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
-			str := cppe.emitAsString("(", 0)
-			cppe.emitToFileBuffer(str, "")
+			str := cse.emitAsString("(", 0)
+			cse.emitToFileBuffer(str, "")
 		}
 	} else {
-		str := cppe.emitAsString("void", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString("void", 0)
+		cse.emitToFileBuffer(str, "")
 	}
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
-	if cppe.forwardDecls {
+func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
 		return
 	}
 
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
-			str := cppe.emitAsString(")", 0)
-			cppe.emitToFileBuffer(str, "")
+			str := cse.emitAsString(")", 0)
+			cse.emitToFileBuffer(str, "")
 		}
 	}
 
-	str := cppe.emitAsString("", 1)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
+	str := cse.emitAsString("", 1)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.stack = append(cppe.stack, "@@PreVisitTypeAliasName")
-	cppe.stack = append(cppe.stack, cppe.emitAsString("using ", indent+2))
-	cppe.shouldGenerate = true
-	cppe.buffer = true
+func (cse *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
+	cse.stack = append(cse.stack, "@@PreVisitTypeAliasName")
+	cse.stack = append(cse.stack, cse.emitAsString("using ", indent+2))
+	cse.shouldGenerate = true
+	cse.buffer = true
 }
 
-func (cppe *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
-	cppe.buffer = true
-	cppe.stack = append(cppe.stack, " = ")
+func (cse *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
+	cse.buffer = true
+	cse.stack = append(cse.stack, " = ")
 }
 
-func (cppe *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
+func (cse *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
 
 }
 
@@ -829,459 +829,459 @@ func ConvertToAliasRepr(types []string, pkgName []string) []AliasRepr {
 	return result
 }
 
-func (cppe *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
-	str := cppe.emitAsString(";\n\n", 0)
-	cppe.stack = append(cppe.stack, str)
-	cppe.aliases[cppe.stack[2]] = Alias{
-		PackageName:    cppe.pkg.Name + ".Api",
-		representation: ConvertToAliasRepr(ParseNestedTypes(cppe.stack[4]), []string{"", cppe.pkg.Name + ".Api"}),
-		UnderlyingType: cppe.pkg.TypesInfo.Types[node].Type.String(),
+func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
+	str := cse.emitAsString(";\n\n", 0)
+	cse.stack = append(cse.stack, str)
+	cse.aliases[cse.stack[2]] = Alias{
+		PackageName:    cse.pkg.Name + ".Api",
+		representation: ConvertToAliasRepr(ParseNestedTypes(cse.stack[4]), []string{"", cse.pkg.Name + ".Api"}),
+		UnderlyingType: cse.pkg.TypesInfo.Types[node].Type.String(),
 	}
-	cppe.mergeStackElements("@@PreVisitTypeAliasName")
-	if len(cppe.stack) == 1 {
+	cse.mergeStackElements("@@PreVisitTypeAliasName")
+	if len(cse.stack) == 1 {
 		// TODO emit to aliases
-		//cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
-		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+		//cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
+		cse.stack = cse.stack[:len(cse.stack)-1]
 	}
-	cppe.shouldGenerate = false
-	cppe.buffer = false
+	cse.shouldGenerate = false
+	cse.buffer = false
 }
 
-func (cppe *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
-	cppe.shouldGenerate = true
-	str := cppe.emitAsString("return ", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	cse.shouldGenerate = true
+	str := cse.emitAsString("return ", indent)
+	cse.emitToFileBuffer(str, "")
 
 	if len(node.Results) == 1 {
-		tv := cppe.pkg.TypesInfo.Types[node.Results[0]]
-		//pos := cppe.pkg.Fset.Position(node.Pos())
+		tv := cse.pkg.TypesInfo.Types[node.Results[0]]
+		//pos := cse.pkg.Fset.Position(node.Pos())
 		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
 		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
-			if !cppe.isTuple && tv.Type.String() != "func()" {
-				cppe.emitToFileBuffer("(", "")
-				str := cppe.emitAsString(typeVal, 0)
-				cppe.emitToFileBuffer(str, "")
-				cppe.emitToFileBuffer(")", "")
+			if !cse.isTuple && tv.Type.String() != "func()" {
+				cse.emitToFileBuffer("(", "")
+				str := cse.emitAsString(typeVal, 0)
+				cse.emitToFileBuffer(str, "")
+				cse.emitToFileBuffer(")", "")
 			}
 		}
 	}
 	if len(node.Results) > 1 {
-		str := cppe.emitAsString("(", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString("(", 0)
+		cse.emitToFileBuffer(str, "")
 	}
 }
 
-func (cppe *CSharpEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+func (cse *CSharpEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 	if len(node.Results) > 1 {
-		str := cppe.emitAsString(")", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(")", 0)
+		cse.emitToFileBuffer(str, "")
 	}
-	str := cppe.emitAsString(";", 0)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
+	str := cse.emitAsString(";", 0)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int) {
+func (cse *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int) {
 	if index > 0 {
-		str := cppe.emitAsString(", ", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(", ", 0)
+		cse.emitToFileBuffer(str, "")
 	}
 }
 
-func (v *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
-	v.shouldGenerate = true
-	v.emitToFileBuffer("", "@PreVisitCallExpr")
+func (cse *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
+	cse.shouldGenerate = true
+	cse.emitToFileBuffer("", "@PreVisitCallExpr")
 }
 
-func (v *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
-	pointerAndPosition := v.SearchPointerReverse("@PreVisitCallExpr")
+func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
+	pointerAndPosition := cse.SearchPointerReverse("@PreVisitCallExpr")
 	if pointerAndPosition != nil {
-		str, _ := v.ExtractSubstring(pointerAndPosition.Position)
+		str, _ := cse.ExtractSubstring(pointerAndPosition.Position)
 		for _, t := range destTypes {
 			matchStr := t + "("
 			if strings.Contains(str, matchStr) {
-				v.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
+				cse.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
 			}
 		}
 	}
-	v.shouldGenerate = false
+	cse.shouldGenerate = false
 }
 
-func (v *CSharpEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
-	v.shouldGenerate = true
+func (cse *CSharpEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
+	cse.shouldGenerate = true
 }
 
-func (v *CSharpEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
-	v.shouldGenerate = false
+func (cse *CSharpEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
-	cppe.shouldGenerate = true
-	str := cppe.emitAsString("", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	cse.shouldGenerate = true
+	str := cse.emitAsString("", indent)
+	cse.emitToFileBuffer(str, "")
 }
-func (cppe *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
-	str := cppe.emitAsString(";", 0)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
-}
-
-func (cppe *CSharpEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
-	cppe.shouldGenerate = true
-	str := cppe.emitAsString(cppe.assignmentToken+" ", indent+1)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	str := cse.emitAsString(";", 0)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
-	cppe.shouldGenerate = false
-	cppe.isTuple = false
+func (cse *CSharpEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
+	cse.shouldGenerate = true
+	str := cse.emitAsString(cse.assignmentToken+" ", indent+1)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	cppe.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
+func (cse *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
+	cse.shouldGenerate = false
+	cse.isTuple = false
 }
 
-func (cppe *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	pointerAndPosition := cppe.SearchPointerReverse("@PreVisitAssignStmtRhsExpr")
+func (cse *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
+	cse.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
+}
+
+func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
+	pointerAndPosition := cse.SearchPointerReverse("@PreVisitAssignStmtRhsExpr")
 	rewritten := false
 	if pointerAndPosition != nil {
-		str, _ := cppe.ExtractSubstring(pointerAndPosition.Position)
+		str, _ := cse.ExtractSubstring(pointerAndPosition.Position)
 		for _, t := range destTypes {
 			matchStr := t + "("
 			if strings.Contains(str, matchStr) {
-				cppe.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
+				cse.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
 				rewritten = true
 			}
 		}
 	}
 	if !rewritten {
-		tv := cppe.pkg.TypesInfo.Types[node]
-		//pos := cppe.pkg.Fset.Position(node.Pos())
+		tv := cse.pkg.TypesInfo.Types[node]
+		//pos := cse.pkg.Fset.Position(node.Pos())
 		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
 		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
-			if !cppe.isTuple && tv.Type.String() != "func()" {
-				cppe.RewriteFileBuffer(pointerAndPosition.Position, "", "("+typeVal+")")
+			if !cse.isTuple && tv.Type.String() != "func()" {
+				cse.RewriteFileBuffer(pointerAndPosition.Position, "", "("+typeVal+")")
 			}
 		}
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
+func (cse *CSharpEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
 	if index > 0 {
-		str := cppe.emitAsString(", ", indent)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(", ", indent)
+		cse.emitToFileBuffer(str, "")
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
-	cppe.shouldGenerate = true
+func (cse *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	cse.shouldGenerate = true
 	assignmentToken := node.Tok.String()
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
-		str := cppe.emitAsString("var ", indent)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString("var ", indent)
+		cse.emitToFileBuffer(str, "")
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
-		str := cppe.emitAsString("var (", indent)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString("var (", indent)
+		cse.emitToFileBuffer(str, "")
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
-		str := cppe.emitAsString("(", indent)
-		cppe.emitToFileBuffer(str, "")
-		cppe.isTuple = true
+		str := cse.emitAsString("(", indent)
+		cse.emitToFileBuffer(str, "")
+		cse.isTuple = true
 	}
 	if assignmentToken != "+=" {
 		assignmentToken = "="
 	}
-	cppe.assignmentToken = assignmentToken
+	cse.assignmentToken = assignmentToken
 }
 
-func (cppe *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+func (cse *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
-		str := cppe.emitAsString(")", indent)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(")", indent)
+		cse.emitToFileBuffer(str, "")
 	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
-		str := cppe.emitAsString(")", indent)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(")", indent)
+		cse.emitToFileBuffer(str, "")
 	}
-	cppe.shouldGenerate = false
+	cse.shouldGenerate = false
 
 }
 
-func (cppe *CSharpEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
-	cppe.shouldGenerate = true
-	str := cppe.emitAsString("[", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	cse.shouldGenerate = true
+	str := cse.emitAsString("[", 0)
+	cse.emitToFileBuffer(str, "")
 
 }
-func (cppe *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
-	str := cppe.emitAsString("]", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	str := cse.emitAsString("]", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (v *CSharpEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
-	v.shouldGenerate = true
-	str := v.emitAsString("(", 1)
-	v.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
+	cse.shouldGenerate = true
+	str := cse.emitAsString("(", 1)
+	cse.emitToFileBuffer(str, "")
 }
-func (v *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
-	str := v.emitAsString(")", 1)
-	v.emitToFileBuffer(str, "")
-	v.shouldGenerate = false
-}
-
-func (cppe *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
-	str := cppe.emitAsString(op.String()+" ", 1)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
+	str := cse.emitAsString(")", 1)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
-	cppe.stack = append(cppe.stack, "@@PreVisitBasicLit")
+func (cse *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
+	str := cse.emitAsString(op.String()+" ", 1)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	cse.stack = append(cse.stack, "@@PreVisitBasicLit")
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
 		if e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
-			str := (cppe.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
-			cppe.stack = append(cppe.stack, str)
+			str := (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
+			cse.stack = append(cse.stack, str)
 		} else {
-			str := (cppe.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
-			cppe.stack = append(cppe.stack, str)
+			str := (cse.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
+			cse.stack = append(cse.stack, str)
 		}
 	} else {
-		str := (cppe.emitAsString(e.Value, 0))
-		cppe.stack = append(cppe.stack, str)
+		str := (cse.emitAsString(e.Value, 0))
+		cse.stack = append(cse.stack, str)
 	}
-	cppe.buffer = true
+	cse.buffer = true
 }
 
-func (cppe *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
-	cppe.mergeStackElements("@@PreVisitBasicLit")
-	if len(cppe.stack) == 1 {
-		cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
-		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+func (cse *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
+	cse.mergeStackElements("@@PreVisitBasicLit")
+	if len(cse.stack) == 1 {
+		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
+		cse.stack = cse.stack[:len(cse.stack)-1]
 	}
 
-	cppe.buffer = false
+	cse.buffer = false
 }
 
-func (cppe *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
-	str := cppe.emitAsString("(", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := cse.emitAsString("(", 0)
+	cse.emitToFileBuffer(str, "")
 }
-func (cppe *CSharpEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
-	str := cppe.emitAsString(")", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := cse.emitAsString(")", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int) {
+func (cse *CSharpEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int) {
 	if index > 0 {
-		str := cppe.emitAsString(", ", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(", ", 0)
+		cse.emitToFileBuffer(str, "")
 	}
 }
-func (cppe *CSharpEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
-	str := cppe.emitAsString(";", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
+	str := cse.emitAsString(";", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (v *CSharpEmitter) PreVisitIfStmt(node *ast.IfStmt, indent int) {
-	v.shouldGenerate = true
+func (cse *CSharpEmitter) PreVisitIfStmt(node *ast.IfStmt, indent int) {
+	cse.shouldGenerate = true
 }
-func (v *CSharpEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int) {
-	v.shouldGenerate = false
-}
-
-func (cppe *CSharpEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
-	str := cppe.emitAsString("if (", 1)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int) {
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
-	str := cppe.emitAsString(")\n", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	str := cse.emitAsString("if (", 1)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
-	cppe.insideForPostCond = true
-	str := cppe.emitAsString("for (", indent)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = true
+func (cse *CSharpEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	str := cse.emitAsString(")\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
+func (cse *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
+	cse.insideForPostCond = true
+	str := cse.emitAsString("for (", indent)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
+}
+
+func (cse *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 	if node == nil {
-		str := cppe.emitAsString(";", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(";", 0)
+		cse.emitToFileBuffer(str, "")
 	}
 }
 
-func (cppe *CSharpEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
+func (cse *CSharpEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
 	if node != nil {
-		cppe.insideForPostCond = false
+		cse.insideForPostCond = false
 	}
-	str := cppe.emitAsString(")\n", 0)
-	cppe.emitToFileBuffer(str, "")
+	str := cse.emitAsString(")\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
-	str := cppe.emitAsString("else", 1)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
+	str := cse.emitAsString("else", 1)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
-	str := cppe.emitAsString(";", 0)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
+func (cse *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
+	str := cse.emitAsString(";", 0)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
-	cppe.shouldGenerate = false
-	cppe.insideForPostCond = false
+func (cse *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
+	cse.shouldGenerate = false
+	cse.insideForPostCond = false
 }
 
-func (cppe *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
-	cppe.shouldGenerate = true
-	str := cppe.emitAsString("foreach (var ", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	cse.shouldGenerate = true
+	str := cse.emitAsString("foreach (var ", indent)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
-	str := cppe.emitAsString(" in ", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
+	str := cse.emitAsString(" in ", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
-	str := cppe.emitAsString(")\n", 0)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
+func (cse *CSharpEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
+	str := cse.emitAsString(")\n", 0)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
-	cppe.shouldGenerate = true
+func (cse *CSharpEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	cse.shouldGenerate = true
 }
 
-func (cppe *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
-	str := cppe.emitAsString(node.Tok.String(), 0)
-	if !cppe.insideForPostCond {
-		str += cppe.emitAsString(";", 0)
+func (cse *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	str := cse.emitAsString(node.Tok.String(), 0)
+	if !cse.insideForPostCond {
+		str += cse.emitAsString(";", 0)
 	}
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (v *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
-	str := v.emitAsString("new ", 0)
-	v.emitToFileBuffer(str, "")
-	v.emitToFileBuffer("", "@PreVisitCompositeLitType")
+func (cse *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
+	str := cse.emitAsString("new ", 0)
+	cse.emitToFileBuffer(str, "")
+	cse.emitToFileBuffer("", "@PreVisitCompositeLitType")
 }
 
-func (v *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
-	pointerAndPosition := v.SearchPointerReverse("@PreVisitCompositeLitType")
+func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
+	pointerAndPosition := cse.SearchPointerReverse("@PreVisitCompositeLitType")
 	if pointerAndPosition != nil {
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
-		for aliasName, alias := range v.aliases {
-			if alias.UnderlyingType == v.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-				v.RewriteFileBufferBetween(pointerAndPosition.Position, len(v.fileBuffer), aliasName)
+		for aliasName, alias := range cse.aliases {
+			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node].Type.Underlying().String() {
+				cse.RewriteFileBufferBetween(pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
 			}
 		}
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := cppe.emitAsString("{", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
+	str := cse.emitAsString("{", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := cppe.emitAsString("}", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
+	str := cse.emitAsString("}", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int) {
+func (cse *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int) {
 	if index > 0 {
-		str := cppe.emitAsString(", ", 0)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString(", ", 0)
+		cse.emitToFileBuffer(str, "")
 	}
 }
 
-func (cppe *CSharpEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
-	str := cppe.emitAsString("[", 0)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = false
+func (cse *CSharpEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
+	str := cse.emitAsString("[", 0)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
-	str := cppe.emitAsString("]", 0)
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = true
+func (cse *CSharpEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
+	str := cse.emitAsString("]", 0)
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 
-func (cppe *CSharpEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
-	cppe.emitToFileBuffer("..", "")
+func (cse *CSharpEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
+	cse.emitToFileBuffer("..", "")
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
-	str := cppe.emitAsString("(", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cse.emitAsString("(", indent)
+	cse.emitToFileBuffer(str, "")
 }
-func (cppe *CSharpEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
-	str := cppe.emitAsString("}", 0)
-	cppe.emitToFileBuffer(str, "")
-}
-
-func (cppe *CSharpEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
-	str := cppe.emitAsString(")", 0)
-	str += cppe.emitAsString("=>", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	str := cse.emitAsString("}", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+func (cse *CSharpEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
+	str := cse.emitAsString(")", 0)
+	str += cse.emitAsString("=>", 0)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
 	str := ""
 	if index > 0 {
-		str += cppe.emitAsString(", ", 0)
+		str += cse.emitAsString(", ", 0)
 	}
-	cppe.emitToFileBuffer(str, "")
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
-	str := cppe.emitAsString(" ", 0)
-	str += cppe.emitAsString(node.Names[0].Name, indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	str := cse.emitAsString(" ", 0)
+	str += cse.emitAsString(node.Names[0].Name, indent)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
-	str := cppe.emitAsString("{\n", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
+	str := cse.emitAsString("{\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
-	cppe.shouldGenerate = false
+func (cse *CSharpEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	cse.shouldGenerate = false
 }
 
-func (cppe *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
-	str := cppe.emitAsString("object", indent)
-	cppe.stack = append(cppe.stack, str)
+func (cse *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
+	str := cse.emitAsString("object", indent)
+	cse.stack = append(cse.stack, str)
 }
 
-func (cppe *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent int) {
+func (cse *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent int) {
 	// emit only if it's not a complex type
-	if len(cppe.stack) == 1 {
-		cppe.emitToFileBuffer(cppe.stack[len(cppe.stack)-1], "")
-		cppe.stack = cppe.stack[:len(cppe.stack)-1]
+	if len(cse.stack) == 1 {
+		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
+		cse.stack = cse.stack[:len(cse.stack)-1]
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
-	str := cppe.emitAsString("= ", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
+	str := cse.emitAsString("= ", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
-	str := cppe.emitAsString("(", 0)
-	str += cppe.emitAsString(node.Op.String(), 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	str := cse.emitAsString("(", 0)
+	str += cse.emitAsString(node.Op.String(), 0)
+	cse.emitToFileBuffer(str, "")
 }
-func (cppe *CSharpEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
-	str := cppe.emitAsString(")", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	str := cse.emitAsString(")", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
 func trimBeforeChar(s string, ch byte) string {
@@ -1292,10 +1292,10 @@ func trimBeforeChar(s string, ch byte) string {
 	return s[pos+1:]
 }
 
-func (cppe *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
+func (cse *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 	// TODO dummy implementation
 	// not very well performed
-	for constIdent, obj := range cppe.pkg.TypesInfo.Defs {
+	for constIdent, obj := range cse.pkg.TypesInfo.Defs {
 		if obj == nil {
 			continue
 		}
@@ -1305,82 +1305,82 @@ func (cppe *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int)
 			}
 			constType := con.Type().String()
 			constType = strings.TrimPrefix(constType, "untyped ")
-			if constType == cppe.pkg.TypesInfo.Defs[node].Type().String() {
+			if constType == cse.pkg.TypesInfo.Defs[node].Type().String() {
 				constType = trimBeforeChar(constType, '.')
 			}
-			str := cppe.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), 0)
+			str := cse.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), 0)
 
-			cppe.emitToFileBuffer(str, "")
+			cse.emitToFileBuffer(str, "")
 		}
 	}
 }
-func (cppe *CSharpEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
-	str := cppe.emitAsString(";\n", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
+	str := cse.emitAsString(";\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
-func (cppe *CSharpEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
-	str := cppe.emitAsString("\n", 0)
-	cppe.emitToFileBuffer(str, "")
-}
-
-func (cppe *CSharpEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
-	cppe.shouldGenerate = true
-	str := cppe.emitAsString("switch (", indent)
-	cppe.emitToFileBuffer(str, "")
-}
-func (cppe *CSharpEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
-	str := cppe.emitAsString("}", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
+	str := cse.emitAsString("\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
-	str := cppe.emitAsString(") {\n", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	cse.shouldGenerate = true
+	str := cse.emitAsString("switch (", indent)
+	cse.emitToFileBuffer(str, "")
+}
+func (cse *CSharpEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	str := cse.emitAsString("}", indent)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitCaseClause(node *ast.CaseClause, indent int) {
-	cppe.emitToFileBuffer("\n", "")
-	str := cppe.emitAsString("break;\n", indent+4)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
+	str := cse.emitAsString(") {\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) {
+func (cse *CSharpEmitter) PostVisitCaseClause(node *ast.CaseClause, indent int) {
+	cse.emitToFileBuffer("\n", "")
+	str := cse.emitAsString("break;\n", indent+4)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) {
 	if len(node) == 0 {
-		str := cppe.emitAsString("default:\n", indent+2)
-		cppe.emitToFileBuffer(str, "")
+		str := cse.emitAsString("default:\n", indent+2)
+		cse.emitToFileBuffer(str, "")
 	}
 }
 
-func (cppe *CSharpEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
-	str := cppe.emitAsString("case ", indent+2)
-	tv := cppe.pkg.TypesInfo.Types[node]
+func (cse *CSharpEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	str := cse.emitAsString("case ", indent+2)
+	tv := cse.pkg.TypesInfo.Types[node]
 	if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
 		str += "(" + typeVal + ")"
 	}
-	cppe.emitToFileBuffer(str, "")
-	cppe.shouldGenerate = true
+	cse.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 
-func (cppe *CSharpEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
-	str := cppe.emitAsString(":\n", 0)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	str := cse.emitAsString(":\n", 0)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int) {
-	str := cppe.emitAsString("(", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int) {
+	str := cse.emitAsString("(", indent)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int) {
-	str := cppe.emitAsString(")", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int) {
+	str := cse.emitAsString(")", indent)
+	cse.emitToFileBuffer(str, "")
 }
 
-func (cppe *CSharpEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
-	cppe.shouldGenerate = true
+func (cse *CSharpEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
+	cse.shouldGenerate = true
 }
 
-func (cppe *CSharpEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
-	str := cppe.emitAsString(node.Tok.String()+";", indent)
-	cppe.emitToFileBuffer(str, "")
+func (cse *CSharpEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
+	str := cse.emitAsString(node.Tok.String()+";", indent)
+	cse.emitToFileBuffer(str, "")
 }

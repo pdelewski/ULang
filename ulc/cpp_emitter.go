@@ -49,8 +49,8 @@ func (*CPPEmitter) lowerToBuiltins(selector string) string {
 	return selector
 }
 
-func (e *CPPEmitter) emitToFile(s string) error {
-	_, err := e.file.WriteString(s)
+func (cppe *CPPEmitter) emitToFile(s string) error {
+	_, err := cppe.file.WriteString(s)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return err
@@ -58,7 +58,7 @@ func (e *CPPEmitter) emitToFile(s string) error {
 	return nil
 }
 
-func (e *CPPEmitter) emitAsString(s string, indent int) string {
+func (cppe *CPPEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
