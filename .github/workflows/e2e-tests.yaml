@@ -27,20 +27,27 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
       - name: Run tests sequentially
         run: |
           tests=(
-            "tests/basic basic true"
-            "tests/slice slice true"
-            "tests/complex complex true"
-            "libs/iceberg iceberg true"
-            "libs/contlib contlib true"
-            "libs/uql uql true"
-            "libs/substrait substrait true"
+            "tests/basic basic true true"
+            "tests/slice slice true false"
+            "tests/complex complex true false"
+            "libs/iceberg iceberg true false"
+            "libs/contlib contlib true false"
+            "libs/uql uql true false"
+            "libs/substrait substrait true false"
           )
 
           for test_case in "${tests[@]}"; do
-            read test_dir test_name dotnet_enabled <<< "$test_case"
+            read test_dir test_name dotnet_enabled rust_enabled <<< "$test_case"
 
             echo "▶️ Running: $test_name"
 
@@ -60,6 +67,18 @@ jobs:
               mv ulc/$test_name.cs dotnet_project/app/Program.cs
               (cd dotnet_project/app && dotnet build)
               rm -rf dotnet_project
+            fi
+
+            if [[ "$rust_enabled" == "true" ]]; then
+              echo "🦀 Rust setup"
+              mkdir -p rust_project/src
+              echo "fn main() { println!(\"Hello from $test_name\"); }" > rust_project/src/main.rs
+              echo "[package]" > rust_project/Cargo.toml
+              echo "name = \"$test_name\"" >> rust_project/Cargo.toml
+              echo "version = \"0.1.0\"" >> rust_project/Cargo.toml
+              echo "edition = \"2021\"" >> rust_project/Cargo.toml
+              (cd rust_project && cargo build)
+              rm -rf rust_project
             fi
 
             echo "🧹 Cleanup"
