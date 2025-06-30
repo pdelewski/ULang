@@ -37,7 +37,7 @@ func main() {
 		return
 	}
 	cfg := &packages.Config{
-		Mode:  packages.LoadSyntax,
+		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps,
 		Dir:   sourceDir,
 		Tests: false,
 	}
