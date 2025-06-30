@@ -56,6 +56,7 @@ func main() {
 	sema := &BasePass{PassName: "Sema", emitter: &SemaChecker{Emitter: &BaseEmitter{}}}
 	cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{Emitter: &BaseEmitter{}, Output: output + ".cpp"}}
 	csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{Emitter: &BaseEmitter{}, Output: output + ".cs"}}
+	rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{Emitter: &BaseEmitter{}, Output: output + ".rs"}}
 
 	passManager := &PassManager{
 		pkgs: pkgs,
@@ -63,6 +64,7 @@ func main() {
 			sema,
 			cppBackend,
 			csBackend,
+			rustBackend,
 		},
 	}
 
@@ -72,6 +74,7 @@ func main() {
 	var programFiles = []string{
 		"cpp",
 		"cs",
+		"rs",
 	}
 
 	for _, file := range programFiles {
