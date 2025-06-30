@@ -532,7 +532,6 @@ func (cse *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 		str = cse.emitAsString(fmt.Sprintf("%s", node.Name), 0)
 	}
 	cse.emitToFileBuffer(str, "")
-
 }
 
 func (cse *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
