@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -190,4 +191,63 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 	re.shouldGenerate = false
 	str := re.emitAsString(")", 0)
 	re.emitToFileBuffer(str, "")
+}
+
+func (*RustEmitter) lowerToBuiltins(selector string) string {
+	switch selector {
+	case "fmt":
+		return ""
+	case "Sprintf":
+		return "string_format"
+	case "Println":
+		return "println"
+	case "Printf":
+		return "printf"
+	case "Print":
+		return "printf"
+	case "len":
+		return "std::size"
+	}
+	return selector
+}
+
+func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
+	var str string
+	name := e.Name
+	name = re.lowerToBuiltins(name)
+	if name == "nil" {
+		str = re.emitAsString("{}", indent)
+		re.emitToFileBuffer(str, "")
+	} else {
+		if n, ok := rustTypesMap[name]; ok {
+			str = re.emitAsString(n, indent)
+			re.emitToFileBuffer(str, "")
+		} else {
+			str = re.emitAsString(name, indent)
+			re.emitToFileBuffer(str, "")
+		}
+	}
+}
+
+func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := re.emitAsString("(", 0)
+	re.emitToFileBuffer(str, "")
+}
+func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := re.emitAsString(")", 0)
+	re.emitToFileBuffer(str, "")
+}
+
+func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	if e.Kind == token.STRING {
+		e.Value = strings.Replace(e.Value, "\"", "", -1)
+		if e.Value[0] == '`' {
+			e.Value = strings.Replace(e.Value, "`", "", -1)
+			re.emitToFileBuffer(re.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0), "")
+		} else {
+			re.emitToFileBuffer(re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0), "")
+		}
+	} else {
+		re.emitToFileBuffer(re.emitAsString(e.Value, 0), "")
+	}
 }
