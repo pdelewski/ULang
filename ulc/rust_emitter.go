@@ -44,6 +44,46 @@ type RustEmitter struct {
 	PointerAndPositionVec []PointerAndPosition
 }
 
+func (*RustEmitter) lowerToBuiltins(selector string) string {
+	switch selector {
+	case "fmt":
+		return ""
+	case "Sprintf":
+		return "string_format"
+	case "Println":
+		return "println"
+	case "Printf":
+		return "printf"
+	case "Print":
+		return "printf"
+	case "len":
+		return "std::size"
+	}
+	return selector
+}
+func (re *RustEmitter) mergeStackElements(marker string) {
+	var merged strings.Builder
+
+	// Process the stack in reverse until we find a marker
+	for len(re.stack) > 0 {
+		top := re.stack[len(re.stack)-1]
+		re.stack = re.stack[:len(re.stack)-1] // Pop element
+
+		// Stop merging when we find a marker
+		if strings.HasPrefix(top, marker) {
+			re.stack = append(re.stack, merged.String()) // Push merged string
+			return
+		}
+
+		// Prepend the element to the merged string (reverse order)
+		mergedString := top + merged.String() // Prepend instead of append
+		merged.Reset()
+		merged.WriteString(mergedString)
+	}
+
+	panic("unreachable")
+}
+
 func (re *RustEmitter) emitToFileBuffer(s string, pointer string) error {
 	re.PointerAndPositionVec = append(re.PointerAndPositionVec, PointerAndPosition{
 		Pointer:  pointer,
@@ -154,16 +194,6 @@ func (re *RustEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 	re.emitToFileBuffer(str, "")
 }
 
-func (re *RustEmitter) PreVisitFuncTypeParams(node *ast.FieldList, indent int) {
-	str := re.emitAsString("(", 0)
-	re.emitToFileBuffer("", str)
-}
-
-func (re *RustEmitter) PostVisitFuncTypeParams(node *ast.FieldList, indent int) {
-	str := re.emitAsString(")", 0)
-	re.emitToFileBuffer("", str)
-}
-
 func (re *RustEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	str := re.emitAsString("{\n", 1)
 	re.emitToFileBuffer(str, "")
@@ -191,24 +221,6 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 	re.shouldGenerate = false
 	str := re.emitAsString(")", 0)
 	re.emitToFileBuffer(str, "")
-}
-
-func (*RustEmitter) lowerToBuiltins(selector string) string {
-	switch selector {
-	case "fmt":
-		return ""
-	case "Sprintf":
-		return "string_format"
-	case "Println":
-		return "println"
-	case "Printf":
-		return "printf"
-	case "Print":
-		return "printf"
-	case "len":
-		return "std::size"
-	}
-	return selector
 }
 
 func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
@@ -239,15 +251,30 @@ func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	re.stack = append(re.stack, "@@PreVisitBasicLit")
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
 		if e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
-			re.emitToFileBuffer(re.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0), "")
+			str := (re.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
+			re.stack = append(re.stack, str)
 		} else {
-			re.emitToFileBuffer(re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0), "")
+			str := (re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
+			re.stack = append(re.stack, str)
 		}
 	} else {
-		re.emitToFileBuffer(re.emitAsString(e.Value, 0), "")
+		str := (re.emitAsString(e.Value, 0))
+		re.stack = append(re.stack, str)
 	}
+	re.buffer = true
+}
+
+func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
+	re.mergeStackElements("@@PreVisitBasicLit")
+	if len(re.stack) == 1 {
+		re.emitToFileBuffer(re.stack[len(re.stack)-1], "")
+		re.stack = re.stack[:len(re.stack)-1]
+	}
+
+	re.buffer = false
 }

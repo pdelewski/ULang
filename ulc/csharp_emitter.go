@@ -333,6 +333,121 @@ func (cse *CSharpEmitter) PostVisitProgram(indent int) {
 	cse.file.Close()
 }
 
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatures(indent int) {
+	cse.forwardDecls = true
+}
+
+func (cse *CSharpEmitter) PostVisitFuncDeclSignatures(indent int) {
+	cse.forwardDecls = false
+}
+
+func (cse *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
+	if cse.forwardDecls {
+		return
+	}
+	var str string
+	if node.Name == "main" {
+		str = cse.emitAsString(fmt.Sprintf("Main"), 0)
+	} else {
+		str = cse.emitAsString(fmt.Sprintf("%s", node.Name), 0)
+	}
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cse.emitAsString("{\n", 1)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	str := cse.emitAsString("}", 1)
+	cse.emitToFileBuffer(str, "")
+	cse.isArray = false
+}
+
+func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
+		return
+	}
+	cse.shouldGenerate = true
+	str := cse.emitAsString("(", 0)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
+		return
+	}
+	cse.shouldGenerate = false
+	str := cse.emitAsString(")", 0)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
+	if !cse.shouldGenerate {
+		return
+	}
+
+	var str string
+	name := e.Name
+	name = cse.lowerToBuiltins(name)
+	if name == "nil" {
+		str = cse.emitAsString("default", indent)
+	} else {
+		if n, ok := csTypesMap[name]; ok {
+			str = cse.emitAsString(n, indent)
+		} else {
+			str = cse.emitAsString(name, indent)
+		}
+	}
+
+	if cse.buffer {
+		cse.stack = append(cse.stack, str)
+	} else {
+		cse.emitToFileBuffer(str, "")
+	}
+
+}
+
+func (cse *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := cse.emitAsString("(", 0)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
+	str := cse.emitAsString(")", 0)
+	cse.emitToFileBuffer(str, "")
+}
+
+func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	cse.stack = append(cse.stack, "@@PreVisitBasicLit")
+	if e.Kind == token.STRING {
+		e.Value = strings.Replace(e.Value, "\"", "", -1)
+		if e.Value[0] == '`' {
+			e.Value = strings.Replace(e.Value, "`", "", -1)
+			str := (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
+			cse.stack = append(cse.stack, str)
+		} else {
+			str := (cse.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
+			cse.stack = append(cse.stack, str)
+		}
+	} else {
+		str := (cse.emitAsString(e.Value, 0))
+		cse.stack = append(cse.stack, str)
+	}
+	cse.buffer = true
+}
+
+func (cse *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
+	cse.mergeStackElements("@@PreVisitBasicLit")
+	if len(cse.stack) == 1 {
+		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
+		cse.stack = cse.stack[:len(cse.stack)-1]
+	}
+
+	cse.buffer = false
+}
+
 func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
 	cse.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
 }
@@ -381,32 +496,6 @@ func (cse *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int)
 
 func (cse *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
 	cse.emitToFileBuffer(";\n", "")
-}
-
-func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
-	if !cse.shouldGenerate {
-		return
-	}
-
-	var str string
-	name := e.Name
-	name = cse.lowerToBuiltins(name)
-	if name == "nil" {
-		str = cse.emitAsString("default", indent)
-	} else {
-		if n, ok := csTypesMap[name]; ok {
-			str = cse.emitAsString(n, indent)
-		} else {
-			str = cse.emitAsString(name, indent)
-		}
-	}
-
-	if cse.buffer {
-		cse.stack = append(cse.stack, str)
-	} else {
-		cse.emitToFileBuffer(str, "")
-	}
-
 }
 
 func (cse *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
@@ -472,39 +561,7 @@ func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	}
 }
 
-func (cse *CSharpEmitter) PreVisitFuncDeclSignatures(indent int) {
-	cse.forwardDecls = true
-}
-
-func (cse *CSharpEmitter) PostVisitFuncDeclSignatures(indent int) {
-	cse.forwardDecls = false
-}
-
 func (cse *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
-	cse.isArray = false
-}
-
-func (cse *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
-	if cse.forwardDecls {
-		return
-	}
-	var str string
-	if node.Name == "main" {
-		str = cse.emitAsString(fmt.Sprintf("Main"), 0)
-	} else {
-		str = cse.emitAsString(fmt.Sprintf("%s", node.Name), 0)
-	}
-	cse.emitToFileBuffer(str, "")
-}
-
-func (cse *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cse.emitAsString("{\n", 1)
-	cse.emitToFileBuffer(str, "")
-}
-
-func (cse *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
-	str := cse.emitAsString("}", 1)
-	cse.emitToFileBuffer(str, "")
 	cse.isArray = false
 }
 
@@ -610,10 +667,6 @@ func (cse *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, inde
 	}
 }
 
-func (cse *CSharpEmitter) PostVisitFuncTypeParam(node *ast.Field, index int, indent int) {
-
-}
-
 func (cse *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	if !cse.shouldGenerate {
 		return
@@ -646,24 +699,6 @@ func (cse *CSharpEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent in
 	if node != nil {
 		cse.numFuncResults = len(node.List)
 	}
-}
-
-func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
-	if cse.forwardDecls {
-		return
-	}
-	cse.shouldGenerate = true
-	str := cse.emitAsString("(", 0)
-	cse.emitToFileBuffer(str, "")
-}
-
-func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
-	if cse.forwardDecls {
-		return
-	}
-	cse.shouldGenerate = false
-	str := cse.emitAsString(")", 0)
-	cse.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
@@ -991,44 +1026,6 @@ func (cse *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) 
 
 func (cse *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
 	str := cse.emitAsString(op.String()+" ", 1)
-	cse.emitToFileBuffer(str, "")
-}
-
-func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
-	cse.stack = append(cse.stack, "@@PreVisitBasicLit")
-	if e.Kind == token.STRING {
-		e.Value = strings.Replace(e.Value, "\"", "", -1)
-		if e.Value[0] == '`' {
-			e.Value = strings.Replace(e.Value, "`", "", -1)
-			str := (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
-			cse.stack = append(cse.stack, str)
-		} else {
-			str := (cse.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
-			cse.stack = append(cse.stack, str)
-		}
-	} else {
-		str := (cse.emitAsString(e.Value, 0))
-		cse.stack = append(cse.stack, str)
-	}
-	cse.buffer = true
-}
-
-func (cse *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
-	cse.mergeStackElements("@@PreVisitBasicLit")
-	if len(cse.stack) == 1 {
-		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
-		cse.stack = cse.stack[:len(cse.stack)-1]
-	}
-
-	cse.buffer = false
-}
-
-func (cse *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
-	str := cse.emitAsString("(", 0)
-	cse.emitToFileBuffer(str, "")
-}
-func (cse *CSharpEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
-	str := cse.emitAsString(")", 0)
 	cse.emitToFileBuffer(str, "")
 }
 
