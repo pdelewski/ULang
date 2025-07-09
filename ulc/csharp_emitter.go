@@ -8,7 +8,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"os"
 	"strings"
-	"unicode"
 )
 
 var destTypes = []string{"sbyte", "short", "int", "long", "byte", "ushort", "object", "string"}
@@ -124,18 +123,6 @@ func (cse *CSharpEmitter) mergeStackElements(marker string) {
 	}
 
 	panic("unreachable")
-}
-
-func capitalizeFirst(s string) string {
-	if len(s) == 0 {
-		return s // Return empty string if input is empty
-	}
-
-	// Convert string to rune slice to handle Unicode characters
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0]) // Change the first character to uppercase
-
-	return string(runes) // Convert runes back to string
 }
 
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
