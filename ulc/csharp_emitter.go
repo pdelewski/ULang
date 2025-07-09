@@ -397,22 +397,6 @@ func (cse *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent in
 }
 
 func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
-	obj := cse.pkg.TypesInfo.Defs[e]
-	if obj != nil {
-		if v, ok := obj.(*types.Var); ok {
-			pos := cse.pkg.Fset.Position(v.Pos())
-			fmt.Printf("Variable %s has type: %s (declared at %s:%d)\n", v.Name(), v.Type().String(), pos.Filename, pos.Line)
-		}
-	}
-
-	obj = cse.pkg.TypesInfo.Uses[e]
-	if obj != nil {
-		if v, ok := obj.(*types.Var); ok {
-			usagePos := cse.pkg.Fset.Position(e.Pos()) // <- position of the usage, not the declaration
-			fmt.Printf("Variable %s has type: %s (used at %s:%d)\n", v.Name(), v.Type().String(), usagePos.Filename, usagePos.Line)
-		}
-	}
-
 	if !cse.shouldGenerate {
 		return
 	}
@@ -458,14 +442,6 @@ func (cse *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 		fmt.Println("Error writing to file:", err)
 		return
 	}
-}
-
-func JoinAliasTypeNames(reprs []AliasRepr, sep string) string {
-	var names []string
-	for _, r := range reprs {
-		names = append(names, r.TypeName)
-	}
-	return strings.Join(names, sep)
 }
 
 func RebuildNestedType(reprs []AliasRepr) string {
