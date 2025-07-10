@@ -208,6 +208,10 @@ pub fn string_format(fmt_str: &str, args: &[&dyn fmt::Display]) -> String {
     }
     result
 }
+
+pub fn len<T>(slice: &[T]) -> usize {
+    slice.len()
+}
 `
 	str := re.emitAsString(builtin, indent)
 	re.emitToFileBuffer(str, "")
