@@ -58,7 +58,7 @@ func (*RustEmitter) lowerToBuiltins(selector string) string {
 	case "Print":
 		return "printf"
 	case "len":
-		return "std::size"
+		return "len"
 	}
 	return selector
 }
@@ -768,10 +768,10 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
 	assignmentToken := node.Tok.String()
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
-		str := re.emitAsString("var ", indent)
+		str := re.emitAsString("let ", indent)
 		re.emitToFileBuffer(str, "")
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
-		str := re.emitAsString("var (", indent)
+		str := re.emitAsString("let (", indent)
 		re.emitToFileBuffer(str, "")
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
 		str := re.emitAsString("(", indent)
