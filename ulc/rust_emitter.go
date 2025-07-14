@@ -426,7 +426,7 @@ func (re *RustEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 		return
 	}
 	re.stack = append(re.stack, "@@PreVisitArrayType")
-	str := re.emitAsString("<", indent)
+	str := re.emitAsString("<", 0)
 	re.stack = append(re.stack, str)
 
 	re.buffer = true
