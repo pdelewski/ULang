@@ -26,6 +26,7 @@ var csTypesMap = map[string]string{
 type PointerAndPosition struct {
 	Pointer  string // Pointer to the type
 	Position int
+	Length   int // length of string
 }
 
 type AliasRepr struct {
@@ -148,6 +149,7 @@ func (cse *CSharpEmitter) emitToFileBuffer(s string, pointer string) error {
 	cse.PointerAndPositionVec = append(cse.PointerAndPositionVec, PointerAndPosition{
 		Pointer:  pointer,
 		Position: len(cse.fileBuffer),
+		Length:   len(s),
 	})
 	cse.fileBuffer += s
 	return nil
