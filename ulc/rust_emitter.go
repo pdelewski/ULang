@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-var rustDestTypes = []string{"sbyte", "short", "int", "long", "byte", "ushort", "object", "string"}
+var rustDestTypes = []string{"i8", "i16", "i32", "long", "byte", "ushort", "object", "string", "i32"}
 
 var rustTypesMap = map[string]string{
 	"int8":   rustDestTypes[0],
@@ -22,6 +22,7 @@ var rustTypesMap = map[string]string{
 	"uint16": rustDestTypes[5],
 	"any":    rustDestTypes[6],
 	"string": rustDestTypes[7],
+	"int":    rustDestTypes[8],
 }
 
 type RustEmitter struct {
@@ -131,6 +132,7 @@ func (re *RustEmitter) emitToFileBuffer(s string, pointer string) error {
 	re.PointerAndPositionVec = append(re.PointerAndPositionVec, PointerAndPosition{
 		Pointer:  pointer,
 		Position: len(re.fileBuffer),
+		Length:   len(s),
 	})
 	re.fileBuffer += s
 	return nil
@@ -271,6 +273,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 }
 
 func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
+	re.emitToFileBuffer("", "@PreVisitIdent")
 	if !re.shouldGenerate {
 		return
 	}
@@ -281,7 +284,7 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	if name == "nil" {
 		str = re.emitAsString("{}", indent)
 	} else {
-		if n, ok := csTypesMap[name]; ok {
+		if n, ok := rustTypesMap[name]; ok {
 			str = re.emitAsString(n, indent)
 		} else {
 			str = re.emitAsString(name, indent)
@@ -356,9 +359,7 @@ func (re *RustEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int
 func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
 	var str string
 	if re.isArray {
-		str += " = new "
-		str += strings.TrimSpace(re.arrayType)
-		str += "();"
+		str += " = Vec::new();"
 		re.isArray = false
 	} else {
 		str += " = default;"
@@ -425,9 +426,7 @@ func (re *RustEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 		return
 	}
 	re.stack = append(re.stack, "@@PreVisitArrayType")
-	str := re.emitAsString("List", indent)
-	re.stack = append(re.stack, str)
-	str = re.emitAsString("<", indent)
+	str := re.emitAsString("<", indent)
 	re.stack = append(re.stack, str)
 
 	re.buffer = true
@@ -443,6 +442,7 @@ func (re *RustEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	if len(re.stack) == 1 {
 		re.isArray = true
 		re.arrayType = re.stack[len(re.stack)-1]
+		re.emitToFileBuffer("Vec", "")
 		re.emitToFileBuffer(re.stack[len(re.stack)-1], "")
 		re.stack = re.stack[:len(re.stack)-1]
 	}
@@ -647,7 +647,7 @@ func (re *RustEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 		tv := re.pkg.TypesInfo.Types[node.Results[0]]
 		//pos := cse.pkg.Fset.Position(node.Pos())
 		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
+		if typeVal, ok := rustTypesMap[tv.Type.String()]; ok {
 			if !re.isTuple && tv.Type.String() != "func()" {
 				re.emitToFileBuffer("(", "")
 				str := re.emitAsString(typeVal, 0)
@@ -681,25 +681,16 @@ func (re *RustEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent
 
 func (re *RustEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
 	re.shouldGenerate = true
-	re.emitToFileBuffer("", "@PreVisitCallExpr")
 }
 
 func (re *RustEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
-	pointerAndPosition := re.SearchPointerReverse("@PreVisitCallExpr")
-	if pointerAndPosition != nil {
-		str, _ := re.ExtractSubstring(pointerAndPosition.Position)
-		for _, t := range destTypes {
-			matchStr := t + "("
-			if strings.Contains(str, matchStr) {
-				re.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
-			}
-		}
-	}
 	re.shouldGenerate = false
 }
 
 func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
 	re.shouldGenerate = true
+	str := re.emitAsString("let ", indent)
+	re.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
@@ -729,32 +720,32 @@ func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) 
 }
 
 func (re *RustEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	re.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
+	//re.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
 }
 
 func (re *RustEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	pointerAndPosition := re.SearchPointerReverse("@PreVisitAssignStmtRhsExpr")
-	rewritten := false
-	if pointerAndPosition != nil {
-		str, _ := re.ExtractSubstring(pointerAndPosition.Position)
-		for _, t := range destTypes {
-			matchStr := t + "("
-			if strings.Contains(str, matchStr) {
-				re.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
-				rewritten = true
-			}
-		}
-	}
-	if !rewritten {
-		tv := re.pkg.TypesInfo.Types[node]
-		//pos := cse.pkg.Fset.Position(node.Pos())
-		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
-			if !re.isTuple && tv.Type.String() != "func()" {
-				re.RewriteFileBuffer(pointerAndPosition.Position, "", "("+typeVal+")")
-			}
-		}
-	}
+	// pointerAndPosition := re.SearchPointerReverse("@PreVisitAssignStmtRhsExpr")
+	// rewritten := false
+	// if pointerAndPosition != nil {
+	// 	str, _ := re.ExtractSubstring(pointerAndPosition.Position)
+	// 	for _, t := range destTypes {
+	// 		matchStr := t + "("
+	// 		if strings.Contains(str, matchStr) {
+	// 			re.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
+	// 			rewritten = true
+	// 		}
+	// 	}
+	// }
+	// if !rewritten {
+	// 	tv := re.pkg.TypesInfo.Types[node]
+	// 	//pos := cse.pkg.Fset.Position(node.Pos())
+	// 	//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
+	// 	if typeVal, ok := rustTypesMap[tv.Type.String()]; ok {
+	// 		if !re.isTuple && tv.Type.String() != "func()" {
+	// 			re.RewriteFileBuffer(pointerAndPosition.Position, "", "("+typeVal+")")
+	// 		}
+	// 	}
+	// }
 }
 
 func (re *RustEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
@@ -920,8 +911,6 @@ func (re *RustEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 }
 
 func (re *RustEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
-	str := re.emitAsString("new ", 0)
-	re.emitToFileBuffer(str, "")
 	re.emitToFileBuffer("", "@PreVisitCompositeLitType")
 }
 
@@ -935,16 +924,19 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 				re.RewriteFileBufferBetween(pointerAndPosition.Position, len(re.fileBuffer), aliasName)
 			}
 		}
+		if re.isArray {
+			re.RewriteFileBufferBetween(pointerAndPosition.Position, len(re.fileBuffer), "vec!")
+		}
 	}
 }
 
 func (re *RustEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := re.emitAsString("{", 0)
+	str := re.emitAsString("[", 0)
 	re.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := re.emitAsString("}", 0)
+	str := re.emitAsString("]", 0)
 	re.emitToFileBuffer(str, "")
 }
 
@@ -1099,7 +1091,7 @@ func (re *RustEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) {
 func (re *RustEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
 	str := re.emitAsString("case ", indent+2)
 	tv := re.pkg.TypesInfo.Types[node]
-	if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
+	if typeVal, ok := rustTypesMap[tv.Type.String()]; ok {
 		str += "(" + typeVal + ")"
 	}
 	re.emitToFileBuffer(str, "")
