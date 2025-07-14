@@ -600,7 +600,7 @@ func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	cse.stack = append(cse.stack, "@@PreVisitArrayType")
 	str := cse.emitAsString("List", indent)
 	cse.stack = append(cse.stack, str)
-	str = cse.emitAsString("<", indent)
+	str = cse.emitAsString("<", 0)
 	cse.stack = append(cse.stack, str)
 
 	cse.buffer = true
