@@ -61,15 +61,6 @@ type CSharpEmitter struct {
 	PointerAndPositionVec []PointerAndPosition
 }
 
-func (cse *CSharpEmitter) SearchPointerReverse(target string) *PointerAndPosition {
-	for i := len(cse.PointerAndPositionVec) - 1; i >= 0; i-- {
-		if cse.PointerAndPositionVec[i].Pointer == target {
-			return &cse.PointerAndPositionVec[i]
-		}
-	}
-	return nil // Return nil if the pointer is not found
-}
-
 func (cse *CSharpEmitter) ExtractSubstring(position int) (string, error) {
 	if position < 0 || position >= len(cse.fileBuffer) {
 		return "", fmt.Errorf("position %d is out of bounds", position)
@@ -432,7 +423,7 @@ func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, ind
 }
 
 func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
-	pointerAndPosition := cse.SearchPointerReverse("@PreVisitDeclStmtValueSpecType")
+	pointerAndPosition := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", cse.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
@@ -520,7 +511,7 @@ func formatAlias(r AliasRepr) string {
 }
 
 func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
-	pointerAndPosition := cse.SearchPointerReverse(pkg.Name)
+	pointerAndPosition := SearchPointerReverse(pkg.Name, cse.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		var newStr string
 		for aliasKey, aliasVal := range cse.aliases {
@@ -712,7 +703,7 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Fi
 	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := cse.SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList")
+	pointerAndPosition := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList", cse.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
@@ -870,7 +861,7 @@ func (cse *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
-	pointerAndPosition := cse.SearchPointerReverse("@PreVisitCallExpr")
+	pointerAndPosition := SearchPointerReverse("@PreVisitCallExpr", cse.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		str, _ := cse.ExtractSubstring(pointerAndPosition.Position)
 		for _, t := range destTypes {
@@ -918,7 +909,7 @@ func (cse *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, in
 }
 
 func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	pointerAndPosition := cse.SearchPointerReverse("@PreVisitAssignStmtRhsExpr")
+	pointerAndPosition := SearchPointerReverse("@PreVisitAssignStmtRhsExpr", cse.PointerAndPositionVec)
 	rewritten := false
 	if pointerAndPosition != nil {
 		str, _ := cse.ExtractSubstring(pointerAndPosition.Position)
@@ -1111,7 +1102,7 @@ func (cse *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
-	pointerAndPosition := cse.SearchPointerReverse("@PreVisitCompositeLitType")
+	pointerAndPosition := SearchPointerReverse("@PreVisitCompositeLitType", cse.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches

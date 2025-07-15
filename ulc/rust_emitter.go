@@ -64,15 +64,6 @@ func (*RustEmitter) lowerToBuiltins(selector string) string {
 	return selector
 }
 
-func (re *RustEmitter) SearchPointerReverse(target string) *PointerAndPosition {
-	for i := len(re.PointerAndPositionVec) - 1; i >= 0; i-- {
-		if re.PointerAndPositionVec[i].Pointer == target {
-			return &re.PointerAndPositionVec[i]
-		}
-	}
-	return nil // Return nil if the pointer is not found
-}
-
 func (re *RustEmitter) ExtractSubstring(position int) (string, error) {
 	if position < 0 || position >= len(re.fileBuffer) {
 		return "", fmt.Errorf("position %d is out of bounds", position)
@@ -319,7 +310,7 @@ func (re *RustEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index 
 }
 
 func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
-	pointerAndPosition := re.SearchPointerReverse("@PreVisitDeclStmtValueSpecType")
+	pointerAndPosition := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", re.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
@@ -540,7 +531,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field
 	if re.forwardDecls {
 		return
 	}
-	pointerAndPosition := re.SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList")
+	pointerAndPosition := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList", re.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
@@ -893,7 +884,7 @@ func (re *RustEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
-	pointerAndPosition := re.SearchPointerReverse("@PreVisitCompositeLitType")
+	pointerAndPosition := SearchPointerReverse("@PreVisitCompositeLitType", re.PointerAndPositionVec)
 	if pointerAndPosition != nil {
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
