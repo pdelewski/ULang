@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -118,4 +119,35 @@ func SearchPointerReverse(target string, pointerAndPositionVec []PointerAndPosit
 		}
 	}
 	return nil // Return nil if the pointer is not found
+}
+
+func ExtractSubstring(position int, fileBuffer string) (string, error) {
+	if position < 0 || position >= len(fileBuffer) {
+		return "", fmt.Errorf("position %d is out of bounds", position)
+	}
+	return fileBuffer[position:], nil
+}
+
+func ExtractSubstringBetween(begin int, end int, fileBuffer string) (string, error) {
+	if begin < 0 || end > len(fileBuffer) || begin > end {
+		return "", fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	return fileBuffer[begin:end], nil
+}
+
+func RewriteFileBufferBetween(fileBuffer string, begin int, end int, content string) (string, error) {
+	if begin < 0 || end > len(fileBuffer) || begin > end {
+		return fileBuffer, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	return fileBuffer[:begin] + content + fileBuffer[end:], nil
+}
+
+func RewriteFileBuffer(fileBuffer string, position int, oldContent, newContent string) (string, error) {
+	if position < 0 || position+len(oldContent) > len(fileBuffer) {
+		return fileBuffer, fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
+	}
+	if fileBuffer[position:position+len(oldContent)] != oldContent {
+		return fileBuffer, fmt.Errorf("oldContent does not match the existing content at position %d", position)
+	}
+	return fileBuffer[:position] + newContent + fileBuffer[position+len(oldContent):], nil
 }

@@ -64,39 +64,6 @@ func (*RustEmitter) lowerToBuiltins(selector string) string {
 	return selector
 }
 
-func (re *RustEmitter) ExtractSubstring(position int) (string, error) {
-	if position < 0 || position >= len(re.fileBuffer) {
-		return "", fmt.Errorf("position %d is out of bounds", position)
-	}
-	return re.fileBuffer[position:], nil
-}
-
-func (re *RustEmitter) ExtractSubstringBetween(begin int, end int) (string, error) {
-	if begin < 0 || end > len(re.fileBuffer) || begin > end {
-		return "", fmt.Errorf("invalid range: begin %d, end %d", begin, end)
-	}
-	return re.fileBuffer[begin:end], nil
-}
-
-func (re *RustEmitter) RewriteFileBufferBetween(begin int, end int, content string) error {
-	if begin < 0 || end > len(re.fileBuffer) || begin > end {
-		return fmt.Errorf("invalid range: begin %d, end %d", begin, end)
-	}
-	re.fileBuffer = re.fileBuffer[:begin] + content + re.fileBuffer[end:]
-	return nil
-}
-
-func (re *RustEmitter) RewriteFileBuffer(position int, oldContent, newContent string) error {
-	if position < 0 || position+len(oldContent) > len(re.fileBuffer) {
-		return fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
-	}
-	if re.fileBuffer[position:position+len(oldContent)] != oldContent {
-		return fmt.Errorf("oldContent does not match the existing content at position %d", position)
-	}
-	re.fileBuffer = re.fileBuffer[:position] + newContent + re.fileBuffer[position+len(oldContent):]
-	return nil
-}
-
 func (re *RustEmitter) emitToFileBuffer(s string, pointer string) error {
 	re.PointerAndPositionVec = append(re.PointerAndPositionVec, PointerAndPosition{
 		Pointer:  pointer,
@@ -314,7 +281,7 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.RewriteFileBufferBetween(pointerAndPosition.Position, len(re.fileBuffer), aliasName)
+				re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, pointerAndPosition.Position, len(re.fileBuffer), aliasName)
 			}
 		}
 	}
@@ -535,7 +502,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.RewriteFileBufferBetween(pointerAndPosition.Position, len(re.fileBuffer), aliasName)
+				re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, pointerAndPosition.Position, len(re.fileBuffer), aliasName)
 			}
 		}
 	}
@@ -890,11 +857,11 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 		// go through all aliases and check if the underlying type matches
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-				re.RewriteFileBufferBetween(pointerAndPosition.Position, len(re.fileBuffer), aliasName)
+				re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, pointerAndPosition.Position, len(re.fileBuffer), aliasName)
 			}
 		}
 		if re.isArray {
-			re.RewriteFileBufferBetween(pointerAndPosition.Position, len(re.fileBuffer), "vec!")
+			re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, pointerAndPosition.Position, len(re.fileBuffer), "vec!")
 		}
 	}
 }
