@@ -63,28 +63,6 @@ func (*RustEmitter) lowerToBuiltins(selector string) string {
 	}
 	return selector
 }
-func (re *RustEmitter) mergeStackElements(marker string) {
-	var merged strings.Builder
-
-	// Process the stack in reverse until we find a marker
-	for len(re.stack) > 0 {
-		top := re.stack[len(re.stack)-1]
-		re.stack = re.stack[:len(re.stack)-1] // Pop element
-
-		// Stop merging when we find a marker
-		if strings.HasPrefix(top, marker) {
-			re.stack = append(re.stack, merged.String()) // Push merged string
-			return
-		}
-
-		// Prepend the element to the merged string (reverse order)
-		mergedString := top + merged.String() // Prepend instead of append
-		merged.Reset()
-		merged.WriteString(mergedString)
-	}
-
-	panic("unreachable")
-}
 
 func (re *RustEmitter) SearchPointerReverse(target string) *PointerAndPosition {
 	for i := len(re.PointerAndPositionVec) - 1; i >= 0; i-- {
@@ -327,7 +305,7 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 }
 
 func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
-	re.mergeStackElements("@@PreVisitBasicLit")
+	re.stack = mergeStackElements("@@PreVisitBasicLit", re.stack)
 	if len(re.stack) == 1 {
 		re.emitToFileBuffer(re.stack[len(re.stack)-1], "")
 		re.stack = re.stack[:len(re.stack)-1]
@@ -438,7 +416,7 @@ func (re *RustEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 
 	re.stack = append(re.stack, re.emitAsString(">", 0))
 
-	re.mergeStackElements("@@PreVisitArrayType")
+	re.stack = mergeStackElements("@@PreVisitArrayType", re.stack)
 	if len(re.stack) == 1 {
 		re.isArray = true
 		re.arrayType = re.stack[len(re.stack)-1]
@@ -480,7 +458,7 @@ func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	}
 	re.stack = append(re.stack, re.emitAsString(">", 0))
 
-	re.mergeStackElements("@@PreVisitFuncType")
+	re.stack = mergeStackElements("@@PreVisitFuncType", re.stack)
 
 	if len(re.stack) == 1 {
 		re.emitToFileBuffer(re.stack[len(re.stack)-1], "")
@@ -628,7 +606,7 @@ func (re *RustEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 		representation: ConvertToAliasRepr(ParseNestedTypes(re.stack[4]), []string{"", re.pkg.Name + ".Api"}),
 		UnderlyingType: re.pkg.TypesInfo.Types[node].Type.String(),
 	}
-	re.mergeStackElements("@@PreVisitTypeAliasName")
+	re.stack = mergeStackElements("@@PreVisitTypeAliasName", re.stack)
 	if len(re.stack) == 1 {
 		// TODO emit to aliases
 		//cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")

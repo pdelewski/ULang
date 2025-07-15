@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 // TopologicalSort performs a topological sort on the given graph.
 // The input graph is a map where keys are nodes and values are slices of their dependencies.
@@ -84,4 +87,26 @@ func SliceToMap(slice []string) map[string]int {
 	}
 
 	return result
+}
+
+func mergeStackElements(marker string, stack []string) []string {
+	var merged strings.Builder
+
+	// Process the stack in reverse until we find a marker
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1] // Pop element
+
+		// Stop merging when we find a marker
+		if strings.HasPrefix(top, marker) {
+			stack = append(stack, merged.String()) // Push merged string
+			return stack
+		}
+
+		// Prepend the element to the merged string (reverse order)
+		mergedString := top + merged.String() // Prepend instead of append
+		merged.Reset()
+		merged.WriteString(mergedString)
+	}
+	return stack
 }
