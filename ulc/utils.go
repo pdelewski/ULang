@@ -110,3 +110,12 @@ func mergeStackElements(marker string, stack []string) []string {
 	}
 	return stack
 }
+
+func SearchPointerReverse(target string, pointerAndPositionVec []PointerAndPosition) *PointerAndPosition {
+	for i := len(pointerAndPositionVec) - 1; i >= 0; i-- {
+		if pointerAndPositionVec[i].Pointer == target {
+			return &pointerAndPositionVec[i]
+		}
+	}
+	return nil // Return nil if the pointer is not found
+}
