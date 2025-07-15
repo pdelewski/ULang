@@ -103,29 +103,6 @@ func (cse *CSharpEmitter) RewriteFileBuffer(position int, oldContent, newContent
 	return nil
 }
 
-func (cse *CSharpEmitter) mergeStackElements(marker string) {
-	var merged strings.Builder
-
-	// Process the stack in reverse until we find a marker
-	for len(cse.stack) > 0 {
-		top := cse.stack[len(cse.stack)-1]
-		cse.stack = cse.stack[:len(cse.stack)-1] // Pop element
-
-		// Stop merging when we find a marker
-		if strings.HasPrefix(top, marker) {
-			cse.stack = append(cse.stack, merged.String()) // Push merged string
-			return
-		}
-
-		// Prepend the element to the merged string (reverse order)
-		mergedString := top + merged.String() // Prepend instead of append
-		merged.Reset()
-		merged.WriteString(mergedString)
-	}
-
-	panic("unreachable")
-}
-
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	switch selector {
 	case "fmt":
@@ -441,7 +418,7 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
-	cse.mergeStackElements("@@PreVisitBasicLit")
+	cse.stack = mergeStackElements("@@PreVisitBasicLit", cse.stack)
 	if len(cse.stack) == 1 {
 		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
 		cse.stack = cse.stack[:len(cse.stack)-1]
@@ -612,7 +589,7 @@ func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 
 	cse.stack = append(cse.stack, cse.emitAsString(">", 0))
 
-	cse.mergeStackElements("@@PreVisitArrayType")
+	cse.stack = mergeStackElements("@@PreVisitArrayType", cse.stack)
 	if len(cse.stack) == 1 {
 		cse.isArray = true
 		cse.arrayType = cse.stack[len(cse.stack)-1]
@@ -653,7 +630,7 @@ func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	}
 	cse.stack = append(cse.stack, cse.emitAsString(">", 0))
 
-	cse.mergeStackElements("@@PreVisitFuncType")
+	cse.stack = mergeStackElements("@@PreVisitFuncType", cse.stack)
 
 	if len(cse.stack) == 1 {
 		cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
@@ -836,7 +813,7 @@ func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 		representation: ConvertToAliasRepr(ParseNestedTypes(cse.stack[4]), []string{"", cse.pkg.Name + ".Api"}),
 		UnderlyingType: cse.pkg.TypesInfo.Types[node].Type.String(),
 	}
-	cse.mergeStackElements("@@PreVisitTypeAliasName")
+	cse.stack = mergeStackElements("@@PreVisitTypeAliasName", cse.stack)
 	if len(cse.stack) == 1 {
 		// TODO emit to aliases
 		//cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
