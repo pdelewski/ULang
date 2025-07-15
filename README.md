@@ -20,5 +20,5 @@ The transpiler will process all `.go` files in the specified source directory an
 To transpile the source files located in the `src` directory and write the output to `output`, use the following command:
 
 ```bash
-  go run . --source=./../ulc --output=ulc
+  go run . --source=./../libs/uql --output=uql
 ```
