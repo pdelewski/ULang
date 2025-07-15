@@ -61,39 +61,6 @@ type CSharpEmitter struct {
 	PointerAndPositionVec []PointerAndPosition
 }
 
-func (cse *CSharpEmitter) ExtractSubstring(position int) (string, error) {
-	if position < 0 || position >= len(cse.fileBuffer) {
-		return "", fmt.Errorf("position %d is out of bounds", position)
-	}
-	return cse.fileBuffer[position:], nil
-}
-
-func (cse *CSharpEmitter) ExtractSubstringBetween(begin int, end int) (string, error) {
-	if begin < 0 || end > len(cse.fileBuffer) || begin > end {
-		return "", fmt.Errorf("invalid range: begin %d, end %d", begin, end)
-	}
-	return cse.fileBuffer[begin:end], nil
-}
-
-func (cse *CSharpEmitter) RewriteFileBufferBetween(begin int, end int, content string) error {
-	if begin < 0 || end > len(cse.fileBuffer) || begin > end {
-		return fmt.Errorf("invalid range: begin %d, end %d", begin, end)
-	}
-	cse.fileBuffer = cse.fileBuffer[:begin] + content + cse.fileBuffer[end:]
-	return nil
-}
-
-func (cse *CSharpEmitter) RewriteFileBuffer(position int, oldContent, newContent string) error {
-	if position < 0 || position+len(oldContent) > len(cse.fileBuffer) {
-		return fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
-	}
-	if cse.fileBuffer[position:position+len(oldContent)] != oldContent {
-		return fmt.Errorf("oldContent does not match the existing content at position %d", position)
-	}
-	cse.fileBuffer = cse.fileBuffer[:position] + newContent + cse.fileBuffer[position+len(oldContent):]
-	return nil
-}
-
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	switch selector {
 	case "fmt":
@@ -427,7 +394,7 @@ func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, in
 	if pointerAndPosition != nil {
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				cse.RewriteFileBufferBetween(pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
+				cse.fileBuffer, _ = RewriteFileBufferBetween(cse.fileBuffer, pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
 			}
 		}
 	}
@@ -519,7 +486,7 @@ func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 			newStr += "using " + aliasKey + " = " + aliasRepr + ";\n"
 		}
 		newStr += "\n"
-		cse.RewriteFileBuffer(pointerAndPosition.Position, "", newStr)
+		cse.fileBuffer, _ = RewriteFileBuffer(cse.fileBuffer, pointerAndPosition.Position, "", newStr)
 	}
 
 	str := cse.emitAsString("}\n", indent+2)
@@ -707,7 +674,7 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Fi
 	if pointerAndPosition != nil {
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				cse.RewriteFileBufferBetween(pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
+				cse.fileBuffer, _ = RewriteFileBufferBetween(cse.fileBuffer, pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
 			}
 		}
 	}
@@ -863,11 +830,11 @@ func (cse *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
 func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 	pointerAndPosition := SearchPointerReverse("@PreVisitCallExpr", cse.PointerAndPositionVec)
 	if pointerAndPosition != nil {
-		str, _ := cse.ExtractSubstring(pointerAndPosition.Position)
+		str, _ := ExtractSubstring(pointerAndPosition.Position, cse.fileBuffer)
 		for _, t := range destTypes {
 			matchStr := t + "("
 			if strings.Contains(str, matchStr) {
-				cse.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
+				cse.fileBuffer, _ = RewriteFileBuffer(cse.fileBuffer, pointerAndPosition.Position, matchStr, "("+t+")(")
 			}
 		}
 	}
@@ -912,11 +879,11 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 	pointerAndPosition := SearchPointerReverse("@PreVisitAssignStmtRhsExpr", cse.PointerAndPositionVec)
 	rewritten := false
 	if pointerAndPosition != nil {
-		str, _ := cse.ExtractSubstring(pointerAndPosition.Position)
+		str, _ := ExtractSubstring(pointerAndPosition.Position, cse.fileBuffer)
 		for _, t := range destTypes {
 			matchStr := t + "("
 			if strings.Contains(str, matchStr) {
-				cse.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
+				cse.fileBuffer, _ = RewriteFileBuffer(cse.fileBuffer, pointerAndPosition.Position, matchStr, "("+t+")(")
 				rewritten = true
 			}
 		}
@@ -927,7 +894,7 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
 		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
 			if !cse.isTuple && tv.Type.String() != "func()" {
-				cse.RewriteFileBuffer(pointerAndPosition.Position, "", "("+typeVal+")")
+				cse.fileBuffer, _ = RewriteFileBuffer(cse.fileBuffer, pointerAndPosition.Position, "", "("+typeVal+")")
 			}
 		}
 	}
@@ -1108,7 +1075,7 @@ func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 		// go through all aliases and check if the underlying type matches
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-				cse.RewriteFileBufferBetween(pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
+				cse.fileBuffer, _ = RewriteFileBufferBetween(cse.fileBuffer, pointerAndPosition.Position, len(cse.fileBuffer), aliasName)
 			}
 		}
 	}
