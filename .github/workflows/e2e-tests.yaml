@@ -38,7 +38,7 @@ jobs:
         run: |
           tests=(
             "tests/basic basic true true"
-            "tests/slice slice true false"
+            "tests/slice slice true true"
             "tests/complex complex true false"
             "libs/iceberg iceberg true false"
             "libs/contlib contlib true false"
