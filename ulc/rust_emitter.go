@@ -922,12 +922,12 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := re.emitAsString("[", 0)
+	str := re.emitAsString("{", 0)
 	re.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := re.emitAsString("]", 0)
+	str := re.emitAsString("}", 0)
 	re.emitToFileBuffer(str, "")
 }
 
