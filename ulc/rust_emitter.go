@@ -206,6 +206,16 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 	re.shouldGenerate = false
 	str := re.emitAsString(")", 0)
 	re.emitToFileBuffer(str, "")
+
+	p1 := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResults", re.PointerAndPositionVec)
+	p2 := SearchPointerReverse("@PostVisitFuncDeclSignatureTypeResults", re.PointerAndPositionVec)
+	if p1 != nil && p2 != nil {
+		results, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
+		re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, p1.Position, p2.Position, "")
+		if strings.TrimSpace(results) != "" {
+			re.fileBuffer += " -> " + results
+		}
+	}
 }
 
 func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
@@ -545,7 +555,7 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, 
 	if re.forwardDecls {
 		return
 	}
-
+	re.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResults")
 	re.shouldGenerate = true
 
 	if node.Type.Results != nil {
@@ -571,6 +581,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl,
 	str := re.emitAsString("", 1)
 	re.emitToFileBuffer(str, "")
 	re.shouldGenerate = false
+	re.emitToFileBuffer("", "@PostVisitFuncDeclSignatureTypeResults")
 }
 
 func (re *RustEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
