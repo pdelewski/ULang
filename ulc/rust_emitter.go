@@ -320,17 +320,36 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 func (re *RustEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
 	str := re.emitAsString("pub ", indent+2)
 	re.emitToFileBuffer(str, "")
+	re.emitToFileBuffer("", "@PreVisitGenStructFieldType")
 }
 
 func (re *RustEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
+	re.emitToFileBuffer("", "@PostVisitGenStructFieldType")
 	re.emitToFileBuffer(" ", "")
 	// clean array marker as we should generate
 	// initializer only for expression statements
 	// not for struct fields
 	re.isArray = false
+
 }
 
+func (re *RustEmitter) PreVisitGenStructFieldName(node *ast.Ident, indent int) {
+	re.emitToFileBuffer("", "@PreVisitGenStructFieldName")
+
+}
 func (re *RustEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
+	re.emitToFileBuffer("", "@PostVisitGenStructFieldName")
+	p1 := SearchPointerReverse("@PreVisitGenStructFieldType", re.PointerAndPositionVec)
+	p2 := SearchPointerReverse("@PostVisitGenStructFieldType", re.PointerAndPositionVec)
+	p3 := SearchPointerReverse("@PreVisitGenStructFieldName", re.PointerAndPositionVec)
+	p4 := SearchPointerReverse("@PostVisitGenStructFieldName", re.PointerAndPositionVec)
+
+	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
+		substr1, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
+		substr2, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.fileBuffer)
+		re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, p1.Position, p4.Position, substr2+":"+substr1)
+	}
+
 	re.emitToFileBuffer(",\n", "")
 }
 
