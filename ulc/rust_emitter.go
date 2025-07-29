@@ -318,11 +318,12 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 			}
 		}
 	}
+	str := re.emitAsString(" ", 0)
+	re.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
-	str := re.emitAsString(" ", 0)
-	re.emitToFileBuffer(str, "")
+
 }
 
 func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
