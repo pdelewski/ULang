@@ -74,6 +74,7 @@ func main() {
 	var programFiles = []string{
 		"cpp",
 		"cs",
+		"rs",
 	}
 
 	for _, file := range programFiles {
