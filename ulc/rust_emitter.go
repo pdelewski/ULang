@@ -318,7 +318,7 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 }
 
 func (re *RustEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
-	str := re.emitAsString("public", indent+2)
+	str := re.emitAsString("pub ", indent+2)
 	re.emitToFileBuffer(str, "")
 }
 
@@ -331,7 +331,7 @@ func (re *RustEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
-	re.emitToFileBuffer(";\n", "")
+	re.emitToFileBuffer(",\n", "")
 }
 
 func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
@@ -359,14 +359,14 @@ func (re *RustEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 }
 
 func (re *RustEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
-	str := re.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
+	str := re.emitAsString(fmt.Sprintf("pub struct %s\n", node.Name), indent+2)
 	str += re.emitAsString("{\n", indent+2)
 	re.emitToFileBuffer(str, "")
 	re.shouldGenerate = true
 }
 
 func (re *RustEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
-	str := re.emitAsString("};\n\n", indent+2)
+	str := re.emitAsString("}\n\n", indent+2)
 	re.emitToFileBuffer(str, "")
 	re.shouldGenerate = false
 }
