@@ -237,6 +237,17 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 	str := re.emitAsString("(", 0)
 	re.emitToFileBuffer(str, "")
+	p1 := SearchPointerReverse("@PreVisitCallExprFun", re.PointerAndPositionVec)
+	p2 := SearchPointerReverse("@PostVisitCallExprFun", re.PointerAndPositionVec)
+	if p1 != nil && p2 != nil {
+		// Extract the substring between the positions of the pointers
+		funName, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
+		if strings.Contains(funName, "len") {
+			// add & before the first argument
+			str := re.emitAsString("&", 0)
+			re.emitToFileBuffer(str, "")
+		}
+	}
 }
 func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 	str := re.emitAsString(")", 0)
@@ -1070,4 +1081,12 @@ func (re *RustEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) 
 func (re *RustEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
 	str := re.emitAsString(node.Tok.String()+";", indent)
 	re.emitToFileBuffer(str, "")
+}
+
+func (re *RustEmitter) PreVisitCallExprFun(node ast.Expr, indent int) {
+	re.emitToFileBuffer("", "@PreVisitCallExprFun")
+}
+
+func (re *RustEmitter) PostVisitCallExprFun(node ast.Expr, indent int) {
+	re.emitToFileBuffer("", "@PostVisitCallExprFun")
 }
