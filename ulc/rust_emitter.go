@@ -287,13 +287,15 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 	}
 	str := re.emitAsString(" ", 0)
 	re.emitToFileBuffer(str, "")
+	re.emitToFileBuffer("", "@PostVisitDeclStmtValueSpecType")
 }
 
 func (re *RustEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
-
+	re.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecNames")
 }
 
 func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	re.emitToFileBuffer("", "@PostVisitDeclStmtValueSpecNames")
 	var str string
 	if re.isArray {
 		str += " = Vec::new();"
@@ -631,7 +633,18 @@ func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
 }
 
 func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
+	p1 := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", re.PointerAndPositionVec)
+	p2 := SearchPointerReverse("@PostVisitDeclStmtValueSpecType", re.PointerAndPositionVec)
+	p3 := SearchPointerReverse("@PreVisitDeclStmtValueSpecNames", re.PointerAndPositionVec)
+	p4 := SearchPointerReverse("@PostVisitDeclStmtValueSpecNames", re.PointerAndPositionVec)
+	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
+		// Extract the substring between the positions of the pointers
+		substr1, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
+		substr2, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.fileBuffer)
+		re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, p1.Position, p4.Position, substr2+":"+substr1)
+	}
 	re.shouldGenerate = false
+
 }
 
 func (re *RustEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
