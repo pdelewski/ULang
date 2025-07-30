@@ -353,9 +353,9 @@ func (re *RustEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) 
 	p4 := SearchPointerReverse("@PostVisitGenStructFieldName", re.PointerAndPositionVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
-		substr1, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
-		substr2, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.fileBuffer)
-		re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, p1.Position, p4.Position, substr2+":"+substr1)
+		fieldType, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
+		fieldName, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.fileBuffer)
+		re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
 	}
 
 	re.emitToFileBuffer(",\n", "")
@@ -676,9 +676,9 @@ func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
 	p4 := SearchPointerReverse("@PostVisitDeclStmtValueSpecNames", re.PointerAndPositionVec)
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
 		// Extract the substring between the positions of the pointers
-		substr1, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
-		substr2, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.fileBuffer)
-		re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, p1.Position, p4.Position, substr2+":"+substr1)
+		fieldType, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.fileBuffer)
+		fieldName, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.fileBuffer)
+		re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
 	}
 	re.shouldGenerate = false
 
