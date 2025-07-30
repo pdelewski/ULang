@@ -434,11 +434,8 @@ func (re *RustEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	re.buffer = true
 	re.stack = append(re.stack, "@@PreVisitFuncType")
 	var str string
-	if node.Results != nil {
-		str = re.emitAsString("Func<", indent)
-	} else {
-		str = re.emitAsString("Action<", indent)
-	}
+	// TODO use Box<dyn Fn> for function types for now
+	str = re.emitAsString("Box<dyn Fn(", indent)
 	re.stack = append(re.stack, str)
 }
 func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
@@ -455,7 +452,7 @@ func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 		re.stack = append(re.stack, ",")
 		re.stack = append(re.stack, returnType)
 	}
-	re.stack = append(re.stack, re.emitAsString(">", 0))
+	re.stack = append(re.stack, re.emitAsString(")>", 0))
 
 	re.stack = mergeStackElements("@@PreVisitFuncType", re.stack)
 
