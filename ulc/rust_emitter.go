@@ -321,8 +321,6 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 	if re.isArray {
 		str += " = Vec::new();"
 		re.isArray = false
-	} else {
-		str += " = default;"
 	}
 	re.emitToFileBuffer(str, "")
 }
