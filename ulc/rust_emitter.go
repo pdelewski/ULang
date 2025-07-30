@@ -915,7 +915,14 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 			}
 		}
 		if re.isArray {
-			re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, pointerAndPosition.Position, len(re.fileBuffer), "vec!")
+			// TODO that's still hack
+			// we operate on string representation of the type
+			// has to be rewritten to use some kind of IR
+			// We are trying to rewrite the type to a vector type
+			// let x = Vec<> into let x: Vec<type> = vec![]
+			vecTypeStrRepr, _ := ExtractSubstringBetween(pointerAndPosition.Position, len(re.fileBuffer), re.fileBuffer)
+			re.fileBuffer, _ = RewriteFileBufferBetween(re.fileBuffer, pointerAndPosition.Position-len(" ="), len(re.fileBuffer), ":"+vecTypeStrRepr+" = vec!")
+
 		}
 	}
 }
