@@ -76,15 +76,6 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	return selector
 }
 
-func (cse *CSharpEmitter) emitToFile() error {
-	_, err := cse.file.WriteString(cse.fileBuffer)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return err
-	}
-	return nil
-}
-
 func (cse *CSharpEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
@@ -252,7 +243,7 @@ public class Formatter {
 }
 
 func (cse *CSharpEmitter) PostVisitProgram(indent int) {
-	cse.emitToFile()
+	emitToFile(cse.file, cse.fileBuffer)
 	cse.file.Close()
 }
 

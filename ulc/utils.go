@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -166,5 +167,14 @@ func emitToFileBuffer(fileBuffer *string, pointerAndPositionVec *[]PointerAndPos
 		Length:   len(s),
 	})
 	*fileBuffer += s
+	return nil
+}
+
+func emitToFile(file *os.File, fileBuffer string) error {
+	_, err := file.WriteString(fileBuffer)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return err
+	}
 	return nil
 }
