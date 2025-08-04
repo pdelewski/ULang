@@ -157,3 +157,14 @@ type PointerAndPosition struct {
 	Position int
 	Length   int // length of string
 }
+
+func emitToFileBuffer(fileBuffer *string, pointerAndPositionVec *[]PointerAndPosition,
+	s string, pointer string) error {
+	*pointerAndPositionVec = append(*pointerAndPositionVec, PointerAndPosition{
+		Pointer:  pointer,
+		Position: len(*fileBuffer),
+		Length:   len(s),
+	})
+	*fileBuffer += s
+	return nil
+}
