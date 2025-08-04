@@ -151,3 +151,9 @@ func RewriteFileBuffer(fileBuffer string, position int, oldContent, newContent s
 	}
 	return fileBuffer[:position] + newContent + fileBuffer[position+len(oldContent):], nil
 }
+
+type PointerAndPosition struct {
+	Pointer  string // Pointer to the type
+	Position int
+	Length   int // length of string
+}
