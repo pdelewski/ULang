@@ -65,15 +65,6 @@ func (*RustEmitter) lowerToBuiltins(selector string) string {
 	return selector
 }
 
-func (re *RustEmitter) emitToFile() error {
-	_, err := re.file.WriteString(re.fileBuffer)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return err
-	}
-	return nil
-}
-
 func (re *RustEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
@@ -149,7 +140,7 @@ pub fn len<T>(slice: &[T]) -> usize {
 }
 
 func (re *RustEmitter) PostVisitProgram(indent int) {
-	re.emitToFile()
+	emitToFile(re.file, re.fileBuffer)
 	re.file.Close()
 }
 
