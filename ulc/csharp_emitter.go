@@ -358,20 +358,19 @@ func (cse *CSharpEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 
 func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	cse.stack = append(cse.stack, "@@PreVisitBasicLit")
+	var str string
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
 		if e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
-			str := (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
-			cse.stack = append(cse.stack, str)
+			str = (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
 		} else {
-			str := (cse.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
-			cse.stack = append(cse.stack, str)
+			str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
 		}
 	} else {
-		str := (cse.emitAsString(e.Value, 0))
-		cse.stack = append(cse.stack, str)
+		str = (cse.emitAsString(e.Value, 0))
 	}
+	cse.stack = append(cse.stack, str)
 	cse.buffer = true
 }
 
