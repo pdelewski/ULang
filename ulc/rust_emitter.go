@@ -687,35 +687,6 @@ func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) 
 	re.isTuple = false
 }
 
-func (re *RustEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	//re.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
-}
-
-func (re *RustEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	// pointerAndPosition := re.SearchPointerReverse("@PreVisitAssignStmtRhsExpr")
-	// rewritten := false
-	// if pointerAndPosition != nil {
-	// 	str, _ := re.ExtractSubstring(pointerAndPosition.Position)
-	// 	for _, t := range destTypes {
-	// 		matchStr := t + "("
-	// 		if strings.Contains(str, matchStr) {
-	// 			re.RewriteFileBuffer(pointerAndPosition.Position, matchStr, "("+t+")(")
-	// 			rewritten = true
-	// 		}
-	// 	}
-	// }
-	// if !rewritten {
-	// 	tv := re.pkg.TypesInfo.Types[node]
-	// 	//pos := cse.pkg.Fset.Position(node.Pos())
-	// 	//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-	// 	if typeVal, ok := rustTypesMap[tv.Type.String()]; ok {
-	// 		if !re.isTuple && tv.Type.String() != "func()" {
-	// 			re.RewriteFileBuffer(pointerAndPosition.Position, "", "("+typeVal+")")
-	// 		}
-	// 	}
-	// }
-}
-
 func (re *RustEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
 	if index > 0 {
 		str := re.emitAsString(", ", indent)
