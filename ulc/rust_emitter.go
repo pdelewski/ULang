@@ -266,20 +266,19 @@ func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 
 func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	re.stack = append(re.stack, "@@PreVisitBasicLit")
+	var str string
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
 		if e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
-			str := (re.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
-			re.stack = append(re.stack, str)
+			str = (re.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
 		} else {
-			str := (re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
-			re.stack = append(re.stack, str)
+			str = (re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
 		}
 	} else {
-		str := (re.emitAsString(e.Value, 0))
-		re.stack = append(re.stack, str)
+		str = (re.emitAsString(e.Value, 0))
 	}
+	re.stack = append(re.stack, str)
 	re.buffer = true
 }
 
