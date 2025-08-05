@@ -281,6 +281,7 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl
 	if cse.forwardDecls {
 		return
 	}
+	cse.shouldGenerate = true
 	str := cse.emitAsString("(", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
@@ -289,6 +290,7 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDec
 	if cse.forwardDecls {
 		return
 	}
+	cse.shouldGenerate = false
 	str := cse.emitAsString(")", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
@@ -297,7 +299,6 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	if !cse.shouldGenerate {
 		return
 	}
-
 	var str string
 	name := e.Name
 	name = cse.lowerToBuiltins(name)
@@ -316,7 +317,6 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	} else {
 		cse.gir.emitToFileBuffer(str, "")
 	}
-
 }
 
 func (cse *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
@@ -656,6 +656,8 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDec
 	if cse.forwardDecls {
 		return
 	}
+
+	cse.shouldGenerate = true
 
 	str := cse.emitAsString("public static ", indent+2)
 	cse.gir.emitToFileBuffer(str, "")
