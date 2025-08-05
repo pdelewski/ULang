@@ -657,8 +657,6 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDec
 		return
 	}
 
-	cse.shouldGenerate = true
-
 	str := cse.emitAsString("public static ", indent+2)
 	cse.gir.emitToFileBuffer(str, "")
 	if node.Type.Results != nil {
