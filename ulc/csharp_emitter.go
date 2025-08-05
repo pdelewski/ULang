@@ -531,9 +531,10 @@ func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
-	if !cse.shouldGenerate {
+	if cse.forwardDecls {
 		return
 	}
+
 	cse.buffer = true
 	cse.gir.stack = append(cse.gir.stack, "@@PreVisitFuncType")
 	var str string
