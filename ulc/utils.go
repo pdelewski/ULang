@@ -159,14 +159,14 @@ type PointerAndPosition struct {
 	Length   int // length of string
 }
 
-func emitToFileBuffer(fileBuffer *string, pointerAndPositionVec *[]PointerAndPosition,
+func (gir *GoFIR) emitToFileBuffer(
 	s string, pointer string) error {
-	*pointerAndPositionVec = append(*pointerAndPositionVec, PointerAndPosition{
+	gir.pointerAndPositionVec = append(gir.pointerAndPositionVec, PointerAndPosition{
 		Pointer:  pointer,
-		Position: len(*fileBuffer),
+		Position: len(gir.fileBuffer),
 		Length:   len(s),
 	})
-	*fileBuffer += s
+	gir.fileBuffer += s
 	return nil
 }
 
@@ -177,4 +177,10 @@ func emitToFile(file *os.File, fileBuffer string) error {
 		return err
 	}
 	return nil
+}
+
+type GoFIR struct {
+	stack                 []string
+	fileBuffer            string
+	pointerAndPositionVec []PointerAndPosition
 }
