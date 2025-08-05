@@ -89,6 +89,7 @@ func (cse *CSharpEmitter) PreVisitProgram(indent int) {
 	cse.gir.pointerAndPositionVec = make([]PointerAndPosition, 0)
 	cse.aliases = make(map[string]Alias)
 	outputFile := cse.Output
+	cse.shouldGenerate = true
 	var err error
 	cse.file, err = os.Create(outputFile)
 	cse.SetFile(cse.file)
@@ -501,7 +502,7 @@ func (cse *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
-	if !cse.shouldGenerate {
+	if cse.forwardDecls {
 		return
 	}
 	cse.gir.stack = append(cse.gir.stack, "@@PreVisitArrayType")
@@ -513,7 +514,7 @@ func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	cse.buffer = true
 }
 func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
-	if !cse.shouldGenerate {
+	if cse.forwardDecls {
 		return
 	}
 
@@ -546,7 +547,7 @@ func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	cse.gir.stack = append(cse.gir.stack, str)
 }
 func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
-	if !cse.shouldGenerate {
+	if cse.forwardDecls {
 		return
 	}
 
@@ -578,7 +579,7 @@ func (cse *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, inde
 }
 
 func (cse *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
-	if !cse.shouldGenerate {
+	if cse.forwardDecls {
 		return
 	}
 	var str string
@@ -658,8 +659,6 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDec
 		return
 	}
 
-	cse.shouldGenerate = true
-
 	str := cse.emitAsString("public static ", indent+2)
 	cse.gir.emitToFileBuffer(str, "")
 	if node.Type.Results != nil {
@@ -671,6 +670,7 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDec
 		str := cse.emitAsString("void", 0)
 		cse.gir.emitToFileBuffer(str, "")
 	}
+	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
@@ -693,17 +693,13 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 func (cse *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 	cse.gir.stack = append(cse.gir.stack, "@@PreVisitTypeAliasName")
 	cse.gir.stack = append(cse.gir.stack, cse.emitAsString("using ", indent+2))
-	cse.shouldGenerate = true
 	cse.buffer = true
+	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
 	cse.buffer = true
 	cse.gir.stack = append(cse.gir.stack, " = ")
-}
-
-func (cse *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
-
 }
 
 func ParseNestedTypes(s string) []string {
@@ -750,12 +746,11 @@ func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 		//cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
 		cse.gir.stack = cse.gir.stack[:len(cse.gir.stack)-1]
 	}
-	cse.shouldGenerate = false
 	cse.buffer = false
+	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
-	cse.shouldGenerate = true
 	str := cse.emitAsString("return ", indent)
 	cse.gir.emitToFileBuffer(str, "")
 
@@ -776,6 +771,7 @@ func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 		str := cse.emitAsString("(", 0)
 		cse.gir.emitToFileBuffer(str, "")
 	}
+	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
@@ -796,8 +792,8 @@ func (cse *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, ind
 }
 
 func (cse *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
-	cse.shouldGenerate = true
 	cse.gir.emitToFileBuffer("", "@PreVisitCallExpr")
+	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
@@ -823,9 +819,9 @@ func (cse *CSharpEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
-	cse.shouldGenerate = true
 	str := cse.emitAsString("", indent)
 	cse.gir.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 	str := cse.emitAsString(";", 0)
@@ -834,14 +830,14 @@ func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) 
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
-	cse.shouldGenerate = true
 	str := cse.emitAsString(cse.assignmentToken+" ", indent+1)
 	cse.gir.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
-	cse.shouldGenerate = false
 	cse.isTuple = false
+	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
@@ -881,7 +877,6 @@ func (cse *CSharpEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, in
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
-	cse.shouldGenerate = true
 	assignmentToken := node.Tok.String()
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
 		str := cse.emitAsString("var ", indent)
@@ -898,6 +893,7 @@ func (cse *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int
 		assignmentToken = "="
 	}
 	cse.assignmentToken = assignmentToken
+	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
@@ -913,10 +909,9 @@ func (cse *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent in
 }
 
 func (cse *CSharpEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
-	cse.shouldGenerate = true
 	str := cse.emitAsString("[", 0)
 	cse.gir.emitToFileBuffer(str, "")
-
+	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
 	str := cse.emitAsString("]", 0)
@@ -924,9 +919,9 @@ func (cse *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent in
 }
 
 func (cse *CSharpEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
-	cse.shouldGenerate = true
 	str := cse.emitAsString("(", 1)
 	cse.gir.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	str := cse.emitAsString(")", 1)
@@ -968,10 +963,10 @@ func (cse *CSharpEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
-	cse.insideForPostCond = true
 	str := cse.emitAsString("for (", indent)
 	cse.gir.emitToFileBuffer(str, "")
-	cse.shouldGenerate = true
+	cse.insideForPostCond = true
+	cse.insideForPostCond = true
 }
 
 func (cse *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
@@ -1001,14 +996,14 @@ func (cse *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
-	cse.shouldGenerate = false
 	cse.insideForPostCond = false
+	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
-	cse.shouldGenerate = true
 	str := cse.emitAsString("foreach (var ", indent)
 	cse.gir.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
@@ -1124,6 +1119,9 @@ func (cse *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
 func (cse *CSharpEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
 	cse.shouldGenerate = false
 }
+func (cse *CSharpEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	cse.shouldGenerate = true
+}
 
 func (cse *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
 	str := cse.emitAsString("object", indent)
@@ -1193,9 +1191,9 @@ func (cse *CSharpEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
-	cse.shouldGenerate = true
 	str := cse.emitAsString("switch (", indent)
 	cse.gir.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
 	str := cse.emitAsString("}", indent)
