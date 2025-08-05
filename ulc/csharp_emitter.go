@@ -281,7 +281,6 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl
 	if cse.forwardDecls {
 		return
 	}
-	cse.shouldGenerate = true
 	str := cse.emitAsString("(", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
