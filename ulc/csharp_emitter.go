@@ -289,7 +289,6 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDec
 	if cse.forwardDecls {
 		return
 	}
-	cse.shouldGenerate = false
 	str := cse.emitAsString(")", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
