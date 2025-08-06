@@ -1327,13 +1327,14 @@ func (cse *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
 	cse.gir.emitToFileBuffer(str, "")
 }
 
-func (cse *CSharpEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+func (cse *CSharpEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {
 	if cse.forwardDecls {
 		return
 	}
 	cse.shouldGenerate = false
 }
-func (cse *CSharpEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+
+func (cse *CSharpEmitter) PostVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {
 	if cse.forwardDecls {
 		return
 	}
@@ -1518,10 +1519,24 @@ func (cse *CSharpEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent in
 	cse.shouldGenerate = true
 }
 
+func (cse *CSharpEmitter) PostVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
+	//cse.shouldGenerate = false
+}
 func (cse *CSharpEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
 	if cse.forwardDecls {
 		return
 	}
 	str := cse.emitAsString(node.Tok.String()+";", indent)
 	cse.gir.emitToFileBuffer(str, "")
+	cse.shouldGenerate = true
+}
+
+func (cse *CSharpEmitter) PostVisitBranchStmt(node *ast.BranchStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
+	cse.shouldGenerate = false
 }
