@@ -268,11 +268,17 @@ func (cse *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("{\n", 1)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("}", 1)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.isArray = false
@@ -297,6 +303,9 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDec
 }
 
 func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if !cse.shouldGenerate {
 		return
 	}
@@ -321,16 +330,25 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("(", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(")", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.stack = append(cse.gir.stack, "@@PreVisitBasicLit")
 	var str string
 	if e.Kind == token.STRING {
@@ -349,6 +367,9 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.stack = mergeStackElements("@@PreVisitBasicLit", cse.gir.stack)
 	if len(cse.gir.stack) == 1 {
 		cse.gir.emitToFileBuffer(cse.gir.stack[len(cse.gir.stack)-1], "")
@@ -359,10 +380,16 @@ func (cse *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
 }
 
 func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	pointerAndPosition := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", cse.gir.pointerAndPositionVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range cse.aliases {
@@ -374,11 +401,17 @@ func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, in
 }
 
 func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(" ", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	var str string
 	if cse.isArray {
 		str += " = new "
@@ -392,11 +425,17 @@ func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index
 }
 
 func (cse *CSharpEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("public", indent+2)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.emitToFileBuffer(" ", "")
 	// clean array marker as we should generate
 	// initializer only for expression statements
@@ -405,10 +444,16 @@ func (cse *CSharpEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int)
 }
 
 func (cse *CSharpEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.emitToFileBuffer(";\n", "")
 }
 
 func (cse *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	name := pkg.Name
 	cse.pkg = pkg
 	var packageName string
@@ -430,27 +475,10 @@ func (cse *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	}
 }
 
-func RebuildNestedType(reprs []AliasRepr) string {
-	if len(reprs) == 0 {
-		return ""
-	}
-
-	// Start from the innermost type
-	result := formatAlias(reprs[len(reprs)-1])
-	for i := len(reprs) - 2; i >= 0; i-- {
-		result = fmt.Sprintf("%s<%s>", formatAlias(reprs[i]), result)
-	}
-	return result
-}
-
-func formatAlias(r AliasRepr) string {
-	if r.PackageName != "" {
-		return r.PackageName + "." + r.TypeName
-	}
-	return r.TypeName
-}
-
 func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	pointerAndPosition := SearchPointerReverse(pkg.Name, cse.gir.pointerAndPositionVec)
 	if pointerAndPosition != nil {
 		var newStr string
@@ -472,10 +500,16 @@ func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.isArray = false
 }
 
 func (cse *CSharpEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("\n", indent)
 	cse.gir.emitToFileBuffer(str, "")
 }
@@ -489,6 +523,9 @@ func (cse *CSharpEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(fmt.Sprintf("public struct %s\n", node.Name), indent+2)
 	str += cse.emitAsString("{\n", indent+2)
 	cse.gir.emitToFileBuffer(str, "")
@@ -496,6 +533,9 @@ func (cse *CSharpEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("};\n\n", indent+2)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = false
@@ -572,6 +612,9 @@ func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if index > 0 {
 		str := cse.emitAsString(", ", 0)
 		cse.gir.stack = append(cse.gir.stack, str)
@@ -607,6 +650,9 @@ func (cse *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if node != nil {
 		cse.numFuncResults = len(node.List)
 	}
@@ -691,6 +737,9 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 }
 
 func (cse *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.stack = append(cse.gir.stack, "@@PreVisitTypeAliasName")
 	cse.gir.stack = append(cse.gir.stack, cse.emitAsString("using ", indent+2))
 	cse.buffer = true
@@ -698,8 +747,22 @@ func (cse *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.buffer = true
 	cse.gir.stack = append(cse.gir.stack, " = ")
+}
+
+func ConvertToAliasRepr(types []string, pkgName []string) []AliasRepr {
+	var result []AliasRepr
+	for i, t := range types {
+		result = append(result, AliasRepr{
+			PackageName: pkgName[i], // or derive if format is pkg.Type
+			TypeName:    t,
+		})
+	}
+	return result
 }
 
 func ParseNestedTypes(s string) []string {
@@ -721,18 +784,10 @@ func ParseNestedTypes(s string) []string {
 	return result
 }
 
-func ConvertToAliasRepr(types []string, pkgName []string) []AliasRepr {
-	var result []AliasRepr
-	for i, t := range types {
-		result = append(result, AliasRepr{
-			PackageName: pkgName[i], // or derive if format is pkg.Type
-			TypeName:    t,
-		})
-	}
-	return result
-}
-
 func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(";\n\n", 0)
 	cse.gir.stack = append(cse.gir.stack, str)
 	cse.aliases[cse.gir.stack[2]] = Alias{
@@ -751,6 +806,9 @@ func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("return ", indent)
 	cse.gir.emitToFileBuffer(str, "")
 
@@ -775,6 +833,9 @@ func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if len(node.Results) > 1 {
 		str := cse.emitAsString(")", 0)
 		cse.gir.emitToFileBuffer(str, "")
@@ -785,6 +846,9 @@ func (cse *CSharpEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) 
 }
 
 func (cse *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if index > 0 {
 		str := cse.emitAsString(", ", 0)
 		cse.gir.emitToFileBuffer(str, "")
@@ -792,11 +856,17 @@ func (cse *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, ind
 }
 
 func (cse *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.emitToFileBuffer("", "@PreVisitCallExpr")
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	pointerAndPosition := SearchPointerReverse("@PreVisitCallExpr", cse.gir.pointerAndPositionVec)
 	if pointerAndPosition != nil {
 		str, _ := ExtractSubstring(pointerAndPosition.Position, cse.gir.fileBuffer)
@@ -811,40 +881,64 @@ func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("", indent)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(";", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(cse.assignmentToken+" ", indent+1)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.isTuple = false
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
 }
 
 func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	pointerAndPosition := SearchPointerReverse("@PreVisitAssignStmtRhsExpr", cse.gir.pointerAndPositionVec)
 	rewritten := false
 	if pointerAndPosition != nil {
@@ -870,6 +964,9 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if index > 0 {
 		str := cse.emitAsString(", ", indent)
 		cse.gir.emitToFileBuffer(str, "")
@@ -877,6 +974,9 @@ func (cse *CSharpEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, in
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	assignmentToken := node.Tok.String()
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
 		str := cse.emitAsString("var ", indent)
@@ -897,6 +997,9 @@ func (cse *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int
 }
 
 func (cse *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
 		str := cse.emitAsString(")", indent)
 		cse.gir.emitToFileBuffer(str, "")
@@ -909,60 +1012,96 @@ func (cse *CSharpEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent in
 }
 
 func (cse *CSharpEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("[", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("]", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("(", 1)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(")", 1)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(op.String()+" ", 1)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if index > 0 {
 		str := cse.emitAsString(", ", 0)
 		cse.gir.emitToFileBuffer(str, "")
 	}
 }
 func (cse *CSharpEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(";", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitIfStmt(node *ast.IfStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("if (", 1)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(")\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("for (", indent)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.insideForPostCond = true
@@ -970,6 +1109,9 @@ func (cse *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if node == nil {
 		str := cse.emitAsString(";", 0)
 		cse.gir.emitToFileBuffer(str, "")
@@ -977,6 +1119,9 @@ func (cse *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if node != nil {
 		cse.insideForPostCond = false
 	}
@@ -985,43 +1130,67 @@ func (cse *CSharpEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("else", 1)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(";", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.insideForPostCond = false
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("foreach (var ", indent)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(" in ", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(")\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(node.Tok.String(), 0)
 	if !cse.insideForPostCond {
 		str += cse.emitAsString(";", 0)
@@ -1031,12 +1200,18 @@ func (cse *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) 
 }
 
 func (cse *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("new ", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.gir.emitToFileBuffer("", "@PreVisitCompositeLitType")
 }
 
 func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	pointerAndPosition := SearchPointerReverse("@PreVisitCompositeLitType", cse.gir.pointerAndPositionVec)
 	if pointerAndPosition != nil {
 		// TODO not very effective
@@ -1050,16 +1225,25 @@ func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("{", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("}", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if index > 0 {
 		str := cse.emitAsString(", ", 0)
 		cse.gir.emitToFileBuffer(str, "")
@@ -1067,37 +1251,58 @@ func (cse *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, inde
 }
 
 func (cse *CSharpEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("[", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = false
 }
 
 func (cse *CSharpEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("]", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.emitToFileBuffer("..", "")
 }
 
 func (cse *CSharpEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("(", indent)
 	cse.gir.emitToFileBuffer(str, "")
 }
 func (cse *CSharpEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("}", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(")", 0)
 	str += cse.emitAsString("=>", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := ""
 	if index > 0 {
 		str += cse.emitAsString(", ", 0)
@@ -1106,29 +1311,47 @@ func (cse *CSharpEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, i
 }
 
 func (cse *CSharpEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(" ", 0)
 	str += cse.emitAsString(node.Names[0].Name, indent)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("{\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = false
 }
 func (cse *CSharpEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("object", indent)
 	cse.gir.stack = append(cse.gir.stack, str)
 }
 
 func (cse *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	// emit only if it's not a complex type
 	if len(cse.gir.stack) == 1 {
 		cse.gir.emitToFileBuffer(cse.gir.stack[len(cse.gir.stack)-1], "")
@@ -1137,16 +1360,25 @@ func (cse *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent
 }
 
 func (cse *CSharpEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("= ", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("(", 0)
 	str += cse.emitAsString(node.Op.String(), 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 func (cse *CSharpEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(")", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
@@ -1160,6 +1392,9 @@ func trimBeforeChar(s string, ch byte) string {
 }
 
 func (cse *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	// TODO dummy implementation
 	// not very well performed
 	for constIdent, obj := range cse.pkg.TypesInfo.Defs {
@@ -1182,36 +1417,57 @@ func (cse *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) 
 	}
 }
 func (cse *CSharpEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(";\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 func (cse *CSharpEmitter) PostVisitGenDeclConst(node *ast.GenDecl, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("switch (", indent)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.shouldGenerate = true
 }
 func (cse *CSharpEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("}", indent)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(") {\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitCaseClause(node *ast.CaseClause, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.gir.emitToFileBuffer("\n", "")
 	str := cse.emitAsString("break;\n", indent+4)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	if len(node) == 0 {
 		str := cse.emitAsString("default:\n", indent+2)
 		cse.gir.emitToFileBuffer(str, "")
@@ -1219,6 +1475,9 @@ func (cse *CSharpEmitter) PostVisitCaseClauseList(node []ast.Expr, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("case ", indent+2)
 	tv := cse.pkg.TypesInfo.Types[node]
 	if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
@@ -1229,25 +1488,40 @@ func (cse *CSharpEmitter) PreVisitCaseClauseListExpr(node ast.Expr, index int, i
 }
 
 func (cse *CSharpEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(":\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString("(", indent)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(")", indent)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.shouldGenerate = true
 }
 
 func (cse *CSharpEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	str := cse.emitAsString(node.Tok.String()+";", indent)
 	cse.gir.emitToFileBuffer(str, "")
 }

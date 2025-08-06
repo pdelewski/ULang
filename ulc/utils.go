@@ -179,6 +179,26 @@ func emitToFile(file *os.File, fileBuffer string) error {
 	return nil
 }
 
+func RebuildNestedType(reprs []AliasRepr) string {
+	if len(reprs) == 0 {
+		return ""
+	}
+
+	// Start from the innermost type
+	result := formatAlias(reprs[len(reprs)-1])
+	for i := len(reprs) - 2; i >= 0; i-- {
+		result = fmt.Sprintf("%s<%s>", formatAlias(reprs[i]), result)
+	}
+	return result
+}
+
+func formatAlias(r AliasRepr) string {
+	if r.PackageName != "" {
+		return r.PackageName + "." + r.TypeName
+	}
+	return r.TypeName
+}
+
 type GoFIR struct {
 	stack                 []string
 	fileBuffer            string
