@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode"
 )
 
 // TopologicalSort performs a topological sort on the given graph.
@@ -197,6 +198,15 @@ func formatAlias(r AliasRepr) string {
 		return r.PackageName + "." + r.TypeName
 	}
 	return r.TypeName
+}
+
+func containsWhitespace(s string) bool {
+	for _, r := range s {
+		if unicode.IsSpace(r) {
+			return true
+		}
+	}
+	return false
 }
 
 type GoFIR struct {

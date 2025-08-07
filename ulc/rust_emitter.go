@@ -160,11 +160,17 @@ func (re *RustEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 }
 
 func (re *RustEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString("{\n", 1)
 	re.gir.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString("}", 1)
 	re.gir.emitToFileBuffer(str, "")
 	re.isArray = false
@@ -190,8 +196,17 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 	p1 := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResults", re.gir.pointerAndPositionVec)
 	p2 := SearchPointerReverse("@PostVisitFuncDeclSignatureTypeResults", re.gir.pointerAndPositionVec)
 	if p1 != nil && p2 != nil {
-		results, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
-		re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p2.Position, "")
+		results, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting results:", err)
+			return
+		}
+
+		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p2.Position, "")
+		if err != nil {
+			fmt.Println("Error rewriting file buffer:", err)
+			return
+		}
 		if strings.TrimSpace(results) != "" {
 			re.gir.fileBuffer += " -> " + results
 		}
@@ -199,10 +214,13 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 }
 
 func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
-	re.gir.emitToFileBuffer("", "@PreVisitIdent")
+	if re.forwardDecls {
+		return
+	}
 	if !re.shouldGenerate {
 		return
 	}
+	re.gir.emitToFileBuffer("", "@PreVisitIdent")
 
 	var str string
 	name := e.Name
@@ -225,13 +243,20 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 
 }
 func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString("(", 0)
 	re.gir.emitToFileBuffer(str, "")
 	p1 := SearchPointerReverse("@PreVisitCallExprFun", re.gir.pointerAndPositionVec)
 	p2 := SearchPointerReverse("@PostVisitCallExprFun", re.gir.pointerAndPositionVec)
 	if p1 != nil && p2 != nil {
 		// Extract the substring between the positions of the pointers
-		funName, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		funName, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting function name:", err)
+			return
+		}
 		if strings.Contains(funName, "len") {
 			// add & before the first argument
 			str := re.emitAsString("&", 0)
@@ -240,11 +265,17 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 	}
 }
 func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString(")", 0)
 	re.gir.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.stack = append(re.gir.stack, "@@PreVisitBasicLit")
 	var str string
 	if e.Kind == token.STRING {
@@ -263,6 +294,9 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 }
 
 func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.stack = mergeStackElements("@@PreVisitBasicLit", re.gir.stack)
 	if len(re.gir.stack) == 1 {
 		re.gir.emitToFileBuffer(re.gir.stack[len(re.gir.stack)-1], "")
@@ -273,10 +307,16 @@ func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
 }
 
 func (re *RustEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
 }
 
 func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	pointerAndPosition := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndPositionVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
@@ -291,10 +331,16 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 }
 
 func (re *RustEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecNames")
 }
 
 func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.emitToFileBuffer("", "@PostVisitDeclStmtValueSpecNames")
 	var str string
 	if re.isArray {
@@ -305,12 +351,18 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 }
 
 func (re *RustEmitter) PreVisitGenStructFieldType(node ast.Expr, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString("pub ", indent+2)
 	re.gir.emitToFileBuffer(str, "")
 	re.gir.emitToFileBuffer("", "@PreVisitGenStructFieldType")
 }
 
 func (re *RustEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.emitToFileBuffer("", "@PostVisitGenStructFieldType")
 	re.gir.emitToFileBuffer(" ", "")
 	// clean array marker as we should generate
@@ -321,10 +373,16 @@ func (re *RustEmitter) PostVisitGenStructFieldType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitGenStructFieldName(node *ast.Ident, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.emitToFileBuffer("", "@PreVisitGenStructFieldName")
 
 }
 func (re *RustEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.emitToFileBuffer("", "@PostVisitGenStructFieldName")
 	p1 := SearchPointerReverse("@PreVisitGenStructFieldType", re.gir.pointerAndPositionVec)
 	p2 := SearchPointerReverse("@PostVisitGenStructFieldType", re.gir.pointerAndPositionVec)
@@ -332,26 +390,50 @@ func (re *RustEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) 
 	p4 := SearchPointerReverse("@PostVisitGenStructFieldName", re.gir.pointerAndPositionVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
-		fieldType, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
-		fieldName, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
-		re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
+		fieldType, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting field type:", err)
+			return
+		}
+		fieldName, err := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting field name:", err)
+			return
+		}
+		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
+		if err != nil {
+			fmt.Println("Error rewriting file buffer:", err)
+			return
+		}
 	}
 
 	re.gir.emitToFileBuffer(",\n", "")
 }
 
 func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.pkg = pkg
 }
 
 func (re *RustEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
+	if re.forwardDecls {
+		return
+	}
 }
 
 func (re *RustEmitter) PostVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.isArray = false
 }
 
 func (re *RustEmitter) PostVisitBlockStmtList(node ast.Stmt, index int, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString("\n", indent)
 	re.gir.emitToFileBuffer(str, "")
 }
@@ -365,6 +447,9 @@ func (re *RustEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 }
 
 func (re *RustEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString(fmt.Sprintf("pub struct %s\n", node.Name), indent+2)
 	str += re.emitAsString("{\n", indent+2)
 	re.gir.emitToFileBuffer(str, "")
@@ -372,13 +457,16 @@ func (re *RustEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 }
 
 func (re *RustEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString("}\n\n", indent+2)
 	re.gir.emitToFileBuffer(str, "")
 	re.shouldGenerate = false
 }
 
 func (re *RustEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
-	if !re.shouldGenerate {
+	if re.forwardDecls {
 		return
 	}
 	re.gir.stack = append(re.gir.stack, "@@PreVisitArrayType")
@@ -388,7 +476,7 @@ func (re *RustEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	re.buffer = true
 }
 func (re *RustEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
-	if !re.shouldGenerate {
+	if re.forwardDecls {
 		return
 	}
 
@@ -407,7 +495,7 @@ func (re *RustEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 }
 
 func (re *RustEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
-	if !re.shouldGenerate {
+	if re.forwardDecls {
 		return
 	}
 	re.buffer = true
@@ -418,7 +506,7 @@ func (re *RustEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	re.gir.stack = append(re.gir.stack, str)
 }
 func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
-	if !re.shouldGenerate {
+	if re.forwardDecls {
 		return
 	}
 
@@ -443,6 +531,9 @@ func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 }
 
 func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	if index > 0 {
 		str := re.emitAsString(", ", 0)
 		re.gir.stack = append(re.gir.stack, str)
@@ -450,7 +541,7 @@ func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent 
 }
 
 func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
-	if !re.shouldGenerate {
+	if re.forwardDecls {
 		return
 	}
 	var str string
@@ -478,6 +569,9 @@ func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	if node != nil {
 		re.numFuncResults = len(node.List)
 	}
@@ -531,7 +625,6 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, 
 		return
 	}
 	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResults")
-	re.shouldGenerate = true
 
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
@@ -555,11 +648,13 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl,
 
 	str := re.emitAsString("", 1)
 	re.gir.emitToFileBuffer(str, "")
-	re.shouldGenerate = false
 	re.gir.emitToFileBuffer("", "@PostVisitFuncDeclSignatureTypeResults")
 }
 
 func (re *RustEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.gir.stack = append(re.gir.stack, "@@PreVisitTypeAliasName")
 	re.gir.stack = append(re.gir.stack, re.emitAsString("using ", indent+2))
 	re.shouldGenerate = true
@@ -567,15 +662,23 @@ func (re *RustEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 }
 
 func (re *RustEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.buffer = true
 	re.gir.stack = append(re.gir.stack, " = ")
 }
 
 func (re *RustEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
-
+	if re.forwardDecls {
+		return
+	}
 }
 
 func (re *RustEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	str := re.emitAsString(";\n\n", 0)
 	re.gir.stack = append(re.gir.stack, str)
 	re.aliases[re.gir.stack[2]] = Alias{
@@ -594,6 +697,9 @@ func (re *RustEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	re.shouldGenerate = true
 	str := re.emitAsString("return ", indent)
 	re.gir.emitToFileBuffer(str, "")
@@ -618,13 +724,15 @@ func (re *RustEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 }
 
 func (re *RustEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
+	if re.forwardDecls {
+		return
+	}
 	if len(node.Results) > 1 {
 		str := re.emitAsString(")", 0)
 		re.gir.emitToFileBuffer(str, "")
 	}
 	str := re.emitAsString(";", 0)
 	re.gir.emitToFileBuffer(str, "")
-	re.shouldGenerate = false
 }
 
 func (re *RustEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent int) {
@@ -655,9 +763,21 @@ func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
 	p4 := SearchPointerReverse("@PostVisitDeclStmtValueSpecNames", re.gir.pointerAndPositionVec)
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
 		// Extract the substring between the positions of the pointers
-		fieldType, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
-		fieldName, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
-		re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
+		fieldType, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting field type:", err)
+			return
+		}
+		fieldName, err := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting field name:", err)
+			return
+		}
+		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
+		if err != nil {
+			fmt.Println("Error rewriting file buffer:", err)
+			return
+		}
 	}
 	re.shouldGenerate = false
 
@@ -1093,8 +1213,28 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 	p4 := SearchPointerReverse("@PostVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndPositionVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
-		typeStrRepr, _ := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
-		nameStrRepr, _ := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
-		re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, nameStrRepr+":"+typeStrRepr)
+		typeStrRepr, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting type representation:", err)
+			return
+		}
+		nameStrRepr, err := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
+		if err != nil {
+			fmt.Println("Error extracting name representation:", err)
+			return
+		}
+		if containsWhitespace(nameStrRepr) {
+			fmt.Println("Error: Type parameter name contains whitespace")
+			return
+		}
+		if containsWhitespace(typeStrRepr) {
+			fmt.Println("Error: Type parameter type contains whitespace")
+			return
+		}
+		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, nameStrRepr+":"+typeStrRepr)
+		if err != nil {
+			fmt.Println("Error rewriting file buffer:", err)
+			return
+		}
 	}
 }
