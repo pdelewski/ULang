@@ -160,6 +160,11 @@ type PointerAndPosition struct {
 	Length   int // length of string
 }
 
+type PointerAndIndex struct {
+	Pointer string // Pointer to the type
+	Index   int
+}
+
 func (gir *GoFIR) emitToFileBuffer(
 	s string, pointer string) error {
 	gir.pointerAndPositionVec = append(gir.pointerAndPositionVec, PointerAndPosition{
@@ -168,6 +173,11 @@ func (gir *GoFIR) emitToFileBuffer(
 		Length:   len(s),
 	})
 	gir.fileBuffer += s
+	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
+		Pointer: pointer,
+		Index:   len(gir.tokenSlice),
+	})
+	gir.tokenSlice = append(gir.tokenSlice, s)
 	return nil
 }
 
@@ -213,4 +223,6 @@ type GoFIR struct {
 	stack                 []string
 	fileBuffer            string
 	pointerAndPositionVec []PointerAndPosition
+	tokenSlice            []string
+	pointerAndIndexVec    []PointerAndIndex
 }
