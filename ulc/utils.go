@@ -167,6 +167,17 @@ func RewriteFileBufferBetween(fileBuffer string, begin int, end int, content str
 	return fileBuffer[:begin] + content + fileBuffer[end:], nil
 }
 
+func RewriteTokensBetween(tokenSlice []string, begin int, end int, content []string) ([]string, error) {
+	if begin < 0 || end > len(tokenSlice) || begin > end {
+		return tokenSlice, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	result := make([]string, 0, begin+len(content)+(len(tokenSlice)-end))
+	result = append(result, tokenSlice[:begin]...)
+	result = append(result, content...)
+	result = append(result, tokenSlice[end:]...)
+	return result, nil
+}
+
 func RewriteFileBuffer(fileBuffer string, position int, oldContent, newContent string) (string, error) {
 	if position < 0 || position+len(oldContent) > len(fileBuffer) {
 		return fileBuffer, fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
@@ -175,6 +186,22 @@ func RewriteFileBuffer(fileBuffer string, position int, oldContent, newContent s
 		return fileBuffer, fmt.Errorf("oldContent does not match the existing content at position %d", position)
 	}
 	return fileBuffer[:position] + newContent + fileBuffer[position+len(oldContent):], nil
+}
+
+func RewriteTokens(tokenSlice []string, position int, oldContent, newContent []string) ([]string, error) {
+	if position < 0 || position+len(oldContent) > len(tokenSlice) {
+		return tokenSlice, fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
+	}
+	for i, token := range oldContent {
+		if position+i >= len(tokenSlice) || tokenSlice[position+i] != token {
+			return tokenSlice, fmt.Errorf("oldContent does not match the existing content at position %d", position)
+		}
+	}
+	result := make([]string, 0, len(tokenSlice)-len(oldContent)+len(newContent))
+	result = append(result, tokenSlice[:position]...)
+	result = append(result, newContent...)
+	result = append(result, tokenSlice[position+len(oldContent):]...)
+	return result, nil
 }
 
 type PointerAndPosition struct {
