@@ -123,6 +123,15 @@ func SearchPointerReverse(target string, pointerAndPositionVec []PointerAndPosit
 	return nil // Return nil if the pointer is not found
 }
 
+func SearchPointerIndexReverse(target string, pointerAndIndexVec []PointerAndIndex) *PointerAndIndex {
+	for i := len(pointerAndIndexVec) - 1; i >= 0; i-- {
+		if pointerAndIndexVec[i].Pointer == target {
+			return &pointerAndIndexVec[i]
+		}
+	}
+	return nil // Return nil if the pointer is not found
+}
+
 func ExtractSubstring(position int, fileBuffer string) (string, error) {
 	if position < 0 || position >= len(fileBuffer) {
 		return "", fmt.Errorf("position %d is out of bounds", position)
@@ -130,11 +139,25 @@ func ExtractSubstring(position int, fileBuffer string) (string, error) {
 	return fileBuffer[position:], nil
 }
 
+func ExtractTokens(position int, tokenSlice []string) ([]string, error) {
+	if position < 0 || position >= len(tokenSlice) {
+		return nil, fmt.Errorf("position %d is out of bounds", position)
+	}
+	return tokenSlice[position:], nil
+}
+
 func ExtractSubstringBetween(begin int, end int, fileBuffer string) (string, error) {
 	if begin < 0 || end > len(fileBuffer) || begin > end {
 		return "", fmt.Errorf("invalid range: begin %d, end %d", begin, end)
 	}
 	return fileBuffer[begin:end], nil
+}
+
+func ExtractTokensBetween(begin int, end int, tokenSlice []string) ([]string, error) {
+	if begin < 0 || end > len(tokenSlice) || begin > end {
+		return nil, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	return tokenSlice[begin:end], nil
 }
 
 func RewriteFileBufferBetween(fileBuffer string, begin int, end int, content string) (string, error) {
