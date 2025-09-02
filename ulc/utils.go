@@ -240,6 +240,17 @@ func emitToFile(file *os.File, fileBuffer string) error {
 	return nil
 }
 
+func emitTokensToFile(file *os.File, tokenSlice []string) error {
+	for _, token := range tokenSlice {
+		_, err := file.WriteString(token)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return err
+		}
+	}
+	return nil
+}
+
 func RebuildNestedType(reprs []AliasRepr) string {
 	if len(reprs) == 0 {
 		return ""
