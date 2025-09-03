@@ -86,7 +86,6 @@ func (cse *CSharpEmitter) GetFile() *os.File {
 }
 
 func (cse *CSharpEmitter) PreVisitProgram(indent int) {
-	cse.gir.pointerAndPositionVec = make([]PointerAndPosition, 0)
 	cse.aliases = make(map[string]Alias)
 	outputFile := cse.Output
 	cse.shouldGenerate = true
