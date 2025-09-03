@@ -321,7 +321,7 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.fileBuffer), []string{aliasName})
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
 			}
 		}
 	}

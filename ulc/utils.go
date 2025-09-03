@@ -177,7 +177,6 @@ type PointerAndIndex struct {
 
 func (gir *GoFIR) emitToFileBuffer(
 	s string, pointer string) error {
-	gir.fileBuffer += s
 	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
 		Pointer: pointer,
 		Index:   len(gir.tokenSlice),
@@ -238,7 +237,6 @@ func containsWhitespace(s string) bool {
 
 type GoFIR struct {
 	stack              []string
-	fileBuffer         string
 	tokenSlice         []string
 	pointerAndIndexVec []PointerAndIndex
 }
