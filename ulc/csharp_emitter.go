@@ -917,6 +917,10 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 			if len(tokens) >= 3 && tokens[0] == "" && tokens[1] == t && tokens[2] == "(" {
 				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1]}, []string{"(", t, ")"})
 			}
+			// TODO just a hack and should be removed
+			if len(tokens) >= 4 && tokens[0] == "" && tokens[1] == "" && tokens[2] == t && tokens[3] == "(" {
+				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1], tokens[2]}, []string{"(", t, ")"})
+			}
 		}
 	}
 
