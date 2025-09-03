@@ -860,8 +860,8 @@ func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 	if pointerAndPosition != nil {
 		tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 		for _, t := range destTypes {
-			if len(tokens) >= 2 && tokens[0] == t && tokens[1] == "(" {
-				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1]}, []string{"(", t, ")", "("})
+			if len(tokens) >= 3 && tokens[0] == "" && tokens[1] == t && tokens[2] == "(" {
+				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1]}, []string{"(", t, ")"})
 			}
 		}
 	}
@@ -914,8 +914,8 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 	if pointerAndPosition != nil {
 		tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 		for _, t := range destTypes {
-			if len(tokens) >= 2 && tokens[0] == t && tokens[1] == "(" {
-				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1]}, []string{"(", t, ")", "("})
+			if len(tokens) >= 3 && tokens[0] == "" && tokens[1] == t && tokens[2] == "(" {
+				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1]}, []string{"(", t, ")"})
 			}
 		}
 	}
