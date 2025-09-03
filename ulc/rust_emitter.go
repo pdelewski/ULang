@@ -1002,7 +1002,7 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 			newTokens = append(newTokens, ":")
 			newTokens = append(newTokens, vecTypeStrRepr...)
 			newTokens = append(newTokens, " = vec!")
-			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index-len(" ="), len(re.gir.tokenSlice), newTokens)
+			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index-len("="), len(re.gir.tokenSlice), newTokens)
 
 		}
 	}
