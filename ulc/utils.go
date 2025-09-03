@@ -123,11 +123,27 @@ func SearchPointerReverse(target string, pointerAndPositionVec []PointerAndPosit
 	return nil // Return nil if the pointer is not found
 }
 
+func SearchPointerIndexReverse(target string, pointerAndIndexVec []PointerAndIndex) *PointerAndIndex {
+	for i := len(pointerAndIndexVec) - 1; i >= 0; i-- {
+		if pointerAndIndexVec[i].Pointer == target {
+			return &pointerAndIndexVec[i]
+		}
+	}
+	return nil // Return nil if the pointer is not found
+}
+
 func ExtractSubstring(position int, fileBuffer string) (string, error) {
 	if position < 0 || position >= len(fileBuffer) {
 		return "", fmt.Errorf("position %d is out of bounds", position)
 	}
 	return fileBuffer[position:], nil
+}
+
+func ExtractTokens(position int, tokenSlice []string) ([]string, error) {
+	if position < 0 || position >= len(tokenSlice) {
+		return nil, fmt.Errorf("position %d is out of bounds", position)
+	}
+	return tokenSlice[position:], nil
 }
 
 func ExtractSubstringBetween(begin int, end int, fileBuffer string) (string, error) {
@@ -137,11 +153,29 @@ func ExtractSubstringBetween(begin int, end int, fileBuffer string) (string, err
 	return fileBuffer[begin:end], nil
 }
 
+func ExtractTokensBetween(begin int, end int, tokenSlice []string) ([]string, error) {
+	if begin < 0 || end > len(tokenSlice) || begin > end {
+		return nil, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	return tokenSlice[begin:end], nil
+}
+
 func RewriteFileBufferBetween(fileBuffer string, begin int, end int, content string) (string, error) {
 	if begin < 0 || end > len(fileBuffer) || begin > end {
 		return fileBuffer, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
 	}
 	return fileBuffer[:begin] + content + fileBuffer[end:], nil
+}
+
+func RewriteTokensBetween(tokenSlice []string, begin int, end int, content []string) ([]string, error) {
+	if begin < 0 || end > len(tokenSlice) || begin > end {
+		return tokenSlice, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	result := make([]string, 0, begin+len(content)+(len(tokenSlice)-end))
+	result = append(result, tokenSlice[:begin]...)
+	result = append(result, content...)
+	result = append(result, tokenSlice[end:]...)
+	return result, nil
 }
 
 func RewriteFileBuffer(fileBuffer string, position int, oldContent, newContent string) (string, error) {
@@ -154,10 +188,31 @@ func RewriteFileBuffer(fileBuffer string, position int, oldContent, newContent s
 	return fileBuffer[:position] + newContent + fileBuffer[position+len(oldContent):], nil
 }
 
+func RewriteTokens(tokenSlice []string, position int, oldContent, newContent []string) ([]string, error) {
+	if position < 0 || position+len(oldContent) > len(tokenSlice) {
+		return tokenSlice, fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
+	}
+	for i, token := range oldContent {
+		if position+i >= len(tokenSlice) || tokenSlice[position+i] != token {
+			return tokenSlice, fmt.Errorf("oldContent does not match the existing content at position %d", position)
+		}
+	}
+	result := make([]string, 0, len(tokenSlice)-len(oldContent)+len(newContent))
+	result = append(result, tokenSlice[:position]...)
+	result = append(result, newContent...)
+	result = append(result, tokenSlice[position+len(oldContent):]...)
+	return result, nil
+}
+
 type PointerAndPosition struct {
 	Pointer  string // Pointer to the type
 	Position int
 	Length   int // length of string
+}
+
+type PointerAndIndex struct {
+	Pointer string // Pointer to the type
+	Index   int
 }
 
 func (gir *GoFIR) emitToFileBuffer(
@@ -168,6 +223,21 @@ func (gir *GoFIR) emitToFileBuffer(
 		Length:   len(s),
 	})
 	gir.fileBuffer += s
+	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
+		Pointer: pointer,
+		Index:   len(gir.tokenSlice),
+	})
+
+	gir.tokenSlice = append(gir.tokenSlice, s)
+	/*
+		serializedTokenStream := ""
+		for _, token := range gir.tokenSlice {
+			serializedTokenStream += token
+		}
+		if gir.fileBuffer != serializedTokenStream {
+			return fmt.Errorf("fileBuffer and tokenSlice are out of sync")
+		}
+	*/
 	return nil
 }
 
@@ -176,6 +246,17 @@ func emitToFile(file *os.File, fileBuffer string) error {
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 		return err
+	}
+	return nil
+}
+
+func emitTokensToFile(file *os.File, tokenSlice []string) error {
+	for _, token := range tokenSlice {
+		_, err := file.WriteString(token)
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -213,4 +294,6 @@ type GoFIR struct {
 	stack                 []string
 	fileBuffer            string
 	pointerAndPositionVec []PointerAndPosition
+	tokenSlice            []string
+	pointerAndIndexVec    []PointerAndIndex
 }
