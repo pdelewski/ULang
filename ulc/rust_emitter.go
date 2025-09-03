@@ -138,7 +138,7 @@ pub fn len<T>(slice: &[T]) -> usize {
 }
 
 func (re *RustEmitter) PostVisitProgram(indent int) {
-	emitToFile(re.file, re.gir.fileBuffer)
+	emitTokensToFile(re.file, re.gir.tokenSlice)
 	re.file.Close()
 }
 
@@ -193,22 +193,23 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 	str := re.emitAsString(")", 0)
 	re.gir.emitToFileBuffer(str, "")
 
-	p1 := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResults", re.gir.pointerAndPositionVec)
-	p2 := SearchPointerReverse("@PostVisitFuncDeclSignatureTypeResults", re.gir.pointerAndPositionVec)
+	p1 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResults", re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeResults", re.gir.pointerAndIndexVec)
 	if p1 != nil && p2 != nil {
-		results, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		results, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting results:", err)
 			return
 		}
 
-		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p2.Position, "")
+		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{""})
 		if err != nil {
 			fmt.Println("Error rewriting file buffer:", err)
 			return
 		}
-		if strings.TrimSpace(results) != "" {
-			re.gir.fileBuffer += " -> " + results
+		if strings.TrimSpace(strings.Join(results, "")) != "" {
+			re.gir.tokenSlice = append(re.gir.tokenSlice, " -> ")
+			re.gir.tokenSlice = append(re.gir.tokenSlice, strings.Join(results, ""))
 		}
 	}
 }
@@ -248,16 +249,16 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 	}
 	str := re.emitAsString("(", 0)
 	re.gir.emitToFileBuffer(str, "")
-	p1 := SearchPointerReverse("@PreVisitCallExprFun", re.gir.pointerAndPositionVec)
-	p2 := SearchPointerReverse("@PostVisitCallExprFun", re.gir.pointerAndPositionVec)
+	p1 := SearchPointerIndexReverse("@PreVisitCallExprFun", re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse("@PostVisitCallExprFun", re.gir.pointerAndIndexVec)
 	if p1 != nil && p2 != nil {
 		// Extract the substring between the positions of the pointers
-		funName, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		funName, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting function name:", err)
 			return
 		}
-		if strings.Contains(funName, "len") {
+		if strings.Contains(strings.Join(funName, ""), "len") {
 			// add & before the first argument
 			str := re.emitAsString("&", 0)
 			re.gir.emitToFileBuffer(str, "")
@@ -317,11 +318,11 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 	if re.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, pointerAndPosition.Position, len(re.gir.fileBuffer), aliasName)
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.fileBuffer), []string{aliasName})
 			}
 		}
 	}
@@ -384,23 +385,27 @@ func (re *RustEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) 
 		return
 	}
 	re.gir.emitToFileBuffer("", "@PostVisitGenStructFieldName")
-	p1 := SearchPointerReverse("@PreVisitGenStructFieldType", re.gir.pointerAndPositionVec)
-	p2 := SearchPointerReverse("@PostVisitGenStructFieldType", re.gir.pointerAndPositionVec)
-	p3 := SearchPointerReverse("@PreVisitGenStructFieldName", re.gir.pointerAndPositionVec)
-	p4 := SearchPointerReverse("@PostVisitGenStructFieldName", re.gir.pointerAndPositionVec)
+	p1 := SearchPointerIndexReverse("@PreVisitGenStructFieldType", re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse("@PostVisitGenStructFieldType", re.gir.pointerAndIndexVec)
+	p3 := SearchPointerIndexReverse("@PreVisitGenStructFieldName", re.gir.pointerAndIndexVec)
+	p4 := SearchPointerIndexReverse("@PostVisitGenStructFieldName", re.gir.pointerAndIndexVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
-		fieldType, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		fieldType, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting field type:", err)
 			return
 		}
-		fieldName, err := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
+		fieldName, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting field name:", err)
 			return
 		}
-		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
+		newTokens := []string{}
+		newTokens = append(newTokens, fieldName...)
+		newTokens = append(newTokens, ":")
+		newTokens = append(newTokens, fieldType...)
+		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p4.Index, newTokens)
 		if err != nil {
 			fmt.Println("Error rewriting file buffer:", err)
 			return
@@ -610,11 +615,11 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field
 	if re.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList", re.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResultsList", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, pointerAndPosition.Position, len(re.gir.fileBuffer), aliasName)
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
 			}
 		}
 	}
@@ -757,23 +762,28 @@ func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
 }
 
 func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
-	p1 := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndPositionVec)
-	p2 := SearchPointerReverse("@PostVisitDeclStmtValueSpecType", re.gir.pointerAndPositionVec)
-	p3 := SearchPointerReverse("@PreVisitDeclStmtValueSpecNames", re.gir.pointerAndPositionVec)
-	p4 := SearchPointerReverse("@PostVisitDeclStmtValueSpecNames", re.gir.pointerAndPositionVec)
+	p1 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse("@PostVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
+	p3 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecNames", re.gir.pointerAndIndexVec)
+	p4 := SearchPointerIndexReverse("@PostVisitDeclStmtValueSpecNames", re.gir.pointerAndIndexVec)
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
 		// Extract the substring between the positions of the pointers
-		fieldType, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		fieldType, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting field type:", err)
 			return
 		}
-		fieldName, err := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
+		fieldName, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting field name:", err)
 			return
 		}
-		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, fieldName+":"+fieldType)
+		newTokens := []string{}
+		newTokens = append(newTokens, fieldName...)
+		newTokens = append(newTokens, ":")
+		newTokens = append(newTokens, fieldType...)
+
+		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p4.Index, newTokens)
 		if err != nil {
 			fmt.Println("Error rewriting file buffer:", err)
 			return
@@ -972,13 +982,13 @@ func (re *RustEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
-	pointerAndPosition := SearchPointerReverse("@PreVisitCompositeLitType", re.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitCompositeLitType", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-				re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, pointerAndPosition.Position, len(re.gir.fileBuffer), aliasName)
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
 			}
 		}
 		if re.isArray {
@@ -987,8 +997,12 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 			// has to be rewritten to use some kind of IR
 			// We are trying to rewrite the type to a vector type
 			// let x = Vec<> into let x: Vec<type> = vec![]
-			vecTypeStrRepr, _ := ExtractSubstringBetween(pointerAndPosition.Position, len(re.gir.fileBuffer), re.gir.fileBuffer)
-			re.gir.fileBuffer, _ = RewriteFileBufferBetween(re.gir.fileBuffer, pointerAndPosition.Position-len(" ="), len(re.gir.fileBuffer), ":"+vecTypeStrRepr+" = vec!")
+			vecTypeStrRepr, _ := ExtractTokensBetween(pointerAndPosition.Index, len(re.gir.tokenSlice), re.gir.tokenSlice)
+			newTokens := []string{}
+			newTokens = append(newTokens, ":")
+			newTokens = append(newTokens, vecTypeStrRepr...)
+			newTokens = append(newTokens, " = vec!")
+			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index-len(" ="), len(re.gir.tokenSlice), newTokens)
 
 		}
 	}
@@ -1207,31 +1221,35 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ide
 }
 
 func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
-	p1 := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndPositionVec)
-	p2 := SearchPointerReverse("@PostVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndPositionVec)
-	p3 := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndPositionVec)
-	p4 := SearchPointerReverse("@PostVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndPositionVec)
+	p1 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndIndexVec)
+	p3 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndIndexVec)
+	p4 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndIndexVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
-		typeStrRepr, err := ExtractSubstringBetween(p1.Position, p2.Position, re.gir.fileBuffer)
+		typeStrRepr, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting type representation:", err)
 			return
 		}
-		nameStrRepr, err := ExtractSubstringBetween(p3.Position, p4.Position, re.gir.fileBuffer)
+		nameStrRepr, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting name representation:", err)
 			return
 		}
-		if containsWhitespace(nameStrRepr) {
+		if containsWhitespace(strings.Join(nameStrRepr, "")) {
 			fmt.Println("Error: Type parameter name contains whitespace")
 			return
 		}
-		if containsWhitespace(typeStrRepr) {
+		if containsWhitespace(strings.Join(typeStrRepr, "")) {
 			fmt.Println("Error: Type parameter type contains whitespace")
 			return
 		}
-		re.gir.fileBuffer, err = RewriteFileBufferBetween(re.gir.fileBuffer, p1.Position, p4.Position, nameStrRepr+":"+typeStrRepr)
+		newTokens := []string{}
+		newTokens = append(newTokens, nameStrRepr...)
+		newTokens = append(newTokens, ":")
+		newTokens = append(newTokens, typeStrRepr...)
+		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p4.Index, newTokens)
 		if err != nil {
 			fmt.Println("Error rewriting file buffer:", err)
 			return
