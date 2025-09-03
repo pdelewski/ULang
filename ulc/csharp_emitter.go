@@ -242,7 +242,7 @@ public class Formatter {
 }
 
 func (cse *CSharpEmitter) PostVisitProgram(indent int) {
-	emitToFile(cse.file, cse.gir.fileBuffer)
+	emitTokensToFile(cse.file, cse.gir.tokenSlice)
 	cse.file.Close()
 }
 
@@ -388,11 +388,11 @@ func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, in
 	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse("@PreVisitDeclStmtValueSpecType", cse.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", cse.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				cse.gir.fileBuffer, _ = RewriteFileBufferBetween(cse.gir.fileBuffer, pointerAndPosition.Position, len(cse.gir.fileBuffer), aliasName)
+				cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), []string{aliasName})
 			}
 		}
 	}
@@ -477,7 +477,7 @@ func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse(pkg.Name, cse.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse(pkg.Name, cse.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		var newStr string
 		for aliasKey, aliasVal := range cse.aliases {
@@ -485,7 +485,7 @@ func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 			newStr += "using " + aliasKey + " = " + aliasRepr + ";\n"
 		}
 		newStr += "\n"
-		cse.gir.fileBuffer, _ = RewriteFileBuffer(cse.gir.fileBuffer, pointerAndPosition.Position, "", newStr)
+		cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{}, []string{newStr})
 	}
 
 	str := cse.emitAsString("}\n", indent+2)
@@ -686,11 +686,11 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Fi
 	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse("@PreVisitFuncDeclSignatureTypeResultsList", cse.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResultsList", cse.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				cse.gir.fileBuffer, _ = RewriteFileBufferBetween(cse.gir.fileBuffer, pointerAndPosition.Position, len(cse.gir.fileBuffer), aliasName)
+				cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), []string{aliasName})
 			}
 		}
 	}
@@ -856,13 +856,12 @@ func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse("@PreVisitCallExpr", cse.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitCallExpr", cse.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
-		str, _ := ExtractSubstring(pointerAndPosition.Position, cse.gir.fileBuffer)
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 		for _, t := range destTypes {
-			matchStr := t + "("
-			if strings.Contains(str, matchStr) {
-				cse.gir.fileBuffer, _ = RewriteFileBuffer(cse.gir.fileBuffer, pointerAndPosition.Position, matchStr, "("+t+")(")
+			if len(tokens) >= 2 && tokens[0] == t && tokens[1] == "(" {
+				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1]}, []string{"(", t, ")", "("})
 			}
 		}
 	}
@@ -910,25 +909,24 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse("@PreVisitAssignStmtRhsExpr", cse.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitAssignStmtRhsExpr", cse.gir.pointerAndIndexVec)
 	rewritten := false
 	if pointerAndPosition != nil {
-		str, _ := ExtractSubstring(pointerAndPosition.Position, cse.gir.fileBuffer)
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 		for _, t := range destTypes {
-			matchStr := t + "("
-			if strings.Contains(str, matchStr) {
-				cse.gir.fileBuffer, _ = RewriteFileBuffer(cse.gir.fileBuffer, pointerAndPosition.Position, matchStr, "("+t+")(")
-				rewritten = true
+			if len(tokens) >= 2 && tokens[0] == t && tokens[1] == "(" {
+				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{tokens[0], tokens[1]}, []string{"(", t, ")", "("})
 			}
 		}
 	}
+
 	if !rewritten {
 		tv := cse.pkg.TypesInfo.Types[node]
 		//pos := cse.pkg.Fset.Position(node.Pos())
 		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
 		if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
 			if !cse.isTuple && tv.Type.String() != "func()" {
-				cse.gir.fileBuffer, _ = RewriteFileBuffer(cse.gir.fileBuffer, pointerAndPosition.Position, "", "("+typeVal+")")
+				cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{}, []string{"(", typeVal, ")"})
 			}
 		}
 	}
@@ -1151,13 +1149,13 @@ func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerReverse("@PreVisitCompositeLitType", cse.gir.pointerAndPositionVec)
+	pointerAndPosition := SearchPointerIndexReverse("@PreVisitCompositeLitType", cse.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
 		for aliasName, alias := range cse.aliases {
 			if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-				cse.gir.fileBuffer, _ = RewriteFileBufferBetween(cse.gir.fileBuffer, pointerAndPosition.Position, len(cse.gir.fileBuffer), aliasName)
+				cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), []string{aliasName})
 			}
 		}
 	}

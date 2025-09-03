@@ -227,7 +227,17 @@ func (gir *GoFIR) emitToFileBuffer(
 		Pointer: pointer,
 		Index:   len(gir.tokenSlice),
 	})
+
 	gir.tokenSlice = append(gir.tokenSlice, s)
+	/*
+		serializedTokenStream := ""
+		for _, token := range gir.tokenSlice {
+			serializedTokenStream += token
+		}
+		if gir.fileBuffer != serializedTokenStream {
+			return fmt.Errorf("fileBuffer and tokenSlice are out of sync")
+		}
+	*/
 	return nil
 }
 
