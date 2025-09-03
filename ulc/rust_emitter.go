@@ -68,7 +68,6 @@ func (re *RustEmitter) emitAsString(s string, indent int) string {
 }
 
 func (re *RustEmitter) PreVisitProgram(indent int) {
-	re.gir.pointerAndPositionVec = make([]PointerAndPosition, 0)
 	re.aliases = make(map[string]Alias)
 	outputFile := re.Output
 	var err error

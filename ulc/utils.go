@@ -114,15 +114,6 @@ func mergeStackElements(marker string, stack []string) []string {
 	return stack
 }
 
-func SearchPointerReverse(target string, pointerAndPositionVec []PointerAndPosition) *PointerAndPosition {
-	for i := len(pointerAndPositionVec) - 1; i >= 0; i-- {
-		if pointerAndPositionVec[i].Pointer == target {
-			return &pointerAndPositionVec[i]
-		}
-	}
-	return nil // Return nil if the pointer is not found
-}
-
 func SearchPointerIndexReverse(target string, pointerAndIndexVec []PointerAndIndex) *PointerAndIndex {
 	for i := len(pointerAndIndexVec) - 1; i >= 0; i-- {
 		if pointerAndIndexVec[i].Pointer == target {
@@ -132,13 +123,6 @@ func SearchPointerIndexReverse(target string, pointerAndIndexVec []PointerAndInd
 	return nil // Return nil if the pointer is not found
 }
 
-func ExtractSubstring(position int, fileBuffer string) (string, error) {
-	if position < 0 || position >= len(fileBuffer) {
-		return "", fmt.Errorf("position %d is out of bounds", position)
-	}
-	return fileBuffer[position:], nil
-}
-
 func ExtractTokens(position int, tokenSlice []string) ([]string, error) {
 	if position < 0 || position >= len(tokenSlice) {
 		return nil, fmt.Errorf("position %d is out of bounds", position)
@@ -146,25 +130,11 @@ func ExtractTokens(position int, tokenSlice []string) ([]string, error) {
 	return tokenSlice[position:], nil
 }
 
-func ExtractSubstringBetween(begin int, end int, fileBuffer string) (string, error) {
-	if begin < 0 || end > len(fileBuffer) || begin > end {
-		return "", fmt.Errorf("invalid range: begin %d, end %d", begin, end)
-	}
-	return fileBuffer[begin:end], nil
-}
-
 func ExtractTokensBetween(begin int, end int, tokenSlice []string) ([]string, error) {
 	if begin < 0 || end > len(tokenSlice) || begin > end {
 		return nil, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
 	}
 	return tokenSlice[begin:end], nil
-}
-
-func RewriteFileBufferBetween(fileBuffer string, begin int, end int, content string) (string, error) {
-	if begin < 0 || end > len(fileBuffer) || begin > end {
-		return fileBuffer, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
-	}
-	return fileBuffer[:begin] + content + fileBuffer[end:], nil
 }
 
 func RewriteTokensBetween(tokenSlice []string, begin int, end int, content []string) ([]string, error) {
@@ -176,16 +146,6 @@ func RewriteTokensBetween(tokenSlice []string, begin int, end int, content []str
 	result = append(result, content...)
 	result = append(result, tokenSlice[end:]...)
 	return result, nil
-}
-
-func RewriteFileBuffer(fileBuffer string, position int, oldContent, newContent string) (string, error) {
-	if position < 0 || position+len(oldContent) > len(fileBuffer) {
-		return fileBuffer, fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
-	}
-	if fileBuffer[position:position+len(oldContent)] != oldContent {
-		return fileBuffer, fmt.Errorf("oldContent does not match the existing content at position %d", position)
-	}
-	return fileBuffer[:position] + newContent + fileBuffer[position+len(oldContent):], nil
 }
 
 func RewriteTokens(tokenSlice []string, position int, oldContent, newContent []string) ([]string, error) {
@@ -217,11 +177,6 @@ type PointerAndIndex struct {
 
 func (gir *GoFIR) emitToFileBuffer(
 	s string, pointer string) error {
-	gir.pointerAndPositionVec = append(gir.pointerAndPositionVec, PointerAndPosition{
-		Pointer:  pointer,
-		Position: len(gir.fileBuffer),
-		Length:   len(s),
-	})
 	gir.fileBuffer += s
 	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
 		Pointer: pointer,
@@ -229,15 +184,6 @@ func (gir *GoFIR) emitToFileBuffer(
 	})
 
 	gir.tokenSlice = append(gir.tokenSlice, s)
-	/*
-		serializedTokenStream := ""
-		for _, token := range gir.tokenSlice {
-			serializedTokenStream += token
-		}
-		if gir.fileBuffer != serializedTokenStream {
-			return fmt.Errorf("fileBuffer and tokenSlice are out of sync")
-		}
-	*/
 	return nil
 }
 
@@ -291,9 +237,8 @@ func containsWhitespace(s string) bool {
 }
 
 type GoFIR struct {
-	stack                 []string
-	fileBuffer            string
-	pointerAndPositionVec []PointerAndPosition
-	tokenSlice            []string
-	pointerAndIndexVec    []PointerAndIndex
+	stack              []string
+	fileBuffer         string
+	tokenSlice         []string
+	pointerAndIndexVec []PointerAndIndex
 }
