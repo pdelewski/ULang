@@ -181,8 +181,9 @@ func (gir *GoFIR) emitToFileBuffer(
 		Pointer: pointer,
 		Index:   len(gir.tokenSlice),
 	})
-
-	gir.tokenSlice = append(gir.tokenSlice, s)
+	if s != "" {
+		gir.tokenSlice = append(gir.tokenSlice, s)
+	}
 	return nil
 }
 
