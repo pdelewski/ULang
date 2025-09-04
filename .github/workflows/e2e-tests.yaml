@@ -39,7 +39,7 @@ jobs:
           tests=(
             "tests/basic basic true true"
             "tests/slice slice true true"
-            "tests/complex complex true false"
+            "tests/complex complex true true"
             "libs/iceberg iceberg true false"
             "libs/contlib contlib true false"
             "libs/uql uql true false"
