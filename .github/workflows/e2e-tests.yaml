@@ -72,7 +72,7 @@ jobs:
             if [[ "$rust_enabled" == "true" ]]; then
               echo "🦀 Rust setup"
               mkdir -p rust_project/src
-              echo "fn main() { println!(\"Hello from $test_name\"); }" > rust_project/src/main.rs
+              mv ulc/$test_name.rs rust_project/src/main.rs
               echo "[package]" > rust_project/Cargo.toml
               echo "name = \"$test_name\"" >> rust_project/Cargo.toml
               echo "version = \"0.1.0\"" >> rust_project/Cargo.toml
