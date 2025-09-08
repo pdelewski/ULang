@@ -346,7 +346,6 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	cse.gir.stack = append(cse.gir.stack, "@@PreVisitBasicLit")
 	var str string
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
@@ -359,21 +358,7 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	} else {
 		str = (cse.emitAsString(e.Value, 0))
 	}
-	cse.gir.stack = append(cse.gir.stack, str)
-	cse.buffer = true
-}
-
-func (cse *CSharpEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
-	if cse.forwardDecls {
-		return
-	}
-	cse.gir.stack = mergeStackElements("@@PreVisitBasicLit", cse.gir.stack)
-	if len(cse.gir.stack) == 1 {
-		cse.gir.emitToFileBuffer(cse.gir.stack[len(cse.gir.stack)-1], "")
-		cse.gir.stack = cse.gir.stack[:len(cse.gir.stack)-1]
-	}
-
-	cse.buffer = false
+	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
