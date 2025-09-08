@@ -575,10 +575,11 @@ func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	cse.gir.stack = append(cse.gir.stack, "@@PreVisitFuncType")
 	var str string
 	if node.Results != nil {
-		str = cse.emitAsString("Func<", indent)
+		str = cse.emitAsString("Func", indent)
 	} else {
-		str = cse.emitAsString("Action<", indent)
+		str = cse.emitAsString("Action", indent)
 	}
+	str += cse.emitAsString("<", 0)
 	cse.gir.stack = append(cse.gir.stack, str)
 }
 func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
@@ -1035,7 +1036,8 @@ func (cse *CSharpEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	str := cse.emitAsString("if (", 1)
+	str := cse.emitAsString("if ", 1)
+	str += cse.emitAsString("(", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
@@ -1051,7 +1053,8 @@ func (cse *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	str := cse.emitAsString("for (", indent)
+	str := cse.emitAsString("for ", indent)
+	str += cse.emitAsString("(", 0)
 	cse.gir.emitToFileBuffer(str, "")
 	cse.insideForPostCond = true
 }
@@ -1104,7 +1107,9 @@ func (cse *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	str := cse.emitAsString("foreach (var ", indent)
+	str := cse.emitAsString("foreach ", indent)
+	str += cse.emitAsString("(", 0)
+	str += cse.emitAsString("var ", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
@@ -1398,7 +1403,8 @@ func (cse *CSharpEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	str := cse.emitAsString("switch (", indent)
+	str := cse.emitAsString("switch ", indent)
+	str += cse.emitAsString("(", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 func (cse *CSharpEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
@@ -1413,7 +1419,8 @@ func (cse *CSharpEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	str := cse.emitAsString(") {\n", 0)
+	str := cse.emitAsString(") ", 0)
+	str += cse.emitAsString("{\n", 0)
 	cse.gir.emitToFileBuffer(str, "")
 }
 
