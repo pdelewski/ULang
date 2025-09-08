@@ -743,6 +743,13 @@ func (cse *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
 	if cse.forwardDecls {
 		return
 	}
+	cse.buffer = false
+}
+
+func (cse *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
+	if cse.forwardDecls {
+		return
+	}
 	cse.buffer = true
 	cse.gir.stack = append(cse.gir.stack, " = ")
 }
