@@ -237,7 +237,6 @@ func containsWhitespace(s string) bool {
 }
 
 type GoFIR struct {
-	stack              []string
 	tokenSlice         []string
 	pointerAndIndexVec []PointerAndIndex
 }
