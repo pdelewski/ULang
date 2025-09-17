@@ -47,7 +47,6 @@ type CSharpEmitter struct {
 	numFuncResults    int
 	aliases           map[string]Alias
 	currentPackage    string
-	buffer            bool
 	isArray           bool
 	arrayType         string
 	isTuple           bool
@@ -319,11 +318,7 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		}
 	}
 
-	if cse.buffer {
-		cse.gir.stack = append(cse.gir.stack, str)
-	} else {
-		cse.gir.emitToFileBuffer(str, "")
-	}
+	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
@@ -525,30 +520,26 @@ func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	cse.gir.stack = append(cse.gir.stack, "@@PreVisitArrayType")
+	cse.gir.emitToFileBuffer("", "@@PreVisitArrayType")
 	str := cse.emitAsString("List", indent)
-	cse.gir.stack = append(cse.gir.stack, str)
+	cse.gir.emitToFileBuffer(str, "")
 	str = cse.emitAsString("<", 0)
-	cse.gir.stack = append(cse.gir.stack, str)
-
-	cse.buffer = true
+	cse.gir.emitToFileBuffer(str, "")
 }
 func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	if cse.forwardDecls {
 		return
 	}
 
-	cse.gir.stack = append(cse.gir.stack, cse.emitAsString(">", 0))
+	str := cse.emitAsString(">", 0)
+	cse.gir.emitToFileBuffer(str, "")
 
-	cse.gir.stack = mergeStackElements("@@PreVisitArrayType", cse.gir.stack)
-	if len(cse.gir.stack) == 1 {
+	pointerAndPosition := SearchPointerIndexReverse("@@PreVisitArrayType", cse.gir.pointerAndIndexVec)
+	if pointerAndPosition != nil {
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 		cse.isArray = true
-		cse.arrayType = cse.gir.stack[len(cse.gir.stack)-1]
-		cse.gir.emitToFileBuffer(cse.gir.stack[len(cse.gir.stack)-1], "")
-		cse.gir.stack = cse.gir.stack[:len(cse.gir.stack)-1]
+		cse.arrayType = strings.Join(tokens, "")
 	}
-
-	cse.buffer = false
 }
 
 func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
@@ -556,8 +547,7 @@ func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 		return
 	}
 
-	cse.buffer = true
-	cse.gir.stack = append(cse.gir.stack, "@@PreVisitFuncType")
+	cse.gir.emitToFileBuffer("", "@@PreVisitFuncType")
 	var str string
 	if node.Results != nil {
 		str = cse.emitAsString("Func", indent)
@@ -565,31 +555,34 @@ func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 		str = cse.emitAsString("Action", indent)
 	}
 	str += cse.emitAsString("<", 0)
-	cse.gir.stack = append(cse.gir.stack, str)
+	cse.gir.emitToFileBuffer(str, "")
 }
 func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	if cse.forwardDecls {
 		return
 	}
 
-	// move return type to the end of the stack
-	// return type is traversed first therefore it has to be moved
-	// to the end of the stack due to C# syntax
-	if len(cse.gir.stack) > 2 && cse.numFuncResults > 0 {
-		returnType := cse.gir.stack[2]
-		cse.gir.stack = append(cse.gir.stack[:2], cse.gir.stack[3:]...)
-		cse.gir.stack = append(cse.gir.stack, ",")
-		cse.gir.stack = append(cse.gir.stack, returnType)
+	pointerAndPosition := SearchPointerIndexReverse("@@PreVisitFuncType", cse.gir.pointerAndIndexVec)
+	if pointerAndPosition != nil && cse.numFuncResults > 0 {
+		// For function types with return values, we need to reorder tokens
+		// to move return type to the end (C# syntax requirement)
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
+		if len(tokens) > 2 {
+			// Find and move return type to end with comma separator
+			var reorderedTokens []string
+			reorderedTokens = append(reorderedTokens, tokens[0]) // "Func<" or "Action<"
+			if len(tokens) > 3 {
+				// Skip return type (index 1) and add parameters first
+				reorderedTokens = append(reorderedTokens, tokens[2:]...)
+				reorderedTokens = append(reorderedTokens, ",")
+				reorderedTokens = append(reorderedTokens, tokens[1]) // Add return type at end
+			}
+			cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), reorderedTokens)
+		}
 	}
-	cse.gir.stack = append(cse.gir.stack, cse.emitAsString(">", 0))
 
-	cse.gir.stack = mergeStackElements("@@PreVisitFuncType", cse.gir.stack)
-
-	if len(cse.gir.stack) == 1 {
-		cse.gir.emitToFileBuffer(cse.gir.stack[len(cse.gir.stack)-1], "")
-		cse.gir.stack = cse.gir.stack[:len(cse.gir.stack)-1]
-	}
-	cse.buffer = false
+	str := cse.emitAsString(">", 0)
+	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
@@ -598,7 +591,7 @@ func (cse *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, inde
 	}
 	if index > 0 {
 		str := cse.emitAsString(", ", 0)
-		cse.gir.stack = append(cse.gir.stack, str)
+		cse.gir.emitToFileBuffer(str, "")
 	}
 }
 
@@ -622,11 +615,7 @@ func (cse *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	}
 
 	str = cse.emitAsString(scopeOperator, 0)
-	if cse.buffer {
-		cse.gir.stack = append(cse.gir.stack, str)
-	} else {
-		cse.gir.emitToFileBuffer(str, "")
-	}
+	cse.gir.emitToFileBuffer(str, "")
 
 }
 
@@ -719,24 +708,22 @@ func (cse *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	cse.gir.stack = append(cse.gir.stack, "@@PreVisitTypeAliasName")
-	cse.gir.stack = append(cse.gir.stack, cse.emitAsString("using ", indent+2))
-	cse.buffer = true
+	cse.gir.emitToFileBuffer("", "@@PreVisitTypeAliasName")
+	str := cse.emitAsString("using ", indent+2)
+	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	cse.buffer = false
 }
 
 func (cse *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	cse.buffer = true
-	cse.gir.stack = append(cse.gir.stack, " = ")
+	cse.gir.emitToFileBuffer(" = ", "")
 }
 
 func ConvertToAliasRepr(types []string, pkgName []string) []AliasRepr {
@@ -773,20 +760,25 @@ func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	if cse.forwardDecls {
 		return
 	}
-	str := cse.emitAsString(";\n\n", 0)
-	cse.gir.stack = append(cse.gir.stack, str)
-	cse.aliases[cse.gir.stack[2]] = Alias{
-		PackageName:    cse.pkg.Name + ".Api",
-		representation: ConvertToAliasRepr(ParseNestedTypes(cse.gir.stack[4]), []string{"", cse.pkg.Name + ".Api"}),
-		UnderlyingType: cse.pkg.TypesInfo.Types[node].Type.String(),
+
+	// Extract tokens for alias processing
+	pointerAndPosition := SearchPointerIndexReverse("@@PreVisitTypeAliasName", cse.gir.pointerAndIndexVec)
+	if pointerAndPosition != nil {
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
+		if len(tokens) >= 3 {
+			// tokens[0] = "using ", tokens[1] = alias name, tokens[2] = " = ", tokens[3+] = type
+			aliasName := tokens[1]
+			typeTokens := tokens[3:]
+			typeStr := strings.Join(typeTokens, "")
+			cse.aliases[aliasName] = Alias{
+				PackageName:    cse.pkg.Name + ".Api",
+				representation: ConvertToAliasRepr(ParseNestedTypes(typeStr), []string{"", cse.pkg.Name + ".Api"}),
+				UnderlyingType: cse.pkg.TypesInfo.Types[node].Type.String(),
+			}
+		}
+		// Remove the alias declaration from the current position - it will be added at the top later
+		cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), []string{})
 	}
-	cse.gir.stack = mergeStackElements("@@PreVisitTypeAliasName", cse.gir.stack)
-	if len(cse.gir.stack) == 1 {
-		// TODO emit to aliases
-		//cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
-		cse.gir.stack = cse.gir.stack[:len(cse.gir.stack)-1]
-	}
-	cse.buffer = false
 }
 
 func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
@@ -1277,17 +1269,12 @@ func (cse *CSharpEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent 
 		return
 	}
 	str := cse.emitAsString("object", indent)
-	cse.gir.stack = append(cse.gir.stack, str)
+	cse.gir.emitToFileBuffer(str, "")
 }
 
 func (cse *CSharpEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent int) {
 	if cse.forwardDecls {
 		return
-	}
-	// emit only if it's not a complex type
-	if len(cse.gir.stack) == 1 {
-		cse.gir.emitToFileBuffer(cse.gir.stack[len(cse.gir.stack)-1], "")
-		cse.gir.stack = cse.gir.stack[:len(cse.gir.stack)-1]
 	}
 }
 
