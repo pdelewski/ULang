@@ -38,7 +38,6 @@ type RustEmitter struct {
 	numFuncResults    int
 	aliases           map[string]Alias
 	currentPackage    string
-	buffer            bool
 	isArray           bool
 	arrayType         string
 	isTuple           bool
@@ -226,7 +225,7 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	name := e.Name
 	name = re.lowerToBuiltins(name)
 	if name == "nil" {
-		str = re.emitAsString("{}", indent)
+		str = re.emitAsString("None", indent)
 	} else {
 		if n, ok := rustTypesMap[name]; ok {
 			str = re.emitAsString(n, indent)
@@ -235,11 +234,7 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		}
 	}
 
-	if re.buffer {
-		re.gir.stack = append(re.gir.stack, str)
-	} else {
-		re.gir.emitToFileBuffer(str, "")
-	}
+	re.gir.emitToFileBuffer(str, "")
 
 }
 func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
@@ -276,34 +271,25 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	re.gir.stack = append(re.gir.stack, "@@PreVisitBasicLit")
 	var str string
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
 		if e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
-			str = (re.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
+			str = (re.emitAsString(fmt.Sprintf("r#\"%s\"#", e.Value), 0))
 		} else {
 			str = (re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
 		}
 	} else {
 		str = (re.emitAsString(e.Value, 0))
 	}
-	re.gir.stack = append(re.gir.stack, str)
-	re.buffer = true
+	re.gir.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	re.gir.stack = mergeStackElements("@@PreVisitBasicLit", re.gir.stack)
-	if len(re.gir.stack) == 1 {
-		re.gir.emitToFileBuffer(re.gir.stack[len(re.gir.stack)-1], "")
-		re.gir.stack = re.gir.stack[:len(re.gir.stack)-1]
-	}
-
-	re.buffer = false
 }
 
 func (re *RustEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
@@ -473,65 +459,69 @@ func (re *RustEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	re.gir.stack = append(re.gir.stack, "@@PreVisitArrayType")
+	re.gir.emitToFileBuffer("", "@@PreVisitArrayType")
 	str := re.emitAsString("<", 0)
-	re.gir.stack = append(re.gir.stack, str)
-
-	re.buffer = true
+	re.gir.emitToFileBuffer(str, "")
 }
 func (re *RustEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	if re.forwardDecls {
 		return
 	}
 
-	re.gir.stack = append(re.gir.stack, re.emitAsString(">", 0))
+	str := re.emitAsString(">", 0)
+	re.gir.emitToFileBuffer(str, "")
 
-	re.gir.stack = mergeStackElements("@@PreVisitArrayType", re.gir.stack)
-	if len(re.gir.stack) == 1 {
+	pointerAndPosition := SearchPointerIndexReverse("@@PreVisitArrayType", re.gir.pointerAndIndexVec)
+	if pointerAndPosition != nil {
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, re.gir.tokenSlice)
 		re.isArray = true
-		re.arrayType = re.gir.stack[len(re.gir.stack)-1]
-		re.gir.emitToFileBuffer("Vec", "")
-		re.gir.emitToFileBuffer(re.gir.stack[len(re.gir.stack)-1], "")
-		re.gir.stack = re.gir.stack[:len(re.gir.stack)-1]
+		re.arrayType = strings.Join(tokens, "")
+		// Prepend "Vec" before the array type tokens
+		re.gir.tokenSlice, _ = RewriteTokens(re.gir.tokenSlice, pointerAndPosition.Index, []string{}, []string{"Vec"})
 	}
-
-	re.buffer = false
 }
 
 func (re *RustEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	re.buffer = true
-	re.gir.stack = append(re.gir.stack, "@@PreVisitFuncType")
+	re.gir.emitToFileBuffer("", "@@PreVisitFuncType")
 	var str string
 	// TODO use Box<dyn Fn> for function types for now
 	str = re.emitAsString("Box<dyn Fn(", indent)
-	re.gir.stack = append(re.gir.stack, str)
+	re.gir.emitToFileBuffer(str, "")
 }
 func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	if re.forwardDecls {
 		return
 	}
 
-	// move return type to the end of the stack
-	// return type is traversed first therefore it has to be moved
-	// to the end of the stack due to C# syntax
-	if len(re.gir.stack) > 2 && re.numFuncResults > 0 {
-		returnType := re.gir.stack[2]
-		re.gir.stack = append(re.gir.stack[:2], re.gir.stack[3:]...)
-		re.gir.stack = append(re.gir.stack, ",")
-		re.gir.stack = append(re.gir.stack, returnType)
+	pointerAndPosition := SearchPointerIndexReverse("@@PreVisitFuncType", re.gir.pointerAndIndexVec)
+	if pointerAndPosition != nil && re.numFuncResults > 0 {
+		// For function types with return values, we need to reorder tokens
+		// to move return type to the end (Rust syntax requirement)
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, re.gir.tokenSlice)
+		if len(tokens) > 2 {
+			// Find and move return type to end with arrow separator
+			var reorderedTokens []string
+			reorderedTokens = append(reorderedTokens, tokens[0]) // "Box<dyn Fn("
+			if len(tokens) > 3 {
+				// Skip return type (index 1) and add parameters first
+				reorderedTokens = append(reorderedTokens, tokens[2:]...)
+				reorderedTokens = append(reorderedTokens, ") -> ")
+				reorderedTokens = append(reorderedTokens, tokens[1]) // Add return type at end
+				reorderedTokens = append(reorderedTokens, ">")
+			} else {
+				reorderedTokens = append(reorderedTokens, tokens[1:]...)
+				reorderedTokens = append(reorderedTokens, ")>")
+			}
+			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), reorderedTokens)
+			return
+		}
 	}
-	re.gir.stack = append(re.gir.stack, re.emitAsString(")>", 0))
 
-	re.gir.stack = mergeStackElements("@@PreVisitFuncType", re.gir.stack)
-
-	if len(re.gir.stack) == 1 {
-		re.gir.emitToFileBuffer(re.gir.stack[len(re.gir.stack)-1], "")
-		re.gir.stack = re.gir.stack[:len(re.gir.stack)-1]
-	}
-	re.buffer = false
+	str := re.emitAsString(")>", 0)
+	re.gir.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
@@ -540,7 +530,7 @@ func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent 
 	}
 	if index > 0 {
 		str := re.emitAsString(", ", 0)
-		re.gir.stack = append(re.gir.stack, str)
+		re.gir.emitToFileBuffer(str, "")
 	}
 }
 
@@ -549,26 +539,15 @@ func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		return
 	}
 	var str string
-	scopeOperator := "."
+	scopeOperator := "::"
 	if ident, ok := node.(*ast.Ident); ok {
 		if re.lowerToBuiltins(ident.Name) == "" {
 			return
 		}
-		// if the identifier is a package name, we need to append "Api." to the scope operator
-		obj := re.pkg.TypesInfo.Uses[ident]
-		if obj != nil {
-			if _, ok := obj.(*types.PkgName); ok {
-				scopeOperator += "Api."
-			}
-		}
 	}
 
 	str = re.emitAsString(scopeOperator, 0)
-	if re.buffer {
-		re.gir.stack = append(re.gir.stack, str)
-	} else {
-		re.gir.emitToFileBuffer(str, "")
-	}
+	re.gir.emitToFileBuffer(str, "")
 
 }
 
@@ -659,18 +638,17 @@ func (re *RustEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	re.gir.stack = append(re.gir.stack, "@@PreVisitTypeAliasName")
-	re.gir.stack = append(re.gir.stack, re.emitAsString("using ", indent+2))
+	re.gir.emitToFileBuffer("", "@@PreVisitTypeAliasName")
+	str := re.emitAsString("type ", indent+2)
+	re.gir.emitToFileBuffer(str, "")
 	re.shouldGenerate = true
-	re.buffer = true
 }
 
 func (re *RustEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	re.buffer = true
-	re.gir.stack = append(re.gir.stack, " = ")
+	re.gir.emitToFileBuffer(" = ", "")
 }
 
 func (re *RustEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
@@ -684,20 +662,25 @@ func (re *RustEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 		return
 	}
 	str := re.emitAsString(";\n\n", 0)
-	re.gir.stack = append(re.gir.stack, str)
-	re.aliases[re.gir.stack[2]] = Alias{
-		PackageName:    re.pkg.Name + ".Api",
-		representation: ConvertToAliasRepr(ParseNestedTypes(re.gir.stack[4]), []string{"", re.pkg.Name + ".Api"}),
-		UnderlyingType: re.pkg.TypesInfo.Types[node].Type.String(),
-	}
-	re.gir.stack = mergeStackElements("@@PreVisitTypeAliasName", re.gir.stack)
-	if len(re.gir.stack) == 1 {
-		// TODO emit to aliases
-		//cse.emitToFileBuffer(cse.stack[len(cse.stack)-1], "")
-		re.gir.stack = re.gir.stack[:len(re.gir.stack)-1]
+	re.gir.emitToFileBuffer(str, "")
+
+	// Extract tokens for alias processing
+	pointerAndPosition := SearchPointerIndexReverse("@@PreVisitTypeAliasName", re.gir.pointerAndIndexVec)
+	if pointerAndPosition != nil {
+		tokens, _ := ExtractTokens(pointerAndPosition.Index, re.gir.tokenSlice)
+		if len(tokens) >= 3 {
+			// tokens[0] = "type ", tokens[1] = alias name, tokens[2] = " = ", tokens[3+] = type
+			aliasName := tokens[1]
+			typeTokens := tokens[3:len(tokens)-1] // exclude the ";\n\n" at the end
+			typeStr := strings.Join(typeTokens, "")
+			re.aliases[aliasName] = Alias{
+				PackageName:    re.pkg.Name + ".Api",
+				representation: ConvertToAliasRepr(ParseNestedTypes(typeStr), []string{"", re.pkg.Name + ".Api"}),
+				UnderlyingType: re.pkg.TypesInfo.Types[node].Type.String(),
+			}
+		}
 	}
 	re.shouldGenerate = false
-	re.buffer = false
 }
 
 func (re *RustEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
@@ -1079,16 +1062,11 @@ func (re *RustEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent in
 }
 
 func (re *RustEmitter) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
-	str := re.emitAsString("object", indent)
-	re.gir.stack = append(re.gir.stack, str)
+	str := re.emitAsString("Box<dyn Any>", indent)
+	re.gir.emitToFileBuffer(str, "")
 }
 
 func (re *RustEmitter) PostVisitInterfaceType(node *ast.InterfaceType, indent int) {
-	// emit only if it's not a complex type
-	if len(re.gir.stack) == 1 {
-		re.gir.emitToFileBuffer(re.gir.stack[len(re.gir.stack)-1], "")
-		re.gir.stack = re.gir.stack[:len(re.gir.stack)-1]
-	}
 }
 
 func (re *RustEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
