@@ -1,5 +1,3 @@
-//go:generate make -C astyle astyle
-
 package main
 
 import (
@@ -7,24 +5,7 @@ import (
 	"fmt"
 	"golang.org/x/tools/go/packages"
 	"log"
-	"os"
-	"os/exec"
-	"strings"
 )
-
-func RunCommand(command string) error {
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
-		return nil
-	}
-
-	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	log.Printf("Running: %s\n", command)
-	return cmd.Run()
-}
 
 func main() {
 	var sourceDir string
@@ -70,17 +51,21 @@ func main() {
 
 	passManager.RunPasses()
 
-	const formatCmd = "./astyle/astyle --style=webkit"
+	// Format generated files using astyle C API
+	log.Printf("Using astyle version: %s\n", GetAStyleVersion())
+
+	const astyleOptions = "--style=webkit"
 	var programFiles = []string{
 		"cpp",
 		"cs",
 		"rs",
 	}
 
-	for _, file := range programFiles {
-		err = RunCommand(fmt.Sprintf("%s %s.%s", formatCmd, output, file))
+	for _, fileExt := range programFiles {
+		filePath := fmt.Sprintf("%s.%s", output, fileExt)
+		err = FormatFile(filePath, astyleOptions)
 		if err != nil {
-			log.Fatalf("Command failed: %v", err)
+			log.Fatalf("Failed to format %s: %v", filePath, err)
 		}
 	}
 
