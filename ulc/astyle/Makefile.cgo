@@ -1,0 +1,35 @@
+# Makefile for building astyle as a static library for CGO
+
+CXX = g++
+CXXFLAGS = -Wall -O2 -DASTYLE_LIB -std=c++17 -fPIC
+AR = ar
+ARFLAGS = rcs
+
+# Source files
+SOURCES = ASBeautifier.cpp ASEnhancer.cpp ASFormatter.cpp ASResource.cpp astyle_main.cpp
+
+# Object files
+OBJECTS = $(SOURCES:.cpp=.o)
+
+# Target library
+TARGET = libastyle.a
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(AR) $(ARFLAGS) $@ $^
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJECTS) $(TARGET)
+
+# Dependencies
+ASBeautifier.o: ASBeautifier.cpp astyle.h
+ASEnhancer.o: ASEnhancer.cpp astyle.h  
+ASFormatter.o: ASFormatter.cpp astyle.h
+ASResource.o: ASResource.cpp astyle.h
+astyle_main.o: astyle_main.cpp astyle_main.h astyle.h
