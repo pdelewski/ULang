@@ -34,12 +34,18 @@ jobs:
           profile: minimal
           override: true
 
+      - name: Build astyle library
+        run: |
+          echo "🔧 Building astyle static library for CGO"
+          cd ulc/astyle
+          make -f Makefile.cgo
+
       - name: Run tests sequentially
         run: |
           tests=(
             "tests/basic basic true true"
             "tests/slice slice true true"
-            "tests/complex complex true false"
+            "tests/complex complex true false "
             "libs/iceberg iceberg true false"
             "libs/contlib contlib true false"
             "libs/uql uql true false"
@@ -50,9 +56,6 @@ jobs:
             read test_dir test_name dotnet_enabled rust_enabled <<< "$test_case"
 
             echo "▶️ Running: $test_name"
-
-            echo "🔧 go generate"
-            (cd ulc && go generate ./...)
 
             echo "🚀 go run"
             (cd ulc && go run . --source=./../$test_dir --output=$test_name)
