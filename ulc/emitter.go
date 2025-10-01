@@ -1,3 +1,5 @@
+//go:generate go run cmd/generate_base_emitter.go
+
 // Package main provides the core functionality for the ULang compiler.
 package main
 

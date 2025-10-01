@@ -4,6 +4,9 @@
 
 set -e
 
+echo "Generating code..."
+go generate ./...
+
 echo "Building astyle static library..."
 cd astyle
 make -f Makefile.cgo clean
