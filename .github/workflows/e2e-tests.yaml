@@ -34,6 +34,12 @@ jobs:
           profile: minimal
           override: true
 
+      - name: Generate code
+        run: |
+          echo "🔄 Generating code with go generate"
+          cd ulc
+          go generate ./...
+
       - name: Build astyle library
         run: |
           echo "🔧 Building astyle static library for CGO"
