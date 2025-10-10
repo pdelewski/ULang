@@ -678,7 +678,7 @@ func (re *RustEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 		if len(tokens) >= 3 {
 			// tokens[0] = "type ", tokens[1] = alias name, tokens[2] = " = ", tokens[3+] = type
 			aliasName := tokens[1]
-			typeTokens := tokens[3:len(tokens)-1] // exclude the ";\n\n" at the end
+			typeTokens := tokens[3 : len(tokens)-1] // exclude the ";\n\n" at the end
 			typeStr := strings.Join(typeTokens, "")
 			re.aliases[aliasName] = Alias{
 				PackageName:    re.pkg.Name + ".Api",
