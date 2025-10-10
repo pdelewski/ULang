@@ -138,13 +138,17 @@ import (
 	"os"
 )
 
+// VisitMethod represents a visit method identifier
+type VisitMethod string
+
 // Visit method name constants
 const (
+	EmptyVisitMethod VisitMethod = ""
 `)
 
 	// Write the visit constants
 	for _, constant := range visitConstants {
-		fmt.Fprintf(output, "\t%s = \"%s\"\n", constant, constant)
+		fmt.Fprintf(output, "\t%s VisitMethod = \"%s\"\n", constant, constant)
 	}
 	
 	fmt.Fprintf(output, `)
