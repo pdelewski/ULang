@@ -171,11 +171,24 @@ type PointerAndPosition struct {
 }
 
 type PointerAndIndex struct {
-	Pointer string // Pointer to the type
+	Pointer string // Pointer to the visit method type (keeping as string for flexibility)
 	Index   int
 }
 
 func (gir *GoFIR) emitToFileBuffer(
+	s string, pointer VisitMethod) error {
+	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
+		Pointer: string(pointer),
+		Index:   len(gir.tokenSlice),
+	})
+	if s != "" {
+		gir.tokenSlice = append(gir.tokenSlice, s)
+	}
+	return nil
+}
+
+// emitToFileBufferString provides backward compatibility for string pointers
+func (gir *GoFIR) emitToFileBufferString(
 	s string, pointer string) error {
 	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
 		Pointer: pointer,
