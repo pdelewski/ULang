@@ -22,7 +22,7 @@ void errorHandler(int errorNumber, const char* errorMessage) {
     // For now, we'll ignore errors or could log them
 }
 
-// Memory allocation callback  
+// Memory allocation callback
 char* memoryAlloc(unsigned long memoryNeeded) {
     return (char*)malloc(memoryNeeded);
 }
@@ -45,10 +45,10 @@ func FormatCodeWithAStyle(sourceCode, options string) (string, error) {
 	// Convert Go strings to C strings
 	cSourceCode := C.CString(sourceCode)
 	defer C.free(unsafe.Pointer(cSourceCode))
-	
+
 	cOptions := C.CString(options)
 	defer C.free(unsafe.Pointer(cOptions))
-	
+
 	// Call AStyleMain with our callbacks
 	cResult := C.AStyleMain(
 		cSourceCode,
@@ -56,17 +56,17 @@ func FormatCodeWithAStyle(sourceCode, options string) (string, error) {
 		C.fpError(C.errorHandler),
 		C.fpAlloc(C.memoryAlloc),
 	)
-	
+
 	if cResult == nil {
 		return "", fmt.Errorf("astyle formatting failed")
 	}
-	
+
 	// Convert result back to Go string
 	result := C.GoString(cResult)
-	
+
 	// Free the memory allocated by astyle
 	C.free(unsafe.Pointer(cResult))
-	
+
 	return result, nil
 }
 
@@ -77,19 +77,19 @@ func FormatFile(filePath, options string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %v", filePath, err)
 	}
-	
+
 	// Format the content
 	formattedContent, err := FormatCodeWithAStyle(string(content), options)
 	if err != nil {
 		return fmt.Errorf("failed to format file %s: %v", filePath, err)
 	}
-	
+
 	// Write the formatted content back to the file
 	err = ioutil.WriteFile(filePath, []byte(formattedContent), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write formatted file %s: %v", filePath, err)
 	}
-	
+
 	log.Printf("Successfully formatted: %s\n", filePath)
 	return nil
 }
