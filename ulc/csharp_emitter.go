@@ -353,15 +353,9 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	})
 }
 
-func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		cse.gir.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
-	})
-}
-
 func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		pointerAndPosition := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitDeclStmtValueSpecType", cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			for aliasName, alias := range cse.aliases {
 				if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
@@ -501,7 +495,6 @@ func (cse *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
 
 func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		cse.gir.emitToFileBuffer("", "@@PreVisitArrayType")
 		str := cse.emitAsString("List", indent)
 		cse.gir.emitToFileBuffer(str, "")
 		str = cse.emitAsString("<", 0)
@@ -513,7 +506,7 @@ func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 		str := cse.emitAsString(">", 0)
 		cse.gir.emitToFileBuffer(str, "")
 
-		pointerAndPosition := SearchPointerIndexReverse("@@PreVisitArrayType", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitArrayType", cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 			cse.isArray = true
@@ -524,7 +517,6 @@ func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 
 func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		cse.gir.emitToFileBuffer("", "@@PreVisitFuncType")
 		var str string
 		if node.Results != nil {
 			str = cse.emitAsString("Func", indent)
@@ -537,7 +529,7 @@ func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 }
 func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		pointerAndPosition := SearchPointerIndexReverse("@@PreVisitFuncType", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitFuncType", cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil && cse.numFuncResults > 0 {
 			// For function types with return values, we need to reorder tokens
 			// to move return type to the end (C# syntax requirement)
@@ -670,7 +662,6 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 
 func (cse *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		cse.gir.emitToFileBuffer("", "@@PreVisitTypeAliasName")
 		str := cse.emitAsString("using ", indent+2)
 		cse.gir.emitToFileBuffer(str, "")
 	})
@@ -720,7 +711,7 @@ func ParseNestedTypes(s string) []string {
 func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
 		// Extract tokens for alias processing
-		pointerAndPosition := SearchPointerIndexReverse("@@PreVisitTypeAliasName", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitTypeAliasName", cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 			if len(tokens) >= 3 {
@@ -785,15 +776,9 @@ func (cse *CSharpEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, ind
 	})
 }
 
-func (cse *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		cse.gir.emitToFileBuffer("", "@PreVisitCallExpr")
-	})
-}
-
 func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		pointerAndPosition := SearchPointerIndexReverse("@PreVisitCallExpr", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitCallExpr", cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
 			for _, t := range destTypes {
@@ -832,15 +817,9 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent in
 	})
 }
 
-func (cse *CSharpEmitter) PreVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		cse.gir.emitToFileBuffer("", "@PreVisitAssignStmtRhsExpr")
-	})
-}
-
 func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		pointerAndPosition := SearchPointerIndexReverse("@PreVisitAssignStmtRhsExpr", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitAssignStmtRhsExpr", cse.gir.pointerAndIndexVec)
 		rewritten := false
 		if pointerAndPosition != nil {
 			tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
