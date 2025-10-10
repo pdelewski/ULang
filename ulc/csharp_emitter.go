@@ -613,17 +613,21 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Fie
 			str := cse.emitAsString(",", 0)
 			cse.gir.emitToFileBuffer(str, "")
 		}
-		cse.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResultsList")
 	})
 }
 
 func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		pointerAndPosition := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResultsList", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitFuncDeclSignatureTypeResultsList", cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
+			adjustment := 0
+			// Check for comma after the type to adjust index
+			if cse.gir.tokenSlice[pointerAndPosition.Index] == "," {
+				adjustment = 1
+			}
 			for aliasName, alias := range cse.aliases {
 				if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-					cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), []string{aliasName})
+					cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index+adjustment, len(cse.gir.tokenSlice), []string{aliasName})
 				}
 			}
 		}
@@ -1033,19 +1037,19 @@ func (cse *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
 		str := cse.emitAsString("new ", 0)
 		cse.gir.emitToFileBuffer(str, "")
-		cse.gir.emitToFileBuffer("", "@PreVisitCompositeLitType")
 	})
 }
 
 func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		pointerAndPosition := SearchPointerIndexReverse("@PreVisitCompositeLitType", cse.gir.pointerAndIndexVec)
+		pointerAndPosition := SearchPointerIndexReverse("PreVisitCompositeLitType", cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			// TODO not very effective
 			// go through all aliases and check if the underlying type matches
 			for aliasName, alias := range cse.aliases {
 				if alias.UnderlyingType == cse.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-					cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), []string{aliasName})
+					const newKeywordIndex = 1
+					cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index+newKeywordIndex, len(cse.gir.tokenSlice), []string{aliasName})
 				}
 			}
 		}
