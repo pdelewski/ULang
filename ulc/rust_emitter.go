@@ -29,7 +29,7 @@ var rustTypesMap = map[string]string{
 type RustEmitter struct {
 	Output string
 	file   *os.File
-	Emitter
+	BaseEmitter
 	pkg               *packages.Package
 	insideForPostCond bool
 	assignmentToken   string
@@ -41,7 +41,6 @@ type RustEmitter struct {
 	isArray           bool
 	arrayType         string
 	isTuple           bool
-	gir               GoFIR
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -64,6 +63,14 @@ func (*RustEmitter) lowerToBuiltins(selector string) string {
 
 func (re *RustEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
+}
+
+func (re *RustEmitter) SetFile(file *os.File) {
+	re.file = file
+}
+
+func (re *RustEmitter) GetFile() *os.File {
+	return re.file
 }
 
 func (re *RustEmitter) PreVisitProgram(indent int) {

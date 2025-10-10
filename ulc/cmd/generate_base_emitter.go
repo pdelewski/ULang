@@ -4,7 +4,8 @@
 // implementations for all interface methods in the BaseEmitter struct.
 //
 // Usage:
-//   go run cmd/generate_base_emitter.go
+//
+//	go run cmd/generate_base_emitter.go
 //
 // The tool is integrated with go generate. Run `go generate ./...` to regenerate
 // base_emitter.go whenever the Emitter interface changes.
@@ -32,7 +33,7 @@ func main() {
 
 	// Parse the interface methods
 	methods := parseEmitterInterface(file)
-	
+
 	// Generate the base_emitter.go file
 	generateBaseEmitter(methods)
 }
@@ -41,29 +42,29 @@ func parseEmitterInterface(file *os.File) []string {
 	scanner := bufio.NewScanner(file)
 	var methods []string
 	inInterface := false
-	
+
 	// Regex to match method signatures
 	methodRegex := regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(.*)$`)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		// Check if we're entering the Emitter interface
 		if strings.Contains(line, "type Emitter interface") {
 			inInterface = true
 			continue
 		}
-		
+
 		// Check if we're exiting the interface
 		if inInterface && strings.Contains(line, "}") {
 			break
 		}
-		
+
 		// Skip comments and empty lines
 		if inInterface && (strings.HasPrefix(strings.TrimSpace(line), "//") || strings.TrimSpace(line) == "") {
 			continue
 		}
-		
+
 		// Extract method signatures
 		if inInterface {
 			matches := methodRegex.FindStringSubmatch(line)
@@ -71,27 +72,27 @@ func parseEmitterInterface(file *os.File) []string {
 				methodName := matches[1]
 				params := matches[2]
 				returnType := strings.TrimSpace(matches[3])
-				
+
 				// Format the method signature for BaseEmitter
 				signature := formatMethodSignature(methodName, params, returnType)
 				methods = append(methods, signature)
 			}
 		}
 	}
-	
+
 	return methods
 }
 
 func formatMethodSignature(methodName, params, returnType string) string {
 	// Add receiver for BaseEmitter
 	receiver := "(v *BaseEmitter) "
-	
+
 	// Handle return types
 	var returnClause string
 	if returnType != "" {
 		returnClause = " " + returnType
 	}
-	
+
 	// Format the complete method signature
 	return fmt.Sprintf("func %s%s(%s)%s", receiver, methodName, params, returnClause)
 }
@@ -104,7 +105,7 @@ func generateBaseEmitter(methods []string) {
 		os.Exit(1)
 	}
 	defer output.Close()
-	
+
 	// Write the header
 	fmt.Fprintf(output, `package main
 
@@ -115,15 +116,19 @@ import (
 	"os"
 )
 
-type BaseEmitter struct{}
+type BaseEmitter struct{
+	gir GoFIR
+}
 
 `)
-	
+
 	// Write each method with empty implementation
 	for _, method := range methods {
 		// Check if method has return type
 		if strings.Contains(method, ") *os.File") {
 			fmt.Fprintf(output, "%s { return nil }\n", method)
+		} else if strings.Contains(method, ") *GoFIR") {
+			fmt.Fprintf(output, "%s { return &v.gir }\n", method)
 		} else {
 			fmt.Fprintf(output, "%s {}\n", method)
 		}
