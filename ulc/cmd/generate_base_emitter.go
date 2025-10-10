@@ -34,8 +34,11 @@ func main() {
 	// Parse the interface methods
 	methods := parseEmitterInterface(file)
 
+	// Extract Pre/Post visit method names for constants
+	visitConstants := extractVisitConstants(methods)
+
 	// Generate the base_emitter.go file
-	generateBaseEmitter(methods)
+	generateBaseEmitter(methods, visitConstants)
 }
 
 func parseEmitterInterface(file *os.File) []string {
@@ -97,7 +100,26 @@ func formatMethodSignature(methodName, params, returnType string) string {
 	return fmt.Sprintf("func %s%s(%s)%s", receiver, methodName, params, returnClause)
 }
 
-func generateBaseEmitter(methods []string) {
+func extractVisitConstants(methods []string) []string {
+	var constants []string
+	
+	for _, method := range methods {
+		// Extract method name from signature
+		methodNameRegex := regexp.MustCompile(`func \(v \*BaseEmitter\) ([A-Za-z0-9_]+)\(`)
+		matches := methodNameRegex.FindStringSubmatch(method)
+		if len(matches) >= 2 {
+			methodName := matches[1]
+			// Only include Pre/Post visit methods
+			if strings.HasPrefix(methodName, "PreVisit") || strings.HasPrefix(methodName, "PostVisit") {
+				constants = append(constants, methodName)
+			}
+		}
+	}
+	
+	return constants
+}
+
+func generateBaseEmitter(methods []string, visitConstants []string) {
 	// Create/overwrite base_emitter.go
 	output, err := os.Create("base_emitter.go")
 	if err != nil {
@@ -115,6 +137,17 @@ import (
 	"golang.org/x/tools/go/packages"
 	"os"
 )
+
+// Visit method name constants
+const (
+`)
+
+	// Write the visit constants
+	for _, constant := range visitConstants {
+		fmt.Fprintf(output, "\t%s = \"%s\"\n", constant, constant)
+	}
+	
+	fmt.Fprintf(output, `)
 
 type BaseEmitter struct{
 	gir GoFIR
