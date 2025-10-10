@@ -36,8 +36,8 @@ func main() {
 
 	sema := &BasePass{PassName: "Sema", emitter: &SemaChecker{Emitter: &BaseEmitter{}}}
 	cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{Emitter: &BaseEmitter{}, Output: output + ".cpp"}}
-	csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{Emitter: &BaseEmitter{}, Output: output + ".cs"}}
-	rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{Emitter: &BaseEmitter{}, Output: output + ".rs"}}
+	csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{BaseEmitter: BaseEmitter{}, Output: output + ".cs"}}
+	rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{BaseEmitter: BaseEmitter{}, Output: output + ".rs"}}
 
 	passManager := &PassManager{
 		pkgs: pkgs,

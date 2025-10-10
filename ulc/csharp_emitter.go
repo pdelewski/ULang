@@ -38,7 +38,7 @@ type Alias struct {
 type CSharpEmitter struct {
 	Output string
 	file   *os.File
-	Emitter
+	BaseEmitter
 	pkg               *packages.Package
 	insideForPostCond bool
 	assignmentToken   string
@@ -50,7 +50,6 @@ type CSharpEmitter struct {
 	isArray           bool
 	arrayType         string
 	isTuple           bool
-	gir               GoFIR
 }
 
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
