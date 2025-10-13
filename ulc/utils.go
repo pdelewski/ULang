@@ -114,7 +114,17 @@ func mergeStackElements(marker string, stack []string) []string {
 	return stack
 }
 
-func SearchPointerIndexReverse(target string, pointerAndIndexVec []PointerAndIndex) *PointerAndIndex {
+func SearchPointerIndexReverse(target VisitMethod, pointerAndIndexVec []PointerAndIndex) *PointerAndIndex {
+	for i := len(pointerAndIndexVec) - 1; i >= 0; i-- {
+		if pointerAndIndexVec[i].Pointer == string(target) {
+			return &pointerAndIndexVec[i]
+		}
+	}
+	return nil // Return nil if the pointer is not found
+}
+
+// SearchPointerIndexReverseString provides string-based search for custom markers and dynamic values
+func SearchPointerIndexReverseString(target string, pointerAndIndexVec []PointerAndIndex) *PointerAndIndex {
 	for i := len(pointerAndIndexVec) - 1; i >= 0; i-- {
 		if pointerAndIndexVec[i].Pointer == target {
 			return &pointerAndIndexVec[i]
