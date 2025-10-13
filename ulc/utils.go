@@ -164,12 +164,6 @@ func RewriteTokens(tokenSlice []string, position int, oldContent, newContent []s
 	return result, nil
 }
 
-type PointerAndPosition struct {
-	Pointer  string // Pointer to the type
-	Position int
-	Length   int // length of string
-}
-
 type PointerAndIndex struct {
 	Pointer string // Pointer to the visit method type (keeping as string for flexibility)
 	Index   int
