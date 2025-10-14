@@ -592,18 +592,17 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field,
 		str := re.emitAsString(",", 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
-	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResultsList")
 }
 
 func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResultsList", re.gir.pointerAndIndexVec)
+	pointerAndPosition := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeResultsList, re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index+index, len(re.gir.tokenSlice), []string{aliasName})
 			}
 		}
 	}
