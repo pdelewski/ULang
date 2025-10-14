@@ -582,7 +582,6 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Iden
 		return
 	}
 	re.gir.emitToFileBuffer(" ", EmptyVisitMethod)
-	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeParamsArgName")
 }
 
 func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
@@ -1191,7 +1190,7 @@ func (re *RustEmitter) PostVisitCallExprFun(node ast.Expr, indent int) {
 func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
 	p1 := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeParamsListType, re.gir.pointerAndIndexVec)
 	p2 := SearchPointerIndexReverse(PostVisitFuncDeclSignatureTypeParamsListType, re.gir.pointerAndIndexVec)
-	p3 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndIndexVec)
+	p3 := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeParamsArgName, re.gir.pointerAndIndexVec)
 	p4 := SearchPointerIndexReverse(PostVisitFuncDeclSignatureTypeParamsArgName, re.gir.pointerAndIndexVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
@@ -1200,7 +1199,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 			fmt.Println("Error extracting type representation:", err)
 			return
 		}
-		nameStrRepr, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
+		nameStrRepr, err := ExtractTokensBetween(p3.Index+1, p4.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting name representation:", err)
 			return
