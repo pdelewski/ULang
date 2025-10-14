@@ -966,12 +966,8 @@ func (re *RustEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	re.shouldGenerate = false
 }
 
-func (re *RustEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
-	re.gir.emitToFileBuffer("", "@PreVisitCompositeLitType")
-}
-
 func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
-	pointerAndPosition := SearchPointerIndexReverse("@PreVisitCompositeLitType", re.gir.pointerAndIndexVec)
+	pointerAndPosition := SearchPointerIndexReverse(PreVisitCompositeLitType, re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
