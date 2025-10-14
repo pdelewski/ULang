@@ -582,7 +582,6 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Iden
 		return
 	}
 	re.gir.emitToFileBuffer(" ", EmptyVisitMethod)
-	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeParamsArgName")
 }
 
 func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
@@ -593,18 +592,17 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Field,
 		str := re.emitAsString(",", 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
-	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResultsList")
 }
 
 func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	pointerAndPosition := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResultsList", re.gir.pointerAndIndexVec)
+	pointerAndPosition := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeResultsList, re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		for aliasName, alias := range re.aliases {
 			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index+index, len(re.gir.tokenSlice), []string{aliasName})
 			}
 		}
 	}
@@ -966,12 +964,8 @@ func (re *RustEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	re.shouldGenerate = false
 }
 
-func (re *RustEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
-	re.gir.emitToFileBuffer("", "@PreVisitCompositeLitType")
-}
-
 func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
-	pointerAndPosition := SearchPointerIndexReverse("@PreVisitCompositeLitType", re.gir.pointerAndIndexVec)
+	pointerAndPosition := SearchPointerIndexReverse(PreVisitCompositeLitType, re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
@@ -1192,23 +1186,11 @@ func (re *RustEmitter) PostVisitCallExprFun(node ast.Expr, indent int) {
 	re.gir.emitToFileBuffer("", "@PostVisitCallExprFun")
 }
 
-func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
-	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeParamsListType")
-}
-
-func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
-	re.gir.emitToFileBuffer("", "@PostVisitFuncDeclSignatureTypeParamsListType")
-}
-
-func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
-	re.gir.emitToFileBuffer("", "@PostVisitFuncDeclSignatureTypeParamsArgName")
-}
-
 func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
-	p1 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndIndexVec)
-	p2 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndIndexVec)
-	p3 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndIndexVec)
-	p4 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndIndexVec)
+	p1 := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeParamsListType, re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse(PostVisitFuncDeclSignatureTypeParamsListType, re.gir.pointerAndIndexVec)
+	p3 := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeParamsArgName, re.gir.pointerAndIndexVec)
+	p4 := SearchPointerIndexReverse(PostVisitFuncDeclSignatureTypeParamsArgName, re.gir.pointerAndIndexVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
 		typeStrRepr, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
@@ -1216,7 +1198,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 			fmt.Println("Error extracting type representation:", err)
 			return
 		}
-		nameStrRepr, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
+		nameStrRepr, err := ExtractTokensBetween(p3.Index+1, p4.Index, re.gir.tokenSlice)
 		if err != nil {
 			fmt.Println("Error extracting name representation:", err)
 			return
