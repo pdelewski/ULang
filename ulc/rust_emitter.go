@@ -1188,23 +1188,11 @@ func (re *RustEmitter) PostVisitCallExprFun(node ast.Expr, indent int) {
 	re.gir.emitToFileBuffer("", "@PostVisitCallExprFun")
 }
 
-func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
-	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeParamsListType")
-}
-
-func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsListType(node ast.Expr, argName *ast.Ident, index int, indent int) {
-	re.gir.emitToFileBuffer("", "@PostVisitFuncDeclSignatureTypeParamsListType")
-}
-
-func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
-	re.gir.emitToFileBuffer("", "@PostVisitFuncDeclSignatureTypeParamsArgName")
-}
-
 func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field, index int, indent int) {
-	p1 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndIndexVec)
-	p2 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeParamsListType", re.gir.pointerAndIndexVec)
+	p1 := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeParamsListType, re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse(PostVisitFuncDeclSignatureTypeParamsListType, re.gir.pointerAndIndexVec)
 	p3 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndIndexVec)
-	p4 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeParamsArgName", re.gir.pointerAndIndexVec)
+	p4 := SearchPointerIndexReverse(PostVisitFuncDeclSignatureTypeParamsArgName, re.gir.pointerAndIndexVec)
 
 	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
 		typeStrRepr, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
