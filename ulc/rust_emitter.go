@@ -65,6 +65,82 @@ func (re *RustEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
 
+// Helper function to determine token type for Rust specific content
+func (re *RustEmitter) getTokenType(content string) TokenType {
+	// Check for Rust keywords
+	switch content {
+	case "fn", "let", "mut", "impl", "trait", "mod", "use", "pub", "struct", "enum", "match", "if", "else", "loop", "while", "for", "in", "return", "break", "continue":
+		return RustKeyword
+	case "(":
+		return LeftParen
+	case ")":
+		return RightParen
+	case "{":
+		return LeftBrace
+	case "}":
+		return RightBrace
+	case "[":
+		return LeftBracket
+	case "]":
+		return RightBracket
+	case ";":
+		return Semicolon
+	case ",":
+		return Comma
+	case ".":
+		return Dot
+	case "=", "+=", "-=", "*=", "/=":
+		return Assignment
+	case "+", "-", "*", "/", "%":
+		return ArithmeticOperator
+	case "==", "!=", "<", ">", "<=", ">=":
+		return ComparisonOperator
+	case "&&", "||", "!":
+		return LogicalOperator
+	case " ", "\t":
+		return WhiteSpace
+	case "\n":
+		return NewLine
+	}
+	
+	// Check if it's a number
+	if len(content) > 0 && (content[0] >= '0' && content[0] <= '9') {
+		return NumberLiteral
+	}
+	
+	// Check if it's a string literal
+	if len(content) >= 2 && content[0] == '"' && content[len(content)-1] == '"' {
+		return StringLiteral
+	}
+	
+	// Default to identifier
+	return Identifier
+}
+
+// Helper function to emit token
+func (re *RustEmitter) emitToken(content string, tokenType TokenType, indent int) {
+	token := CreateCSharpToken(tokenType, re.emitAsString(content, indent)) // Reuse CreateCSharpToken
+	_ = re.gir.emitTokenToFileBuffer(token, EmptyVisitMethod)
+}
+
+// Helper function to convert []Token to []string for backward compatibility
+func tokensToStrings(tokens []Token) []string {
+	result := make([]string, len(tokens))
+	for i, token := range tokens {
+		result[i] = token.Content
+	}
+	return result
+}
+
+// Helper function to convert []string to []Token
+func stringsToTokens(strings []string) []Token {
+	result := make([]Token, len(strings))
+	for i, s := range strings {
+		result[i] = CreateCSharpToken(Identifier, s) // Default to Identifier type
+	}
+	return result
+}
+
 func (re *RustEmitter) SetFile(file *os.File) {
 	re.file = file
 }
@@ -212,9 +288,9 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 			fmt.Println("Error rewriting file buffer:", err)
 			return
 		}
-		if strings.TrimSpace(strings.Join(results, "")) != "" {
-			re.gir.tokenSlice = append(re.gir.tokenSlice, " -> ")
-			re.gir.tokenSlice = append(re.gir.tokenSlice, strings.Join(results, ""))
+		if strings.TrimSpace(strings.Join(tokensToStrings(results), "")) != "" {
+			re.gir.tokenSlice = append(re.gir.tokenSlice, CreateCSharpToken(RustKeyword, " -> "))
+			re.gir.tokenSlice = append(re.gir.tokenSlice, CreateCSharpToken(Identifier, strings.Join(tokensToStrings(results), "")))
 		}
 	}
 }
@@ -259,7 +335,7 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 			fmt.Println("Error extracting function name:", err)
 			return
 		}
-		if strings.Contains(strings.Join(funName, ""), "len") {
+		if strings.Contains(strings.Join(tokensToStrings(funName), ""), "len") {
 			// add & before the first argument
 			str := re.emitAsString("&", 0)
 			re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -394,9 +470,9 @@ func (re *RustEmitter) PostVisitGenStructFieldName(node *ast.Ident, indent int) 
 			return
 		}
 		newTokens := []string{}
-		newTokens = append(newTokens, fieldName...)
+		newTokens = append(newTokens, tokensToStrings(fieldName)...)
 		newTokens = append(newTokens, ":")
-		newTokens = append(newTokens, fieldType...)
+		newTokens = append(newTokens, tokensToStrings(fieldType)...)
 		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p4.Index, newTokens)
 		if err != nil {
 			fmt.Println("Error rewriting file buffer:", err)
@@ -768,9 +844,9 @@ func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
 			return
 		}
 		newTokens := []string{}
-		newTokens = append(newTokens, fieldName...)
+		newTokens = append(newTokens, tokensToStrings(fieldName)...)
 		newTokens = append(newTokens, ":")
-		newTokens = append(newTokens, fieldType...)
+		newTokens = append(newTokens, tokensToStrings(fieldType)...)
 
 		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p4.Index, newTokens)
 		if err != nil {
@@ -989,7 +1065,7 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 			vecTypeStrRepr, _ := ExtractTokensBetween(pointerAndPosition.Index, len(re.gir.tokenSlice), re.gir.tokenSlice)
 			newTokens := []string{}
 			newTokens = append(newTokens, ":")
-			newTokens = append(newTokens, vecTypeStrRepr...)
+			newTokens = append(newTokens, tokensToStrings(vecTypeStrRepr)...)
 			newTokens = append(newTokens, " = vec!")
 			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index-len("="), len(re.gir.tokenSlice), newTokens)
 
@@ -1221,18 +1297,18 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 			fmt.Println("Error extracting name representation:", err)
 			return
 		}
-		if containsWhitespace(strings.Join(nameStrRepr, "")) {
+		if containsWhitespace(strings.Join(tokensToStrings(nameStrRepr), "")) {
 			fmt.Println("Error: Type parameter name contains whitespace")
 			return
 		}
-		if containsWhitespace(strings.Join(typeStrRepr, "")) {
+		if containsWhitespace(strings.Join(tokensToStrings(typeStrRepr), "")) {
 			fmt.Println("Error: Type parameter type contains whitespace")
 			return
 		}
 		newTokens := []string{}
-		newTokens = append(newTokens, nameStrRepr...)
+		newTokens = append(newTokens, tokensToStrings(nameStrRepr)...)
 		newTokens = append(newTokens, ":")
-		newTokens = append(newTokens, typeStrRepr...)
+		newTokens = append(newTokens, tokensToStrings(typeStrRepr)...)
 		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p4.Index, newTokens)
 		if err != nil {
 			fmt.Println("Error rewriting file buffer:", err)
