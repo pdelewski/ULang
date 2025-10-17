@@ -75,6 +75,66 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 func (cse *CSharpEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
+
+// Helper function to determine token type for C# specific content
+func (cse *CSharpEmitter) getTokenType(content string) TokenType {
+	// Check for C# keywords
+	switch content {
+	case "using", "namespace", "class", "public", "private", "protected", "static", "override", "virtual", "sealed", "readonly", "var":
+		return CSharpKeyword
+	case "if", "else", "for", "while", "switch", "case", "default", "break", "continue", "return":
+		return IfKeyword // Will be refined based on actual keyword
+	case "(":
+		return LeftParen
+	case ")":
+		return RightParen
+	case "{":
+		return LeftBrace
+	case "}":
+		return RightBrace
+	case "[":
+		return LeftBracket
+	case "]":
+		return RightBracket
+	case ";":
+		return Semicolon
+	case ",":
+		return Comma
+	case ".":
+		return Dot
+	case "=", "+=", "-=", "*=", "/=":
+		return Assignment
+	case "+", "-", "*", "/", "%":
+		return ArithmeticOperator
+	case "==", "!=", "<", ">", "<=", ">=":
+		return ComparisonOperator
+	case "&&", "||", "!":
+		return LogicalOperator
+	case " ", "\t":
+		return WhiteSpace
+	case "\n":
+		return NewLine
+	}
+	
+	// Check if it's a number
+	if len(content) > 0 && (content[0] >= '0' && content[0] <= '9') {
+		return NumberLiteral
+	}
+	
+	// Check if it's a string literal
+	if len(content) >= 2 && content[0] == '"' && content[len(content)-1] == '"' {
+		return StringLiteral
+	}
+	
+	// Default to identifier
+	return Identifier
+}
+
+// Helper function to emit token
+func (cse *CSharpEmitter) emitToken(content string, tokenType TokenType, indent int) {
+	token := CreateCSharpToken(tokenType, cse.emitAsString(content, indent))
+	_ = cse.gir.emitTokenToFileBuffer(token, EmptyVisitMethod)
+}
 func (cse *CSharpEmitter) SetFile(file *os.File) {
 	cse.file = file
 }
@@ -622,7 +682,7 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Fi
 		if pointerAndPosition != nil {
 			adjustment := 0
 			// Check for comma after the type to adjust index
-			if cse.gir.tokenSlice[pointerAndPosition.Index] == "," {
+			if cse.gir.tokenSlice[pointerAndPosition.Index].Content == "," {
 				adjustment = 1
 			}
 			for aliasName, alias := range cse.aliases {

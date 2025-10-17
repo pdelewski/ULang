@@ -133,43 +133,80 @@ func SearchPointerIndexReverseString(target string, pointerAndIndexVec []Pointer
 	return nil // Return nil if the pointer is not found
 }
 
-func ExtractTokens(position int, tokenSlice []string) ([]string, error) {
+// New token-based functions
+func ExtractTokensNew(position int, tokenSlice []Token) ([]Token, error) {
 	if position < 0 || position >= len(tokenSlice) {
 		return nil, fmt.Errorf("position %d is out of bounds", position)
 	}
 	return tokenSlice[position:], nil
 }
 
-func ExtractTokensBetween(begin int, end int, tokenSlice []string) ([]string, error) {
+// Backward compatibility for string-based ExtractTokens
+func ExtractTokens(position int, tokenSlice []Token) ([]string, error) {
+	if position < 0 || position >= len(tokenSlice) {
+		return nil, fmt.Errorf("position %d is out of bounds", position)
+	}
+	result := make([]string, len(tokenSlice)-position)
+	for i, token := range tokenSlice[position:] {
+		result[i] = token.Content
+	}
+	return result, nil
+}
+
+func ExtractTokensBetween(begin int, end int, tokenSlice []Token) ([]Token, error) {
 	if begin < 0 || end > len(tokenSlice) || begin > end {
 		return nil, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
 	}
 	return tokenSlice[begin:end], nil
 }
 
-func RewriteTokensBetween(tokenSlice []string, begin int, end int, content []string) ([]string, error) {
+// New token-based functions
+func RewriteTokensBetweenNew(tokenSlice []Token, begin int, end int, content []Token) ([]Token, error) {
 	if begin < 0 || end > len(tokenSlice) || begin > end {
 		return tokenSlice, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
 	}
-	result := make([]string, 0, begin+len(content)+(len(tokenSlice)-end))
+	result := make([]Token, 0, begin+len(content)+(len(tokenSlice)-end))
 	result = append(result, tokenSlice[:begin]...)
 	result = append(result, content...)
 	result = append(result, tokenSlice[end:]...)
 	return result, nil
 }
 
-func RewriteTokens(tokenSlice []string, position int, oldContent, newContent []string) ([]string, error) {
+// Backward compatibility for string-based RewriteTokensBetween
+func RewriteTokensBetween(tokenSlice []Token, begin int, end int, content []string) ([]Token, error) {
+	if begin < 0 || end > len(tokenSlice) || begin > end {
+		return tokenSlice, fmt.Errorf("invalid range: begin %d, end %d", begin, end)
+	}
+	// Convert strings to tokens
+	tokenContent := make([]Token, len(content))
+	for i, s := range content {
+		tokenContent[i] = CreateCSharpToken(Identifier, s)
+	}
+	result := make([]Token, 0, begin+len(tokenContent)+(len(tokenSlice)-end))
+	result = append(result, tokenSlice[:begin]...)
+	result = append(result, tokenContent...)
+	result = append(result, tokenSlice[end:]...)
+	return result, nil
+}
+
+// Backward compatibility for string-based RewriteTokens
+func RewriteTokens(tokenSlice []Token, position int, oldContent, newContent []string) ([]Token, error) {
 	if position < 0 || position+len(oldContent) > len(tokenSlice) {
 		return tokenSlice, fmt.Errorf("position %d is out of bounds or oldContent does not match", position)
 	}
-	for i, token := range oldContent {
-		if position+i >= len(tokenSlice) || tokenSlice[position+i] != token {
+	for i, content := range oldContent {
+		if position+i >= len(tokenSlice) || tokenSlice[position+i].Content != content {
 			return tokenSlice, fmt.Errorf("oldContent does not match the existing content at position %d", position)
 		}
 	}
-	result := make([]string, 0, len(tokenSlice)-len(oldContent)+len(newContent))
+	// Convert strings to tokens
+	tokenNewContent := make([]Token, len(newContent))
+	for i, s := range newContent {
+		tokenNewContent[i] = CreateCSharpToken(Identifier, s)
+	}
+	result := make([]Token, 0, len(tokenSlice)-len(oldContent)+len(tokenNewContent))
 	result = append(result, tokenSlice[:position]...)
-	result = append(result, newContent...)
+	result = append(result, tokenNewContent...)
 	result = append(result, tokenSlice[position+len(oldContent):]...)
 	return result, nil
 }
@@ -179,6 +216,32 @@ type PointerAndIndex struct {
 	Index   int
 }
 
+// New Token-based methods
+func (gir *GoFIR) emitTokenToFileBuffer(
+	token Token, pointer VisitMethod) error {
+	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
+		Pointer: string(pointer),
+		Index:   len(gir.tokenSlice),
+	})
+	if token.Content != "" {
+		gir.tokenSlice = append(gir.tokenSlice, token)
+	}
+	return nil
+}
+
+func (gir *GoFIR) emitTokenToFileBufferString(
+	token Token, pointer string) error {
+	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
+		Pointer: pointer,
+		Index:   len(gir.tokenSlice),
+	})
+	if token.Content != "" {
+		gir.tokenSlice = append(gir.tokenSlice, token)
+	}
+	return nil
+}
+
+// Backward compatibility - keep old string-based methods
 func (gir *GoFIR) emitToFileBuffer(
 	s string, pointer VisitMethod) error {
 	gir.pointerAndIndexVec = append(gir.pointerAndIndexVec, PointerAndIndex{
@@ -186,7 +249,9 @@ func (gir *GoFIR) emitToFileBuffer(
 		Index:   len(gir.tokenSlice),
 	})
 	if s != "" {
-		gir.tokenSlice = append(gir.tokenSlice, s)
+		// Convert string to token for storage
+		token := CreateCSharpToken(Identifier, s) // Default token type
+		gir.tokenSlice = append(gir.tokenSlice, token)
 	}
 	return nil
 }
@@ -199,7 +264,9 @@ func (gir *GoFIR) emitToFileBufferString(
 		Index:   len(gir.tokenSlice),
 	})
 	if s != "" {
-		gir.tokenSlice = append(gir.tokenSlice, s)
+		// Convert string to token for storage
+		token := CreateCSharpToken(Identifier, s) // Default token type
+		gir.tokenSlice = append(gir.tokenSlice, token)
 	}
 	return nil
 }
@@ -213,9 +280,9 @@ func emitToFile(file *os.File, fileBuffer string) error {
 	return nil
 }
 
-func emitTokensToFile(file *os.File, tokenSlice []string) error {
+func emitTokensToFile(file *os.File, tokenSlice []Token) error {
 	for _, token := range tokenSlice {
-		_, err := file.WriteString(token)
+		_, err := file.WriteString(token.Content)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 			return err
@@ -254,6 +321,22 @@ func containsWhitespace(s string) bool {
 }
 
 type GoFIR struct {
-	tokenSlice         []string
+	tokenSlice         []Token
 	pointerAndIndexVec []PointerAndIndex
+}
+
+// Helper function to create a Token for C# emitter
+func CreateCSharpToken(tokenType TokenType, content string) Token {
+	return Token{
+		Type:    tokenType,
+		Content: content,
+		Line:    0, // Will be set later if needed
+		Column:  0, // Will be set later if needed
+	}
+}
+
+// Helper function to emit string as Token (backward compatibility)
+func (gir *GoFIR) emitStringAsToken(s string, tokenType TokenType, pointer VisitMethod) error {
+	token := CreateCSharpToken(tokenType, s)
+	return gir.emitTokenToFileBuffer(token, pointer)
 }
