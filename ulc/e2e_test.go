@@ -13,10 +13,10 @@ import (
 
 // TestCase represents a test case from the e2e workflow
 type TestCase struct {
-	Name        string
-	SourceDir   string
+	Name          string
+	SourceDir     string
 	DotnetEnabled bool
-	RustEnabled bool
+	RustEnabled   bool
 }
 
 // E2E test cases matching the workflow
@@ -129,18 +129,23 @@ func testCompilation(t *testing.T, sourceDir, outputName string) {
 
 	passManager.RunPasses()
 
-	// Verify output files exist
+	// Verify output files exist and show content on failure
 	expectedFiles := []string{outputName + ".cpp", outputName + ".cs", outputName + ".rs"}
 	for _, file := range expectedFiles {
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			t.Errorf("Expected output file %s does not exist", file)
+		} else {
+			// Log the generated content for debugging
+			if content, err := ioutil.ReadFile(file); err == nil {
+				t.Logf("Generated file %s content:\n%s", file, string(content))
+			}
 		}
 	}
 }
 
 func testCppCompilation(t *testing.T, outputName string) {
 	cppFile := outputName + ".cpp"
-	
+
 	// Check if file exists
 	if _, err := os.Stat(cppFile); os.IsNotExist(err) {
 		t.Skipf("C++ file %s does not exist, skipping compilation test", cppFile)
@@ -157,7 +162,7 @@ func testCppCompilation(t *testing.T, outputName string) {
 
 func testDotnetCompilation(t *testing.T, outputName string) {
 	csFile := outputName + ".cs"
-	
+
 	// Check if file exists
 	if _, err := os.Stat(csFile); os.IsNotExist(err) {
 		t.Skipf("C# file %s does not exist, skipping compilation test", csFile)
@@ -167,7 +172,7 @@ func testDotnetCompilation(t *testing.T, outputName string) {
 	// Create .NET project
 	projectDir := "dotnet_project"
 	appDir := filepath.Join(projectDir, "app")
-	
+
 	if err := os.MkdirAll(appDir, 0755); err != nil {
 		t.Fatalf("Failed to create .NET project directory: %v", err)
 	}
@@ -197,7 +202,7 @@ func testDotnetCompilation(t *testing.T, outputName string) {
 
 func testRustCompilation(t *testing.T, outputName string) {
 	rsFile := outputName + ".rs"
-	
+
 	// Check if file exists
 	if _, err := os.Stat(rsFile); os.IsNotExist(err) {
 		t.Skipf("Rust file %s does not exist, skipping compilation test", rsFile)
@@ -207,7 +212,7 @@ func testRustCompilation(t *testing.T, outputName string) {
 	// Create Rust project
 	projectDir := "rust_project"
 	srcDir := filepath.Join(projectDir, "src")
-	
+
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatalf("Failed to create Rust project directory: %v", err)
 	}
@@ -250,7 +255,7 @@ func copyFile(src, dst string) error {
 // TestCSharpEmitterTokens tests the token functionality specifically
 func TestCSharpEmitterTokens(t *testing.T) {
 	emitter := &CSharpEmitter{BaseEmitter: BaseEmitter{}}
-	
+
 	// Test token type detection
 	testCases := []struct {
 		content  string
@@ -293,7 +298,7 @@ func TestCompilerFlags(t *testing.T) {
 			Mode: packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps,
 			Dir:  "/nonexistent",
 		}
-		
+
 		_, err := packages.Load(cfg, "./...")
 		if err == nil {
 			t.Error("Expected error for nonexistent directory, got nil")
@@ -306,21 +311,21 @@ func TestOutputFileGeneration(t *testing.T) {
 	// Use the basic test case as it's simple
 	sourceDir := "../tests/basic"
 	outputName := "test_output"
-	
+
 	// Create temporary directory
 	tempDir, err := ioutil.TempDir("", "ulc_output_test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
-	
+
 	// Change to temp directory
 	oldDir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
 	defer os.Chdir(oldDir)
-	
+
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
@@ -382,10 +387,22 @@ func TestOutputFileGeneration(t *testing.T) {
 			}
 
 			contentStr := string(content)
+			t.Logf("Generated file %s content:\n%s", filename, contentStr)
+
+			hasFailures := false
 			for _, expected := range expectedContent {
 				if !strings.Contains(contentStr, expected) {
 					t.Errorf("File %s does not contain expected content: %s", filename, expected)
+					hasFailures = true
 				}
+			}
+
+			// If there were failures, dump the entire generated content for debugging
+			if hasFailures {
+				t.Logf("=== FULL GENERATED CONTENT FOR DEBUGGING ===")
+				t.Logf("File: %s", filename)
+				t.Logf("Content:\n%s", contentStr)
+				t.Logf("=== END GENERATED CONTENT ===")
 			}
 		})
 	}
