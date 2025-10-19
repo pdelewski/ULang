@@ -102,24 +102,24 @@ func (re *RustEmitter) getTokenType(content string) TokenType {
 	case "\n":
 		return NewLine
 	}
-	
+
 	// Check if it's a number
 	if len(content) > 0 && (content[0] >= '0' && content[0] <= '9') {
 		return NumberLiteral
 	}
-	
+
 	// Check if it's a string literal
 	if len(content) >= 2 && content[0] == '"' && content[len(content)-1] == '"' {
 		return StringLiteral
 	}
-	
+
 	// Default to identifier
 	return Identifier
 }
 
 // Helper function to emit token
 func (re *RustEmitter) emitToken(content string, tokenType TokenType, indent int) {
-	token := CreateCSharpToken(tokenType, re.emitAsString(content, indent)) // Reuse CreateCSharpToken
+	token := CreateToken(tokenType, re.emitAsString(content, indent))
 	_ = re.gir.emitTokenToFileBuffer(token, EmptyVisitMethod)
 }
 
@@ -128,15 +128,6 @@ func tokensToStrings(tokens []Token) []string {
 	result := make([]string, len(tokens))
 	for i, token := range tokens {
 		result[i] = token.Content
-	}
-	return result
-}
-
-// Helper function to convert []string to []Token
-func stringsToTokens(strings []string) []Token {
-	result := make([]Token, len(strings))
-	for i, s := range strings {
-		result[i] = CreateCSharpToken(Identifier, s) // Default to Identifier type
 	}
 	return result
 }
@@ -289,8 +280,8 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 			return
 		}
 		if strings.TrimSpace(strings.Join(tokensToStrings(results), "")) != "" {
-			re.gir.tokenSlice = append(re.gir.tokenSlice, CreateCSharpToken(RustKeyword, " -> "))
-			re.gir.tokenSlice = append(re.gir.tokenSlice, CreateCSharpToken(Identifier, strings.Join(tokensToStrings(results), "")))
+			re.gir.tokenSlice = append(re.gir.tokenSlice, CreateToken(RustKeyword, " -> "))
+			re.gir.tokenSlice = append(re.gir.tokenSlice, CreateToken(Identifier, strings.Join(tokensToStrings(results), "")))
 		}
 	}
 }

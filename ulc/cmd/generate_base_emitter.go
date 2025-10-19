@@ -102,7 +102,7 @@ func formatMethodSignature(methodName, params, returnType string) string {
 
 func extractVisitConstants(methods []string) []string {
 	var constants []string
-	
+
 	for _, method := range methods {
 		// Extract method name from signature
 		methodNameRegex := regexp.MustCompile(`func \(v \*BaseEmitter\) ([A-Za-z0-9_]+)\(`)
@@ -115,7 +115,7 @@ func extractVisitConstants(methods []string) []string {
 			}
 		}
 	}
-	
+
 	return constants
 }
 
@@ -150,7 +150,7 @@ const (
 	for _, constant := range visitConstants {
 		fmt.Fprintf(output, "\t%s VisitMethod = \"%s\"\n", constant, constant)
 	}
-	
+
 	fmt.Fprintf(output, `)
 
 type BaseEmitter struct{
