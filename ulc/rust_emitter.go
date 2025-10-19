@@ -235,7 +235,8 @@ func (re *RustEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	str := re.emitAsString("{\n", 1)
+	re.emitToken("{", LeftBrace, 1)
+	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -243,8 +244,7 @@ func (re *RustEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	str := re.emitAsString("}", 1)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("}", RightBrace, 1)
 	re.isArray = false
 }
 
@@ -253,8 +253,7 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, i
 		return
 	}
 	re.shouldGenerate = true
-	str := re.emitAsString("(", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("(", LeftParen, 0)
 }
 
 func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
@@ -262,8 +261,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 		return
 	}
 	re.shouldGenerate = false
-	str := re.emitAsString(")", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(")", RightParen, 0)
 
 	p1 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResults", re.gir.pointerAndIndexVec)
 	p2 := SearchPointerIndexReverse("@PostVisitFuncDeclSignatureTypeResults", re.gir.pointerAndIndexVec)
@@ -315,8 +313,7 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	str := re.emitAsString("(", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("(", LeftParen, 0)
 	p1 := SearchPointerIndexReverse("@PreVisitCallExprFun", re.gir.pointerAndIndexVec)
 	p2 := SearchPointerIndexReverse("@PostVisitCallExprFun", re.gir.pointerAndIndexVec)
 	if p1 != nil && p2 != nil {
@@ -337,8 +334,7 @@ func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	str := re.emitAsString(")", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(")", RightParen, 0)
 }
 
 func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
@@ -515,7 +511,9 @@ func (re *RustEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 		return
 	}
 	str := re.emitAsString(fmt.Sprintf("pub struct %s\n", node.Name), indent+2)
-	str += re.emitAsString("{\n", indent+2)
+	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("{", LeftBrace, indent+2)
+	str = re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = true
 }
@@ -524,7 +522,8 @@ func (re *RustEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	str := re.emitAsString("}\n\n", indent+2)
+	re.emitToken("}", RightBrace, indent+2)
+	str := re.emitAsString("\n\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = false
 }
@@ -534,16 +533,14 @@ func (re *RustEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 		return
 	}
 	re.gir.emitToFileBuffer("", "@@PreVisitArrayType")
-	str := re.emitAsString("<", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("<", LeftAngle, 0)
 }
 func (re *RustEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	if re.forwardDecls {
 		return
 	}
 
-	str := re.emitAsString(">", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(">", RightAngle, 0)
 
 	pointerAndPosition := SearchPointerIndexReverse("@@PreVisitArrayType", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
@@ -562,7 +559,8 @@ func (re *RustEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	re.gir.emitToFileBuffer("", "@@PreVisitFuncType")
 	var str string
 	// TODO use Box<dyn Fn> for function types for now
-	str = re.emitAsString("Box<dyn Fn(", indent)
+	str = re.emitAsString("Box<dyn Fn", indent)
+	re.emitToken("(", LeftParen, 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
@@ -594,8 +592,8 @@ func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 		}
 	}
 
-	str := re.emitAsString(")>", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(")", RightParen, 0)
+	re.emitToken(">", RightAngle, 0)
 }
 
 func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent int) {
@@ -685,8 +683,7 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, 
 
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
-			str := re.emitAsString("(", 0)
-			re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+			re.emitToken("(", LeftParen, 0)
 		}
 	}
 }
@@ -698,8 +695,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl,
 
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
-			str := re.emitAsString(")", 0)
-			re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+			re.emitToken(")", RightParen, 0)
 		}
 	}
 
@@ -771,16 +767,15 @@ func (re *RustEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
 		if typeVal, ok := rustTypesMap[tv.Type.String()]; ok {
 			if !re.isTuple && tv.Type.String() != "func()" {
-				re.gir.emitToFileBuffer("(", EmptyVisitMethod)
+				re.emitToken("(", LeftParen, 0)
 				str := re.emitAsString(typeVal, 0)
 				re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-				re.gir.emitToFileBuffer(")", EmptyVisitMethod)
+				re.emitToken(")", RightParen, 0)
 			}
 		}
 	}
 	if len(node.Results) > 1 {
-		str := re.emitAsString("(", 0)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken("(", LeftParen, 0)
 	}
 }
 
@@ -789,8 +784,7 @@ func (re *RustEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 		return
 	}
 	if len(node.Results) > 1 {
-		str := re.emitAsString(")", 0)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken(")", RightParen, 0)
 	}
 	str := re.emitAsString(";", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -885,11 +879,11 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 		str := re.emitAsString("let ", indent)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
-		str := re.emitAsString("let (", indent)
+		str := re.emitAsString("let ", indent)
+	re.emitToken("(", LeftParen, 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
-		str := re.emitAsString("(", indent)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken("(", LeftParen, indent)
 		re.isTuple = true
 	}
 	if assignmentToken != "+=" {
@@ -900,11 +894,9 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 
 func (re *RustEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
-		str := re.emitAsString(")", indent)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken(")", RightParen, indent)
 	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
-		str := re.emitAsString(")", indent)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken(")", RightParen, indent)
 	}
 	re.shouldGenerate = false
 
@@ -912,23 +904,19 @@ func (re *RustEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) 
 
 func (re *RustEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString("[", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("[", LeftBracket, 0)
 
 }
 func (re *RustEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
-	str := re.emitAsString("]", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("]", RightBracket, 0)
 }
 
 func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString("(", 1)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("(", LeftParen, 1)
 }
 func (re *RustEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
-	str := re.emitAsString(")", 1)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(")", RightParen, 1)
 	re.shouldGenerate = false
 }
 
@@ -956,19 +944,22 @@ func (re *RustEmitter) PostVisitIfStmt(node *ast.IfStmt, indent int) {
 }
 
 func (re *RustEmitter) PreVisitIfStmtCond(node *ast.IfStmt, indent int) {
-	str := re.emitAsString("if (", 1)
+	str := re.emitAsString("if ", 1)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("(", LeftParen, 0)
 }
 
 func (re *RustEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
-	str := re.emitAsString(")\n", 0)
+	re.emitToken(")", RightParen, 0)
+	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
 func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	re.insideForPostCond = true
-	str := re.emitAsString("for (", indent)
+	str := re.emitAsString("for ", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("(", LeftParen, 0)
 	re.shouldGenerate = true
 }
 
@@ -1065,13 +1056,11 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := re.emitAsString("{", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("{", LeftBrace, 0)
 }
 
 func (re *RustEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
-	str := re.emitAsString("}", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("}", RightBrace, 0)
 }
 
 func (re *RustEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int) {
@@ -1082,14 +1071,12 @@ func (re *RustEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent 
 }
 
 func (re *RustEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
-	str := re.emitAsString("[", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("[", LeftBracket, 0)
 	re.shouldGenerate = false
 }
 
 func (re *RustEmitter) PostVisitSliceExpr(node *ast.SliceExpr, indent int) {
-	str := re.emitAsString("]", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("]", RightBracket, 0)
 	re.shouldGenerate = true
 }
 
@@ -1098,17 +1085,15 @@ func (re *RustEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
-	str := re.emitAsString("(", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("(", LeftParen, indent)
 }
 func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
-	str := re.emitAsString("}", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("}", RightBrace, 0)
 }
 
 func (re *RustEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
-	str := re.emitAsString(")", 0)
-	str += re.emitAsString("=>", 0)
+	re.emitToken(")", RightParen, 0)
+	str := re.emitAsString("=>", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -1127,7 +1112,8 @@ func (re *RustEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, ind
 }
 
 func (re *RustEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
-	str := re.emitAsString("{\n", 0)
+	re.emitToken("{", LeftBrace, 0)
+	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -1149,13 +1135,12 @@ func (re *RustEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
-	str := re.emitAsString("(", 0)
-	str += re.emitAsString(node.Op.String(), 0)
+	re.emitToken("(", LeftParen, 0)
+	str := re.emitAsString(node.Op.String(), 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
-	str := re.emitAsString(")", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(")", RightParen, 0)
 }
 
 func (re *RustEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
@@ -1195,12 +1180,15 @@ func (re *RustEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
-	str := re.emitAsString("}", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("}", RightBrace, indent)
 }
 
 func (re *RustEmitter) PostVisitSwitchStmtTag(node ast.Expr, indent int) {
-	str := re.emitAsString(") {\n", 0)
+	re.emitToken(")", RightParen, 0)
+	str := re.emitAsString(" ", 0)
+	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("{", LeftBrace, 0)
+	str = re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -1233,13 +1221,11 @@ func (re *RustEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, ind
 }
 
 func (re *RustEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int) {
-	str := re.emitAsString("(", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("(", LeftParen, indent)
 }
 
 func (re *RustEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int) {
-	str := re.emitAsString(")", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(")", RightParen, indent)
 }
 
 func (re *RustEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
