@@ -332,7 +332,9 @@ func (cse *CSharpEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 
 func (cse *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString("{\n", 1)
+		str := cse.emitAsString("{", 1)
+		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		str = cse.emitAsString("\n", 1)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	})
 }
@@ -347,15 +349,13 @@ func (cse *CSharpEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
 
 func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString("(", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		cse.emitToken("(", LeftParen, 0)
 	})
 }
 
 func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString(")", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		cse.emitToken(")", RightParen, 0)
 	})
 }
 
