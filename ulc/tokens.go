@@ -9,14 +9,14 @@ const (
 	CSharpKeyword
 	RustKeyword
 	JavaKeyword
-	
+
 	// Identifiers and literals
 	Identifier
 	StringLiteral
 	NumberLiteral
 	BooleanLiteral
 	CharLiteral
-	
+
 	// Operators
 	Assignment
 	BinaryOperator
@@ -24,13 +24,13 @@ const (
 	ComparisonOperator
 	LogicalOperator
 	ArithmeticOperator
-	
+
 	// Punctuation
 	Comma
 	Semicolon
 	Colon
 	Dot
-	
+
 	// Parentheses and brackets
 	LeftParen
 	RightParen
@@ -40,20 +40,20 @@ const (
 	RightBracket
 	LeftAngle
 	RightAngle
-	
+
 	// Whitespace and formatting
 	WhiteSpace
 	NewLine
 	Tab
-	
+
 	// Comments
 	LineComment
 	BlockComment
-	
+
 	// Special tokens
 	EOF
 	Invalid
-	
+
 	// Control flow
 	IfKeyword
 	ElseKeyword
@@ -65,13 +65,13 @@ const (
 	BreakKeyword
 	ContinueKeyword
 	ReturnKeyword
-	
+
 	// Type-related
 	TypeKeyword
 	StructKeyword
 	InterfaceKeyword
 	ClassKeyword
-	
+
 	// Access modifiers
 	PublicKeyword
 	PrivateKeyword
@@ -79,7 +79,7 @@ const (
 	StaticKeyword
 	FinalKeyword
 	AbstractKeyword
-	
+
 	// Language-specific types
 	VoidType
 	IntType
@@ -87,7 +87,7 @@ const (
 	BoolType
 	FloatType
 	DoubleType
-	
+
 	// Function-related
 	FunctionKeyword
 	MethodKeyword
@@ -99,14 +99,12 @@ const (
 type Token struct {
 	Type    TokenType
 	Content string
-	Line    int
-	Column  int
 }
 
 // TokenTypeNames provides string representations for token types
 var TokenTypeNames = map[TokenType]string{
 	CppKeyword:         "CppKeyword",
-	CSharpKeyword:      "CSharpKeyword", 
+	CSharpKeyword:      "CSharpKeyword",
 	RustKeyword:        "RustKeyword",
 	JavaKeyword:        "JavaKeyword",
 	Identifier:         "Identifier",
@@ -180,12 +178,10 @@ func (t TokenType) String() string {
 }
 
 // CreateToken creates a new token with the given type and content
-func CreateToken(tokenType TokenType, content string, line, column int) Token {
+func CreateToken(tokenType TokenType, content string) Token {
 	return Token{
 		Type:    tokenType,
 		Content: content,
-		Line:    line,
-		Column:  column,
 	}
 }
 

@@ -180,7 +180,7 @@ func RewriteTokensBetween(tokenSlice []Token, begin int, end int, content []stri
 	// Convert strings to tokens
 	tokenContent := make([]Token, len(content))
 	for i, s := range content {
-		tokenContent[i] = CreateCSharpToken(Identifier, s)
+		tokenContent[i] = CreateToken(Identifier, s)
 	}
 	result := make([]Token, 0, begin+len(tokenContent)+(len(tokenSlice)-end))
 	result = append(result, tokenSlice[:begin]...)
@@ -202,7 +202,7 @@ func RewriteTokens(tokenSlice []Token, position int, oldContent, newContent []st
 	// Convert strings to tokens
 	tokenNewContent := make([]Token, len(newContent))
 	for i, s := range newContent {
-		tokenNewContent[i] = CreateCSharpToken(Identifier, s)
+		tokenNewContent[i] = CreateToken(Identifier, s)
 	}
 	result := make([]Token, 0, len(tokenSlice)-len(oldContent)+len(tokenNewContent))
 	result = append(result, tokenSlice[:position]...)
@@ -250,7 +250,7 @@ func (gir *GoFIR) emitToFileBuffer(
 	})
 	if s != "" {
 		// Convert string to token for storage
-		token := CreateCSharpToken(Identifier, s) // Default token type
+		token := CreateToken(Identifier, s) // Default token type
 		gir.tokenSlice = append(gir.tokenSlice, token)
 	}
 	return nil
@@ -265,7 +265,7 @@ func (gir *GoFIR) emitToFileBufferString(
 	})
 	if s != "" {
 		// Convert string to token for storage
-		token := CreateCSharpToken(Identifier, s) // Default token type
+		token := CreateToken(Identifier, s) // Default token type
 		gir.tokenSlice = append(gir.tokenSlice, token)
 	}
 	return nil
@@ -325,18 +325,8 @@ type GoFIR struct {
 	pointerAndIndexVec []PointerAndIndex
 }
 
-// Helper function to create a Token for C# emitter
-func CreateCSharpToken(tokenType TokenType, content string) Token {
-	return Token{
-		Type:    tokenType,
-		Content: content,
-		Line:    0, // Will be set later if needed
-		Column:  0, // Will be set later if needed
-	}
-}
-
 // Helper function to emit string as Token (backward compatibility)
 func (gir *GoFIR) emitStringAsToken(s string, tokenType TokenType, pointer VisitMethod) error {
-	token := CreateCSharpToken(tokenType, s)
+	token := CreateToken(tokenType, s)
 	return gir.emitTokenToFileBuffer(token, pointer)
 }

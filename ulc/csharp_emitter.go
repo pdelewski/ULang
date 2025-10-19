@@ -115,24 +115,24 @@ func (cse *CSharpEmitter) getTokenType(content string) TokenType {
 	case "\n":
 		return NewLine
 	}
-	
+
 	// Check if it's a number
 	if len(content) > 0 && (content[0] >= '0' && content[0] <= '9') {
 		return NumberLiteral
 	}
-	
+
 	// Check if it's a string literal
 	if len(content) >= 2 && content[0] == '"' && content[len(content)-1] == '"' {
 		return StringLiteral
 	}
-	
+
 	// Default to identifier
 	return Identifier
 }
 
 // Helper function to emit token
 func (cse *CSharpEmitter) emitToken(content string, tokenType TokenType, indent int) {
-	token := CreateCSharpToken(tokenType, cse.emitAsString(content, indent))
+	token := CreateToken(tokenType, cse.emitAsString(content, indent))
 	_ = cse.gir.emitTokenToFileBuffer(token, EmptyVisitMethod)
 }
 func (cse *CSharpEmitter) SetFile(file *os.File) {
