@@ -949,7 +949,6 @@ func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	re.insideForPostCond = true
 	str := re.emitAsString("for ", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	re.emitToken("(", LeftParen, 0)
 	re.shouldGenerate = true
 }
 
@@ -964,7 +963,7 @@ func (re *RustEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
 	if node != nil {
 		re.insideForPostCond = false
 	}
-	str := re.emitAsString(")\n", 0)
+	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -982,6 +981,42 @@ func (re *RustEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
 func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 	re.shouldGenerate = false
 	re.insideForPostCond = false
+
+	p1 := SearchPointerIndexReverse(PreVisitForStmtInit, re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse(PostVisitForStmtInit, re.gir.pointerAndIndexVec)
+	if p1 != nil && p2 != nil {
+		// Extract the substring between the positions of the pointers
+		initTokens, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
+		_ = initTokens
+		if err != nil {
+			fmt.Println("Error extracting init statement:", err)
+			return
+		}
+	}
+
+	p3 := SearchPointerIndexReverse(PreVisitForStmtCond, re.gir.pointerAndIndexVec)
+	p4 := SearchPointerIndexReverse(PostVisitForStmtCond, re.gir.pointerAndIndexVec)
+	if p3 != nil && p4 != nil {
+		// Extract the substring between the positions of the pointers
+		condTokens, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
+		_ = condTokens
+		if err != nil {
+			fmt.Println("Error extracting condition statement:", err)
+			return
+		}
+	}
+
+	p5 := SearchPointerIndexReverse(PreVisitForStmtPost, re.gir.pointerAndIndexVec)
+	p6 := SearchPointerIndexReverse(PostVisitForStmtPost, re.gir.pointerAndIndexVec)
+	if p5 != nil && p6 != nil {
+		// Extract the substring between the positions of the pointers
+		postStmtTokens, err := ExtractTokensBetween(p5.Index, p6.Index, re.gir.tokenSlice)
+		_ = postStmtTokens
+		if err != nil {
+			fmt.Println("Error extracting post statement:", err)
+			return
+		}
+	}
 }
 
 func (re *RustEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
