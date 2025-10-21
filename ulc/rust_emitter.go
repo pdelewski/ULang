@@ -761,19 +761,6 @@ func (re *RustEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 	str := re.emitAsString("return ", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 
-	if len(node.Results) == 1 {
-		tv := re.pkg.TypesInfo.Types[node.Results[0]]
-		//pos := cse.pkg.Fset.Position(node.Pos())
-		//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-		if typeVal, ok := rustTypesMap[tv.Type.String()]; ok {
-			if !re.isTuple && tv.Type.String() != "func()" {
-				re.emitToken("(", LeftParen, 0)
-				str := re.emitAsString(typeVal, 0)
-				re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-				re.emitToken(")", RightParen, 0)
-			}
-		}
-	}
 	if len(node.Results) > 1 {
 		re.emitToken("(", LeftParen, 0)
 	}
@@ -880,7 +867,7 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
 		str := re.emitAsString("let ", indent)
-	re.emitToken("(", LeftParen, 0)
+		re.emitToken("(", LeftParen, 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
 		re.emitToken("(", LeftParen, indent)
