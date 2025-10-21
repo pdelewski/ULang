@@ -843,8 +843,9 @@ func (re *RustEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 
 func (re *RustEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString(re.assignmentToken+" ", indent+1)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	opTokenType := re.getTokenType(re.assignmentToken)
+	re.emitToken(re.assignmentToken, opTokenType, indent+1)
+	re.emitToken(" ", WhiteSpace, 0)
 }
 
 func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
@@ -908,8 +909,9 @@ func (re *RustEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
-	str := re.emitAsString(op.String()+" ", 1)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	opTokenType := re.getTokenType(op.String())
+	re.emitToken(op.String(), opTokenType, 1)
+	re.emitToken(" ", WhiteSpace, 0)
 }
 
 func (re *RustEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int) {
@@ -1036,7 +1038,7 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 			newTokens = append(newTokens, ":")
 			newTokens = append(newTokens, tokensToStrings(vecTypeStrRepr)...)
 			newTokens = append(newTokens, " = vec!")
-			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index-len("="), len(re.gir.tokenSlice), newTokens)
+			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index-len("=")-len(" "), len(re.gir.tokenSlice), newTokens)
 
 		}
 	}

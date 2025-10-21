@@ -861,8 +861,9 @@ func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) 
 
 func (cse *CSharpEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString(cse.assignmentToken+" ", indent+1)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		opTokenType := cse.getTokenType(cse.assignmentToken)
+		cse.emitToken(cse.assignmentToken, opTokenType, indent+1)
+		cse.emitToken(" ", WhiteSpace, 0)
 	})
 }
 
@@ -962,8 +963,9 @@ func (cse *CSharpEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) 
 
 func (cse *CSharpEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString(op.String()+" ", 1)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		opTokenType := cse.getTokenType(op.String())
+		cse.emitToken(op.String(), opTokenType, 1)
+		cse.emitToken(" ", WhiteSpace, 0)
 	})
 }
 
