@@ -375,7 +375,7 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 			}
 		}
 
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		cse.emitToken(str, Identifier, 0)
 	})
 }
 
@@ -402,10 +402,11 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 			} else {
 				str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
 			}
+			cse.emitToken(str, StringLiteral, 0)
 		} else {
 			str = (cse.emitAsString(e.Value, 0))
+			cse.emitToken(str, NumberLiteral, 0)
 		}
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	})
 }
 

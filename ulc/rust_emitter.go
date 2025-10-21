@@ -306,7 +306,7 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		}
 	}
 
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(str, Identifier, 0)
 
 }
 func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
@@ -350,10 +350,11 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 		} else {
 			str = (re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
 		}
+		re.emitToken(str, StringLiteral, 0)
 	} else {
 		str = (re.emitAsString(e.Value, 0))
+		re.emitToken(str, NumberLiteral, 0)
 	}
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
 func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
