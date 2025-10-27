@@ -992,7 +992,10 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 			fmt.Println("Error extracting init statement:", err)
 			return
 		}
-
+		if initTokens[0].Type == RustKeyword && initTokens[0].Content == "let" {
+			// Remove "let" from the init statement
+			re.gir.tokenSlice, _ = RemoveTokenAt(re.gir.tokenSlice, p1.Index)
+		}
 	}
 
 	p3 := SearchPointerIndexReverse(PreVisitForStmtCond, re.gir.pointerAndIndexVec)
