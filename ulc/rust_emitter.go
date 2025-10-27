@@ -795,8 +795,8 @@ func (re *RustEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 
 func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString("let ", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("let", RustKeyword, indent)
+	re.emitToken(" ", WhiteSpace, 0)
 }
 
 func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
@@ -865,12 +865,12 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
 	assignmentToken := node.Tok.String()
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
-		str := re.emitAsString("let ", indent)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken("let", RustKeyword, indent)
+		re.emitToken(" ", WhiteSpace, 0)
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
-		str := re.emitAsString("let ", indent)
 		re.emitToken("(", LeftParen, 0)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken("let", RustKeyword, indent)
+		re.emitToken(" ", WhiteSpace, 0)
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
 		re.emitToken("(", LeftParen, indent)
 		re.isTuple = true
@@ -992,6 +992,7 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 			fmt.Println("Error extracting init statement:", err)
 			return
 		}
+
 	}
 
 	p3 := SearchPointerIndexReverse(PreVisitForStmtCond, re.gir.pointerAndIndexVec)
