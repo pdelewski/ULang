@@ -325,6 +325,19 @@ type GoFIR struct {
 	pointerAndIndexVec []PointerAndIndex
 }
 
+// RemoveTokenAt removes the token at the specified index from the tokenSlice
+func RemoveTokenAt(tokenSlice []Token, index int) ([]Token, error) {
+	if index < 0 || index >= len(tokenSlice) {
+		return tokenSlice, fmt.Errorf("index %d is out of bounds for tokenSlice of length %d", index, len(tokenSlice))
+	}
+
+	result := make([]Token, 0, len(tokenSlice)-1)
+	result = append(result, tokenSlice[:index]...)
+	result = append(result, tokenSlice[index+1:]...)
+
+	return result, nil
+}
+
 // Helper function to emit string as Token (backward compatibility)
 func (gir *GoFIR) emitStringAsToken(s string, tokenType TokenType, pointer VisitMethod) error {
 	token := CreateToken(tokenType, s)

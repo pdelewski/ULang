@@ -97,6 +97,8 @@ func (re *RustEmitter) getTokenType(content string) TokenType {
 		return ComparisonOperator
 	case "&&", "||", "!":
 		return LogicalOperator
+	case "++":
+		return UnaryOperator
 	case " ", "\t":
 		return WhiteSpace
 	case "\n":
@@ -795,8 +797,8 @@ func (re *RustEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 
 func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString("let ", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("let", RustKeyword, indent)
+	re.emitToken(" ", WhiteSpace, 0)
 }
 
 func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
@@ -837,8 +839,7 @@ func (re *RustEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
-	str := re.emitAsString(";", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(";", Semicolon, 0)
 	re.shouldGenerate = false
 }
 
@@ -865,12 +866,12 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
 	assignmentToken := node.Tok.String()
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
-		str := re.emitAsString("let ", indent)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken("let", RustKeyword, indent)
+		re.emitToken(" ", WhiteSpace, 0)
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
-		str := re.emitAsString("let ", indent)
 		re.emitToken("(", LeftParen, 0)
-		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.emitToken("let", RustKeyword, indent)
+		re.emitToken(" ", WhiteSpace, 0)
 	} else if assignmentToken == "=" && len(node.Lhs) > 1 {
 		re.emitToken("(", LeftParen, indent)
 		re.isTuple = true
@@ -910,8 +911,9 @@ func (re *RustEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
-	opTokenType := re.getTokenType(op.String())
-	re.emitToken(op.String(), opTokenType, 1)
+	content := op.String()
+	opTokenType := re.getTokenType(content)
+	re.emitToken(content, opTokenType, 0)
 	re.emitToken(" ", WhiteSpace, 0)
 }
 
@@ -949,7 +951,6 @@ func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	re.insideForPostCond = true
 	str := re.emitAsString("for ", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	re.emitToken("(", LeftParen, 0)
 	re.shouldGenerate = true
 }
 
@@ -964,7 +965,7 @@ func (re *RustEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
 	if node != nil {
 		re.insideForPostCond = false
 	}
-	str := re.emitAsString(")\n", 0)
+	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -982,6 +983,82 @@ func (re *RustEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
 func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 	re.shouldGenerate = false
 	re.insideForPostCond = false
+
+	p1 := SearchPointerIndexReverse(PreVisitForStmtInit, re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse(PostVisitForStmtInit, re.gir.pointerAndIndexVec)
+	var forVars []Token
+	var rangeTokens []Token
+	if p1 != nil && p2 != nil {
+		// Extract the substring between the positions of the pointers
+		initTokens, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
+		if err != nil {
+			fmt.Println("Error extracting init statement:", err)
+			return
+		}
+		for i := 0; i < len(initTokens); i++ {
+			tok := initTokens[i]
+			if tok.Type == WhiteSpace {
+				initTokens, _ = RemoveTokenAt(initTokens, i)
+				i = i - 1
+			}
+		}
+		for i, tok := range initTokens {
+			if tok.Type == Assignment {
+				forVars = append(forVars, initTokens[i-1])
+				rangeTokens = append(rangeTokens, initTokens[i+1])
+			}
+		}
+	}
+
+	p3 := SearchPointerIndexReverse(PreVisitForStmtCond, re.gir.pointerAndIndexVec)
+	p4 := SearchPointerIndexReverse(PostVisitForStmtCond, re.gir.pointerAndIndexVec)
+	if p3 != nil && p4 != nil {
+		// Extract the substring between the positions of the pointers
+		condTokens, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
+		if err != nil {
+			fmt.Println("Error extracting condition statement:", err)
+			return
+		}
+		for i := 0; i < len(condTokens); i++ {
+			tok := condTokens[i]
+			if tok.Type == WhiteSpace {
+				condTokens, _ = RemoveTokenAt(condTokens, i)
+				i = i - 1
+			}
+		}
+
+		for i, tok := range condTokens {
+			if tok.Type == ComparisonOperator && tok.Content == "<" {
+				rangeTokens = append(rangeTokens, condTokens[i+1])
+			}
+		}
+	}
+
+	p5 := SearchPointerIndexReverse(PreVisitForStmtPost, re.gir.pointerAndIndexVec)
+	p6 := SearchPointerIndexReverse(PostVisitForStmtPost, re.gir.pointerAndIndexVec)
+	increment := false
+	if p5 != nil && p6 != nil {
+		// Extract the substring between the positions of the pointers
+		postStmtTokens, err := ExtractTokensBetween(p5.Index, p6.Index, re.gir.tokenSlice)
+		if err != nil {
+			fmt.Println("Error extracting post statement:", err)
+			return
+		}
+		for i := 0; i < len(postStmtTokens); i++ {
+			tok := postStmtTokens[i]
+			if tok.Type == WhiteSpace {
+				postStmtTokens, _ = RemoveTokenAt(postStmtTokens, i)
+				i = i - 1
+			}
+		}
+		for _, tok := range postStmtTokens {
+			if tok.Type == UnaryOperator && tok.Content == "++" {
+				increment = true
+			}
+		}
+	}
+	_ = increment
+	// TODO rewrite for loops properly
 }
 
 func (re *RustEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
@@ -1006,11 +1083,11 @@ func (re *RustEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 }
 
 func (re *RustEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
-	str := re.emitAsString(node.Tok.String(), 0)
+	content := node.Tok.String()
 	if !re.insideForPostCond {
-		str += re.emitAsString(";", 0)
+		re.emitToken(";", Semicolon, 0)
 	}
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken(content, UnaryOperator, 0)
 	re.shouldGenerate = false
 }
 

@@ -5,7 +5,8 @@ type TokenType int
 
 const (
 	// Language-specific keywords
-	CppKeyword TokenType = iota
+	EmptyToken TokenType = iota
+	CppKeyword
 	CSharpKeyword
 	RustKeyword
 	JavaKeyword
