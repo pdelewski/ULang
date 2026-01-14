@@ -27,7 +27,7 @@ var e2eTestCases = []TestCase{
 	{"iceberg", "libs/iceberg", true, true},
 	{"contlib", "libs/contlib", true, true},
 	{"uql", "libs/uql", true, false},
-	{"substrait", "libs/substrait", true, false},
+	{"substrait", "libs/substrait", true, true},
 }
 
 func TestE2ECodeGeneration(t *testing.T) {

@@ -60,10 +60,14 @@ type RustEmitter struct {
 	declNameCount        int    // Count of names in current declaration
 	declNameIndex        int    // Current name index
 	inAssignRhs                       bool   // Track if we're in assignment RHS
+	inFieldAssign                     bool   // Track if we're assigning to a struct field
+	isArrayStack                      []bool // Stack to save/restore isArray for nested composite literals
 	pkgHasInterfaceTypes              bool   // Track if current package has any interface{} types
 	currentCompLitTypeNoDefault       bool   // Track if current composite literal's type doesn't derive Default
 	processedPkgsInterfaceTypes       map[string]bool // Cache for package interface{} type checks
 	inKeyValueExpr                    bool   // Track if we're inside a KeyValueExpr (struct field init)
+	inMultiValueReturn                bool   // Track if we're in a multi-value return statement
+	multiValueReturnResultIndex       int    // Current result index in multi-value return
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -207,6 +211,21 @@ pub fn printf2<T: fmt::Display>(_fmt: String, val: T) {
     print!("{}", val);
 }
 
+pub fn printf3<T1: fmt::Display, T2: fmt::Display>(_fmt: String, v1: T1, v2: T2) {
+    // Simplified: ignoring format string, just printing values
+    print!("{} {}", v1, v2);
+}
+
+pub fn printf4<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display>(_fmt: String, v1: T1, v2: T2, v3: T3) {
+    // Simplified: ignoring format string, just printing values
+    print!("{} {} {}", v1, v2, v3);
+}
+
+pub fn printf5<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display, T4: fmt::Display>(_fmt: String, v1: T1, v2: T2, v3: T3, v4: T4) {
+    // Simplified: ignoring format string, just printing values
+    print!("{} {} {} {}", v1, v2, v3, v4);
+}
+
 // Go-style append (returns a new Vec)
 pub fn append<T: Clone>(vec: &Vec<T>, value: T) -> Vec<T> {
     let mut new_vec = vec.clone();
@@ -231,6 +250,11 @@ pub fn string_format(fmt_str: &str, args: &[&dyn fmt::Display]) -> String {
         }
     }
     result
+}
+
+// string_format for 2 args (format string + 1 value)
+pub fn string_format2<T: fmt::Display>(_fmt: &str, val: T) -> String {
+    format!("{}", val)
 }
 
 pub fn len<T>(slice: &[T]) -> i32 {
@@ -279,7 +303,7 @@ func (re *RustEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
 		return
 	}
 	re.emitToken("}", RightBrace, 1)
-	re.isArray = false
+	// Note: removed isArray = false as it interfered with composite literal stack management
 }
 
 func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
@@ -380,9 +404,25 @@ func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 			if funNameStr == "println" && len(node) == 0 {
 				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{"println0"})
 			}
-			// Handle printf with 2 args (format string + value)
-			if funNameStr == "printf" && len(node) == 2 {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{"printf2"})
+			// Handle printf with different arg counts (count includes format string)
+			if funNameStr == "printf" {
+				switch len(node) {
+				case 2:
+					re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{"printf2"})
+				case 3:
+					re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{"printf3"})
+				case 4:
+					re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{"printf4"})
+				case 5:
+					re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{"printf5"})
+				}
+			}
+			// Handle string_format with different arg counts
+			if funNameStr == "string_format" {
+				switch len(node) {
+				case 2:
+					re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p2.Index, []string{"string_format2"})
+				}
 			}
 		}
 	}
@@ -414,7 +454,12 @@ func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
 		return
 	}
 	// For string literals, add .to_string() to convert &str to String
+	// But skip if we're in a += context (Rust's += for String expects &str)
 	if e.Kind == token.STRING {
+		if re.inAssignRhs && re.assignmentToken == "+=" {
+			// Don't add .to_string() for += operations
+			return
+		}
 		re.gir.emitToFileBuffer(".to_string()", EmptyVisitMethod)
 	}
 }
@@ -469,6 +514,16 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 	p1 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
 	p2 := SearchPointerIndexReverse("@PostVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
 	p3 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecNames", re.gir.pointerAndIndexVec)
+
+	// Save the type name BEFORE reordering for default initialization
+	var typeName string
+	if p1 != nil && p2 != nil {
+		fieldType, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
+		if err == nil && len(fieldType) > 0 {
+			typeName = strings.TrimSpace(strings.Join(tokensToStrings(fieldType), ""))
+		}
+	}
+
 	if p1 != nil && p2 != nil && p3 != nil {
 		// Extract the type tokens
 		fieldType, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
@@ -488,8 +543,15 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 	re.gir.emitToFileBuffer("", "@PostVisitDeclStmtValueSpecNames")
 	var str string
 	if re.isArray {
-		str += " = Vec::new();"
+		str += " = Vec::new()"
 		re.isArray = false
+	} else {
+		// For struct types declared without value (var x StructType), initialize with default
+		// Check if this is likely a struct type (capitalized name, not a primitive)
+		if len(typeName) > 0 && typeName[0] >= 'A' && typeName[0] <= 'Z' {
+			// Add default initialization (semicolon added by PostVisitDeclStmt)
+			str += " = " + typeName + "::default()"
+		}
 	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
@@ -1047,6 +1109,8 @@ func (re *RustEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 
 	if len(node.Results) > 1 {
+		re.inMultiValueReturn = true
+		re.multiValueReturnResultIndex = 0
 		re.emitToken("(", LeftParen, 0)
 	}
 }
@@ -1058,6 +1122,7 @@ func (re *RustEmitter) PostVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 	if len(node.Results) > 1 {
 		re.emitToken(")", RightParen, 0)
 	}
+	re.inMultiValueReturn = false
 	str := re.emitAsString(";", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
@@ -1067,10 +1132,33 @@ func (re *RustEmitter) PreVisitReturnStmtResult(node ast.Expr, index int, indent
 		str := re.emitAsString(", ", 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
+	re.multiValueReturnResultIndex = index
+}
+
+func (re *RustEmitter) PostVisitReturnStmtResult(node ast.Expr, index int, indent int) {
+	if re.forwardDecls {
+		return
+	}
+	// Add .clone() to the first result in a multi-value return if it's an identifier
+	// This prevents "borrow of moved value" errors when subsequent results reference fields
+	if re.inMultiValueReturn && index == 0 {
+		if _, ok := node.(*ast.Ident); ok {
+			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+		}
+	}
 }
 
 func (re *RustEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
 	re.shouldGenerate = true
+	// In += context, string functions return String but += expects &str
+	// Add & before calls to string_format (Sprintf)
+	if re.inAssignRhs && re.assignmentToken == "+=" {
+		if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
+			if sel.Sel.Name == "Sprintf" {
+				re.gir.emitToFileBuffer("&", EmptyVisitMethod)
+			}
+		}
+	}
 }
 
 func (re *RustEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
@@ -1139,6 +1227,13 @@ func (re *RustEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, inden
 func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
 	assignmentToken := node.Tok.String()
+	// Check if LHS is a field access (SelectorExpr)
+	re.inFieldAssign = false
+	if len(node.Lhs) == 1 {
+		if _, ok := node.Lhs[0].(*ast.SelectorExpr); ok {
+			re.inFieldAssign = true
+		}
+	}
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
 		re.emitToken("let", RustKeyword, indent)
 		re.emitToken(" ", WhiteSpace, 0)
@@ -1428,6 +1523,8 @@ func (re *RustEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
+	// Add .clone() to the collection to avoid ownership transfer
+	re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = false
@@ -1456,6 +1553,10 @@ func (re *RustEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 }
 
 func (re *RustEmitter) PreVisitCompositeLit(node *ast.CompositeLit, indent int) {
+	// Save current isArray state for nested composite literals
+	re.isArrayStack = append(re.isArrayStack, re.isArray)
+	// Reset isArray for this composite literal - it will be set to true only if this is an array type
+	re.isArray = false
 	// Check if the composite literal's type is from a package with interface{} types
 	// If so, that type won't derive Default, so we shouldn't use ..Default::default()
 	re.currentCompLitTypeNoDefault = false // Reset for each composite literal
@@ -1520,8 +1621,8 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 			// TODO that's still hack
 			// we operate on string representation of the type
 			// has to be rewritten to use some kind of IR
-			if re.inKeyValueExpr {
-				// Inside struct field initialization: nodes: []Type{} -> nodes: vec![]
+			if re.inKeyValueExpr || re.inFieldAssign {
+				// Inside struct field initialization or field assignment: nodes: []Type{} -> nodes: vec![]
 				// Just replace the type with vec!, keeping the field name and colon
 				newTokens := []string{"vec!"}
 				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), newTokens)
@@ -1543,13 +1644,25 @@ func (re *RustEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
-	// For empty struct initialization in Rust, add ..Default::default()
+	// For struct initialization in Rust, add ..Default::default() to handle missing fields
 	// But NOT for arrays/vectors - those just use {}
 	// Don't use Default::default() if the type doesn't derive Default (due to interface{} fields)
-	if len(node) == 0 && !re.isArray && !re.currentCompLitTypeNoDefault {
-		re.gir.emitToFileBuffer("..Default::default()", EmptyVisitMethod)
+	if !re.isArray && !re.currentCompLitTypeNoDefault {
+		if len(node) > 0 {
+			// Partial struct init - add comma before Default
+			re.gir.emitToFileBuffer(", ..Default::default()", EmptyVisitMethod)
+		} else {
+			// Empty struct init
+			re.gir.emitToFileBuffer("..Default::default()", EmptyVisitMethod)
+		}
 	}
 	re.emitToken("}", RightBrace, 0)
+
+	// Restore isArray from stack for nested composite literals
+	if len(re.isArrayStack) > 0 {
+		re.isArray = re.isArrayStack[len(re.isArrayStack)-1]
+		re.isArrayStack = re.isArrayStack[:len(re.isArrayStack)-1]
+	}
 }
 
 func (re *RustEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent int) {
@@ -1660,7 +1773,9 @@ func (re *RustEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 			if constType == re.pkg.TypesInfo.Defs[node].Type().String() {
 				constType = trimBeforeChar(constType, '.')
 			}
-			str := re.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), 0)
+			// Map Go types to Rust types for constants
+			rustType := re.mapGoTypeToRust(constType)
+			str := re.emitAsString(fmt.Sprintf("pub const %s: %s = ", node.Name, rustType), 0)
 
 			re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		}
