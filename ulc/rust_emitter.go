@@ -26,6 +26,15 @@ var rustTypesMap = map[string]string{
 	"int":    rustDestTypes[8],
 }
 
+// mapGoTypeToRust converts a Go type string to its Rust equivalent
+func (re *RustEmitter) mapGoTypeToRust(goType string) string {
+	if rustType, ok := rustTypesMap[goType]; ok {
+		return rustType
+	}
+	// Return the original if not found in map
+	return goType
+}
+
 type RustEmitter struct {
 	Output string
 	file   *os.File
@@ -41,6 +50,11 @@ type RustEmitter struct {
 	isArray           bool
 	arrayType         string
 	isTuple           bool
+	sawIncrement      bool   // Track if we saw ++ in for loop post statement
+	declType          string // Store the type for multi-name declarations
+	declNameCount     int    // Count of names in current declaration
+	declNameIndex     int    // Current name index
+	inAssignRhs       bool   // Track if we're in assignment RHS
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -369,6 +383,15 @@ func (re *RustEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index 
 	if re.forwardDecls {
 		return
 	}
+	// For second and subsequent names, start a new let statement
+	if index > 0 {
+		re.emitToken(";", Semicolon, 0)
+		re.emitToken("\n", NewLine, 0)
+		re.emitToken("let", RustKeyword, indent)
+		re.emitToken(" ", WhiteSpace, 0)
+		re.emitToken("mut", RustKeyword, 0)
+		re.emitToken(" ", WhiteSpace, 0)
+	}
 	re.gir.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecType")
 }
 
@@ -393,12 +416,34 @@ func (re *RustEmitter) PreVisitDeclStmtValueSpecNames(node *ast.Ident, index int
 	if re.forwardDecls {
 		return
 	}
+	re.declNameIndex = index
 	re.gir.emitToFileBuffer("", "@PreVisitDeclStmtValueSpecNames")
 }
 
 func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int, indent int) {
 	if re.forwardDecls {
 		return
+	}
+	// Reorder tokens: swap type and name to get "name: type" format
+	// This needs to be done for each name-type pair
+	p1 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
+	p2 := SearchPointerIndexReverse("@PostVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
+	p3 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecNames", re.gir.pointerAndIndexVec)
+	if p1 != nil && p2 != nil && p3 != nil {
+		// Extract the type tokens
+		fieldType, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
+		if err == nil && len(fieldType) > 0 {
+			// Extract the name tokens (from p3 to end)
+			fieldName, err := ExtractTokensBetween(p3.Index, len(re.gir.tokenSlice), re.gir.tokenSlice)
+			if err == nil && len(fieldName) > 0 {
+				// Build new tokens: name: type
+				newTokens := []string{}
+				newTokens = append(newTokens, tokensToStrings(fieldName)...)
+				newTokens = append(newTokens, ":")
+				newTokens = append(newTokens, tokensToStrings(fieldType)...)
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, len(re.gir.tokenSlice), newTokens)
+			}
+		}
 	}
 	re.gir.emitToFileBuffer("", "@PostVisitDeclStmtValueSpecNames")
 	var str string
@@ -513,7 +558,10 @@ func (re *RustEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	str := re.emitAsString(fmt.Sprintf("pub struct %s\n", node.Name), indent+2)
+	// Add derive macros for Default (needed for ..Default::default() in struct init)
+	str := re.emitAsString("#[derive(Default, Clone, Debug)]\n", indent+2)
+	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	str = re.emitAsString(fmt.Sprintf("pub struct %s\n", node.Name), indent+2)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.emitToken("{", LeftBrace, indent+2)
 	str = re.emitAsString("\n", 0)
@@ -560,10 +608,8 @@ func (re *RustEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 		return
 	}
 	re.gir.emitToFileBuffer("", "@@PreVisitFuncType")
-	var str string
 	// TODO use Box<dyn Fn> for function types for now
-	str = re.emitAsString("Box<dyn Fn", indent)
-	re.emitToken("(", LeftParen, 0)
+	str := re.emitAsString("Box<dyn Fn(", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
@@ -614,10 +660,17 @@ func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		return
 	}
 	var str string
-	scopeOperator := "::"
+	scopeOperator := "." // Default to dot for field access
 	if ident, ok := node.(*ast.Ident); ok {
 		if re.lowerToBuiltins(ident.Name) == "" {
 			return
+		}
+		// Check if this is a package name - use :: for module access
+		obj := re.pkg.TypesInfo.Uses[ident]
+		if obj != nil {
+			if _, ok := obj.(*types.PkgName); ok {
+				scopeOperator = "::"
+			}
 		}
 	}
 
@@ -683,6 +736,7 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, 
 		return
 	}
 	re.gir.emitToFileBuffer("", "@PreVisitFuncDeclSignatureTypeResults")
+	re.shouldGenerate = true // Enable generating result types
 
 	if node.Type.Results != nil {
 		if len(node.Type.Results.List) > 1 {
@@ -797,40 +851,30 @@ func (re *RustEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 
 func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
 	re.shouldGenerate = true
+	// Get info about this declaration for multi-name handling
+	if genDecl, ok := node.Decl.(*ast.GenDecl); ok {
+		for _, spec := range genDecl.Specs {
+			if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+				re.declNameCount = len(valueSpec.Names)
+				// Store type info for multi-name declarations
+				if valueSpec.Type != nil {
+					re.declType = re.pkg.TypesInfo.Types[valueSpec.Type].Type.String()
+				}
+			}
+		}
+	}
+	re.declNameIndex = 0
+	// Use "let mut" for var declarations since they may be reassigned
 	re.emitToken("let", RustKeyword, indent)
+	re.emitToken(" ", WhiteSpace, 0)
+	re.emitToken("mut", RustKeyword, 0)
 	re.emitToken(" ", WhiteSpace, 0)
 }
 
 func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
-	p1 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
-	p2 := SearchPointerIndexReverse("@PostVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
-	p3 := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecNames", re.gir.pointerAndIndexVec)
-	p4 := SearchPointerIndexReverse("@PostVisitDeclStmtValueSpecNames", re.gir.pointerAndIndexVec)
-	if p1 != nil && p2 != nil && p3 != nil && p4 != nil {
-		// Extract the substring between the positions of the pointers
-		fieldType, err := ExtractTokensBetween(p1.Index, p2.Index, re.gir.tokenSlice)
-		if err != nil {
-			fmt.Println("Error extracting field type:", err)
-			return
-		}
-		fieldName, err := ExtractTokensBetween(p3.Index, p4.Index, re.gir.tokenSlice)
-		if err != nil {
-			fmt.Println("Error extracting field name:", err)
-			return
-		}
-		newTokens := []string{}
-		newTokens = append(newTokens, tokensToStrings(fieldName)...)
-		newTokens = append(newTokens, ":")
-		newTokens = append(newTokens, tokensToStrings(fieldType)...)
-
-		re.gir.tokenSlice, err = RewriteTokensBetween(re.gir.tokenSlice, p1.Index, p4.Index, newTokens)
-		if err != nil {
-			fmt.Println("Error rewriting file buffer:", err)
-			return
-		}
-	}
+	// Reordering is now done per-name in PostVisitDeclStmtValueSpecNames
+	re.emitToken(";", Semicolon, 0)
 	re.shouldGenerate = false
-
 }
 
 func (re *RustEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
@@ -845,6 +889,7 @@ func (re *RustEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 
 func (re *RustEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
+	re.inAssignRhs = true
 	opTokenType := re.getTokenType(re.assignmentToken)
 	re.emitToken(re.assignmentToken, opTokenType, indent+1)
 	re.emitToken(" ", WhiteSpace, 0)
@@ -853,6 +898,7 @@ func (re *RustEmitter) PreVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
 func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = false
 	re.isTuple = false
+	re.inAssignRhs = false
 }
 
 func (re *RustEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, indent int) {
@@ -890,6 +936,21 @@ func (re *RustEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) 
 	}
 	re.shouldGenerate = false
 
+}
+
+func (re *RustEmitter) PreVisitIndexExpr(node *ast.IndexExpr, indent int) {
+	// For assignment RHS, check if the element type is a function (needs borrowing in Rust)
+	if re.inAssignRhs {
+		tv := re.pkg.TypesInfo.Types[node.X]
+		if tv.Type != nil {
+			// Check if it's a slice/array of functions
+			typeStr := tv.Type.String()
+			if strings.Contains(typeStr, "func(") {
+				// Add borrow operator for function types
+				re.gir.emitToFileBuffer("&", EmptyVisitMethod)
+			}
+		}
+	}
 }
 
 func (re *RustEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
@@ -949,6 +1010,7 @@ func (re *RustEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
 
 func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	re.insideForPostCond = true
+	re.sawIncrement = false // Reset for this for loop
 	str := re.emitAsString("for ", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = true
@@ -1034,36 +1096,29 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 		}
 	}
 
-	p5 := SearchPointerIndexReverse(PreVisitForStmtPost, re.gir.pointerAndIndexVec)
 	p6 := SearchPointerIndexReverse(PostVisitForStmtPost, re.gir.pointerAndIndexVec)
-	increment := false
-	if p5 != nil && p6 != nil {
-		// Extract the substring between the positions of the pointers
-		postStmtTokens, err := ExtractTokensBetween(p5.Index, p6.Index, re.gir.tokenSlice)
-		if err != nil {
-			fmt.Println("Error extracting post statement:", err)
-			return
-		}
-		for i := 0; i < len(postStmtTokens); i++ {
-			tok := postStmtTokens[i]
-			if tok.Type == WhiteSpace {
-				postStmtTokens, _ = RemoveTokenAt(postStmtTokens, i)
-				i = i - 1
-			}
-		}
-		for _, tok := range postStmtTokens {
-			if tok.Type == UnaryOperator && tok.Content == "++" {
-				increment = true
-			}
-		}
+
+	// Rewrite for loop to Rust range syntax: for var in start..end
+	pFor := SearchPointerIndexReverse(PreVisitForStmt, re.gir.pointerAndIndexVec)
+	if pFor != nil && p6 != nil && len(forVars) > 0 && len(rangeTokens) >= 2 && re.sawIncrement {
+		// Build new tokens for Rust for loop: "for var in start..end\n"
+		newTokens := []string{}
+		newTokens = append(newTokens, "for ")
+		newTokens = append(newTokens, forVars[0].Content)
+		newTokens = append(newTokens, " in ")
+		newTokens = append(newTokens, rangeTokens[0].Content)
+		newTokens = append(newTokens, "..")
+		newTokens = append(newTokens, rangeTokens[1].Content)
+		newTokens = append(newTokens, "\n")
+
+		// Rewrite the tokens from PreVisitForStmt to PostVisitForStmtPost
+		re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pFor.Index, p6.Index, newTokens)
 	}
-	_ = increment
-	// TODO rewrite for loops properly
 }
 
 func (re *RustEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString("foreach (var ", indent)
+	str := re.emitAsString("for ", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -1073,21 +1128,30 @@ func (re *RustEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
-	str := re.emitAsString(")\n", 0)
+	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = false
 }
 
 func (re *RustEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	re.shouldGenerate = true
+	// Track if we see ++ for for loop rewriting
+	if node.Tok.String() == "++" {
+		re.sawIncrement = true
+	}
 }
 
 func (re *RustEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	content := node.Tok.String()
+	// Rust doesn't support ++ or --, convert to += 1 or -= 1
+	if content == "++" {
+		re.gir.emitToFileBuffer(" += 1", EmptyVisitMethod)
+	} else if content == "--" {
+		re.gir.emitToFileBuffer(" -= 1", EmptyVisitMethod)
+	}
 	if !re.insideForPostCond {
 		re.emitToken(";", Semicolon, 0)
 	}
-	re.emitToken(content, UnaryOperator, 0)
 	re.shouldGenerate = false
 }
 
@@ -1127,6 +1191,11 @@ func (re *RustEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
+	// For empty struct initialization in Rust, add ..Default::default()
+	// But NOT for arrays/vectors - those just use {}
+	if len(node) == 0 && !re.isArray {
+		re.gir.emitToFileBuffer("..Default::default()", EmptyVisitMethod)
+	}
 	re.emitToken("}", RightBrace, 0)
 }
 
@@ -1135,6 +1204,11 @@ func (re *RustEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, indent 
 		str := re.emitAsString(", ", 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
+}
+
+func (re *RustEmitter) PreVisitSliceExpr(node *ast.SliceExpr, indent int) {
+	// Add & for borrowing since slice expressions create unsized types
+	re.gir.emitToFileBuffer("&", EmptyVisitMethod)
 }
 
 func (re *RustEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
@@ -1152,16 +1226,19 @@ func (re *RustEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
-	re.emitToken("(", LeftParen, indent)
+	// Wrap closure in Box::new() for Rust
+	str := re.emitAsString("Box::new(", 0)
+	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("|", Identifier, indent)
 }
 func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
 	re.emitToken("}", RightBrace, 0)
+	// Close the Box::new() wrapper
+	re.emitToken(")", RightParen, 0)
 }
 
 func (re *RustEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
-	re.emitToken(")", RightParen, 0)
-	str := re.emitAsString("=>", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	re.emitToken("|", Identifier, 0)
 }
 
 func (re *RustEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
@@ -1169,13 +1246,15 @@ func (re *RustEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, inde
 	if index > 0 {
 		str += re.emitAsString(", ", 0)
 	}
+	// Emit name first, then colon, then type will follow
+	if len(node.Names) > 0 {
+		str += re.emitAsString(node.Names[0].Name+": ", 0)
+	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
 func (re *RustEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
-	str := re.emitAsString(" ", 0)
-	str += re.emitAsString(node.Names[0].Name, indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	// Type has already been emitted, nothing to do
 }
 
 func (re *RustEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {

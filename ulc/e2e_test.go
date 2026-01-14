@@ -23,7 +23,7 @@ type TestCase struct {
 var e2eTestCases = []TestCase{
 	{"basic", "tests/basic", true, true},
 	{"slice", "tests/slice", true, true},
-	{"complex", "tests/complex", true, false},
+	{"complex", "tests/complex", true, true},
 	{"iceberg", "libs/iceberg", true, false},
 	{"contlib", "libs/contlib", true, false},
 	{"uql", "libs/uql", true, false},
