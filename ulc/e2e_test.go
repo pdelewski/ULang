@@ -24,7 +24,7 @@ var e2eTestCases = []TestCase{
 	{"basic", "tests/basic", true, true},
 	{"slice", "tests/slice", true, true},
 	{"complex", "tests/complex", true, true},
-	{"iceberg", "libs/iceberg", true, false},
+	{"iceberg", "libs/iceberg", true, true},
 	{"contlib", "libs/contlib", true, false},
 	{"uql", "libs/uql", true, false},
 	{"substrait", "libs/substrait", true, false},

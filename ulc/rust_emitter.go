@@ -12,18 +12,23 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var rustDestTypes = []string{"i8", "i16", "i32", "long", "byte", "ushort", "object", "string", "i32"}
+var rustDestTypes = []string{"i8", "i16", "i32", "i64", "u8", "u16", "Box<dyn Any>", "String", "i32"}
 
 var rustTypesMap = map[string]string{
-	"int8":   rustDestTypes[0],
-	"int16":  rustDestTypes[1],
-	"int32":  rustDestTypes[2],
-	"int64":  rustDestTypes[3],
-	"uint8":  rustDestTypes[4],
-	"uint16": rustDestTypes[5],
-	"any":    rustDestTypes[6],
-	"string": rustDestTypes[7],
-	"int":    rustDestTypes[8],
+	"int8":    rustDestTypes[0],
+	"int16":   rustDestTypes[1],
+	"int32":   rustDestTypes[2],
+	"int64":   rustDestTypes[3],
+	"uint8":   rustDestTypes[4],
+	"uint16":  rustDestTypes[5],
+	"uint32":  "u32",
+	"uint64":  "u64",
+	"any":     rustDestTypes[6],
+	"string":  rustDestTypes[7],
+	"int":     rustDestTypes[8],
+	"bool":    "bool",
+	"float32": "f32",
+	"float64": "f64",
 }
 
 // mapGoTypeToRust converts a Go type string to its Rust equivalent
@@ -39,22 +44,25 @@ type RustEmitter struct {
 	Output string
 	file   *os.File
 	BaseEmitter
-	pkg               *packages.Package
-	insideForPostCond bool
-	assignmentToken   string
-	forwardDecls      bool
-	shouldGenerate    bool
-	numFuncResults    int
-	aliases           map[string]Alias
-	currentPackage    string
-	isArray           bool
-	arrayType         string
-	isTuple           bool
-	sawIncrement      bool   // Track if we saw ++ in for loop post statement
-	declType          string // Store the type for multi-name declarations
-	declNameCount     int    // Count of names in current declaration
-	declNameIndex     int    // Current name index
-	inAssignRhs       bool   // Track if we're in assignment RHS
+	pkg                  *packages.Package
+	insideForPostCond    bool
+	assignmentToken      string
+	forwardDecls         bool
+	shouldGenerate       bool
+	numFuncResults       int
+	aliases              map[string]Alias
+	currentPackage       string
+	isArray              bool
+	arrayType            string
+	isTuple              bool
+	sawIncrement         bool   // Track if we saw ++ in for loop post statement
+	declType             string // Store the type for multi-name declarations
+	declNameCount        int    // Count of names in current declaration
+	declNameIndex        int    // Current name index
+	inAssignRhs                       bool   // Track if we're in assignment RHS
+	pkgHasInterfaceTypes              bool   // Track if current package has any interface{} types
+	currentCompLitTypeNoDefault       bool   // Track if current composite literal's type doesn't derive Default
+	processedPkgsInterfaceTypes       map[string]bool // Cache for package interface{} type checks
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -377,6 +385,10 @@ func (re *RustEmitter) PostVisitBasicLit(e *ast.BasicLit, indent int) {
 	if re.forwardDecls {
 		return
 	}
+	// For string literals, add .to_string() to convert &str to String
+	if e.Kind == token.STRING {
+		re.gir.emitToFileBuffer(".to_string()", EmptyVisitMethod)
+	}
 }
 
 func (re *RustEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
@@ -523,6 +535,61 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 		return
 	}
 	re.pkg = pkg
+	// Initialize the cache if not already done
+	if re.processedPkgsInterfaceTypes == nil {
+		re.processedPkgsInterfaceTypes = make(map[string]bool)
+	}
+	// Check if package has any interface{} types
+	re.pkgHasInterfaceTypes = re.packageHasInterfaceTypes(pkg)
+	// Cache this package's result
+	re.processedPkgsInterfaceTypes[pkg.PkgPath] = re.pkgHasInterfaceTypes
+}
+
+// packageHasInterfaceTypes scans all structs in the package for interface{} fields
+func (re *RustEmitter) packageHasInterfaceTypes(pkg *packages.Package) bool {
+	for _, file := range pkg.Syntax {
+		for _, decl := range file.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok {
+				for _, spec := range genDecl.Specs {
+					if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+						if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+							if structType.Fields != nil {
+								for _, field := range structType.Fields.List {
+									if field.Type != nil {
+										typeStr := pkg.TypesInfo.Types[field.Type].Type.String()
+										if strings.Contains(typeStr, "interface{}") || strings.Contains(typeStr, "interface {") {
+											return true
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+// typeHasInterfaceFields checks if a type contains interface{} fields (directly or transitively)
+func (re *RustEmitter) typeHasInterfaceFields(t types.Type) bool {
+	// Get the underlying type
+	underlying := t.Underlying()
+	if structType, ok := underlying.(*types.Struct); ok {
+		for i := 0; i < structType.NumFields(); i++ {
+			field := structType.Field(i)
+			fieldTypeStr := field.Type().String()
+			if strings.Contains(fieldTypeStr, "interface{}") || strings.Contains(fieldTypeStr, "interface {") {
+				return true
+			}
+			// Check nested structs recursively
+			if re.typeHasInterfaceFields(field.Type()) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (re *RustEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
@@ -558,8 +625,16 @@ func (re *RustEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	// Add derive macros for Default (needed for ..Default::default() in struct init)
-	str := re.emitAsString("#[derive(Default, Clone, Debug)]\n", indent+2)
+	// If package has any interface{} types, avoid Default/Clone derives for ALL structs
+	// This prevents cascading issues where struct A contains struct B which has interface{}
+	var str string
+	if re.pkgHasInterfaceTypes {
+		// Only derive Debug for packages with Any fields
+		str = re.emitAsString("#[derive(Debug)]\n", indent+2)
+	} else {
+		// Add derive macros for Default (needed for ..Default::default() in struct init)
+		str = re.emitAsString("#[derive(Default, Clone, Debug)]\n", indent+2)
+	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	str = re.emitAsString(fmt.Sprintf("pub struct %s\n", node.Name), indent+2)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -655,6 +730,20 @@ func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent 
 	}
 }
 
+func (re *RustEmitter) PreVisitSelectorExprX(node ast.Expr, indent int) {
+	// For package names, suppress generation since we're generating single-file output
+	if ident, ok := node.(*ast.Ident); ok {
+		obj := re.pkg.TypesInfo.Uses[ident]
+		if obj != nil {
+			if _, ok := obj.(*types.PkgName); ok {
+				// Don't generate the package name
+				re.shouldGenerate = false
+				return
+			}
+		}
+	}
+}
+
 func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	if re.forwardDecls {
 		return
@@ -665,11 +754,14 @@ func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 		if re.lowerToBuiltins(ident.Name) == "" {
 			return
 		}
-		// Check if this is a package name - use :: for module access
+		// Check if this is a package name - skip operator for single-file output
 		obj := re.pkg.TypesInfo.Uses[ident]
 		if obj != nil {
 			if _, ok := obj.(*types.PkgName); ok {
-				scopeOperator = "::"
+				// For single-file output, don't emit any scope operator for package references
+				// The type/function will be referenced directly
+				re.shouldGenerate = true // Re-enable for the selector part
+				return
 			}
 		}
 	}
@@ -1155,6 +1247,53 @@ func (re *RustEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	re.shouldGenerate = false
 }
 
+func (re *RustEmitter) PreVisitCompositeLit(node *ast.CompositeLit, indent int) {
+	// Check if the composite literal's type is from a package with interface{} types
+	// If so, that type won't derive Default, so we shouldn't use ..Default::default()
+	re.currentCompLitTypeNoDefault = false // Reset for each composite literal
+
+	if node.Type != nil {
+		typeInfo := re.pkg.TypesInfo.Types[node.Type]
+		if typeInfo.Type != nil {
+			// Check if this is a named type and get its package
+			if named, ok := typeInfo.Type.(*types.Named); ok {
+				if named.Obj() != nil && named.Obj().Pkg() != nil {
+					typePkg := named.Obj().Pkg()
+					typePkgPath := typePkg.Path()
+					// Check if we've already determined this package has interface{} types
+					if hasIntf, cached := re.processedPkgsInterfaceTypes[typePkgPath]; cached {
+						re.currentCompLitTypeNoDefault = hasIntf
+					} else {
+						// Not cached, check if the type's package is same as current
+						if typePkgPath == re.pkg.PkgPath {
+							re.currentCompLitTypeNoDefault = re.pkgHasInterfaceTypes
+						} else {
+							// For external packages, check if ANY type in that package has interface{} fields
+							hasIntf := re.packageScopeHasInterfaceTypes(typePkg)
+							re.processedPkgsInterfaceTypes[typePkgPath] = hasIntf
+							re.currentCompLitTypeNoDefault = hasIntf
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// packageScopeHasInterfaceTypes checks if any struct in the package has interface{} fields
+func (re *RustEmitter) packageScopeHasInterfaceTypes(pkg *types.Package) bool {
+	scope := pkg.Scope()
+	for _, name := range scope.Names() {
+		obj := scope.Lookup(name)
+		if typeName, ok := obj.(*types.TypeName); ok {
+			if re.typeHasInterfaceFields(typeName.Type()) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (re *RustEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 	re.gir.emitToFileBuffer("", "@PreVisitCompositeLitType")
 }
@@ -1193,7 +1332,8 @@ func (re *RustEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
 func (re *RustEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
 	// For empty struct initialization in Rust, add ..Default::default()
 	// But NOT for arrays/vectors - those just use {}
-	if len(node) == 0 && !re.isArray {
+	// Don't use Default::default() if the type doesn't derive Default (due to interface{} fields)
+	if len(node) == 0 && !re.isArray && !re.currentCompLitTypeNoDefault {
 		re.gir.emitToFileBuffer("..Default::default()", EmptyVisitMethod)
 	}
 	re.emitToken("}", RightBrace, 0)
