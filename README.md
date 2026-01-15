@@ -1,24 +1,96 @@
 # ULang
 
-This project is a personal experiment aimed at implementing a Go language transpiler that provides a foundation for writing portable libraries.
-Currently, only a limited set of primitives is supported for transpilation. The goal is to gradually extend this subset over time.
-Ultimately, some features might remain unsupported due to the lack of corresponding primitives on the target platform.
+A Go language transpiler that generates portable code for multiple target platforms. Write your code once in Go and transpile it to C++, C#, or Rust.
+
+## Overview
+
+This project provides a foundation for writing portable libraries in Go that can be transpiled to multiple backend languages. Currently supported backends:
+
+- **C++** - generates `.cpp` files
+- **C#** - generates `.cs` files
+- **Rust** - generates `.rs` files
+
+## Building
+
+To build the compiler:
+
+```bash
+cd ulc
+go generate
+go build -o ulc .
+```
 
 ## Usage
 
-To build the project, run the following command:
-
 ```bash
-  go generate
-  go run . --source=[directory] --output=[file]
+./ulc -source=[directory] -output=[name] -backend=[backend]
 ```
 
-The `--source` flag specifies the directory containing the source files, while the `--output` flag specifies the output file where the transpiled code will be written.
-The transpiler will process all `.go` files in the specified source directory and generate the corresponding output file.
+### Flags
 
-## Example
-To transpile the source files located in the `src` directory and write the output to `output`, use the following command:
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-source` | Source directory containing Go files | (required) |
+| `-output` | Output file name (without extension) | (required) |
+| `-backend` | Backend(s) to use: `all`, `cpp`, `cs`, `rust` | `all` |
 
+The `-backend` flag accepts comma-separated values for multiple backends.
+
+### Examples
+
+Transpile to all backends:
 ```bash
-  go run . --source=./../libs/uql --output=uql
+./ulc -source=./libs/uql -output=uql
 ```
+
+Transpile to Rust only:
+```bash
+./ulc -source=./libs/uql -output=uql -backend=rust
+```
+
+Transpile to C# and Rust:
+```bash
+./ulc -source=./libs/uql -output=uql -backend=cs,rust
+```
+
+## Supported Features
+
+### Types
+- Primitive types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`
+- `string`
+- Slices: `[]T`
+- Structs
+- Function types
+- `interface{}`
+
+### Language Constructs
+- Variable declarations and assignments
+- Functions with multiple return values
+- Structs with methods
+- For loops (C-style and range-based)
+- If/else statements
+- Switch statements
+
+### Limitations
+
+Some Go features may not be fully supported due to differences in target platforms. See `ulc/doc/rust_backend_rules.md` for detailed implementation notes on the Rust backend.
+
+## Project Structure
+
+```
+ULang/
+├── ulc/                    # Compiler source code
+│   ├── main.go            # Entry point
+│   ├── rust_emitter.go    # Rust backend
+│   ├── csharp_emitter.go  # C# backend
+│   ├── cpp_emitter.go     # C++ backend
+│   └── doc/               # Documentation
+├── libs/                   # Example libraries
+│   ├── uql/               # SQL query parser
+│   └── contlib/           # Container library
+└── tests/                  # Test cases
+```
+
+## License
+
+This project is a personal experiment for exploring language transpilation concepts.
