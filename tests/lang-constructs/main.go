@@ -25,25 +25,14 @@ package main
 //
 // 7. for _, x := range []int{1,2,3} - Range over inline slice literal
 //    Rust backend generates malformed code
+//
+// 8. []interface{} - Slice of empty interface (any type)
+//    Not supported across backends
 
-import "fmt"
-
-// Constants with explicit values (from substrait)
-const (
-	ExprLiteral  ExprKind = 0
-	ExprColumn   ExprKind = 1
-	ExprFunction ExprKind = 2
+import (
+	"alltests/types"
+	"fmt"
 )
-
-const (
-	RelOpScan    RelNodeKind = 0
-	RelOpFilter  RelNodeKind = 1
-	RelOpProject RelNodeKind = 2
-)
-
-// Type aliases (from substrait)
-type ExprKind int
-type RelNodeKind int
 
 // Struct type declaration with slice field
 type Composite struct {
@@ -54,58 +43,6 @@ type Composite struct {
 type Person struct {
 	name string
 	age  int
-}
-
-// Struct with int32, int64 types (from iceberg)
-type DataRecord struct {
-	id          int32
-	size        int64
-	count       int32
-	sequenceNum int64
-}
-
-// Struct with bool field (from iceberg Field)
-type Field struct {
-	ID       int32
-	Name     string
-	Required bool
-}
-
-// Struct with nested struct field - not slice (from iceberg ManifestEntry)
-type ColumnStats struct {
-	NullCount int64
-}
-
-type DataFile struct {
-	FilePath    string
-	RecordCount int64
-	Stats       ColumnStats
-}
-
-type ManifestEntry struct {
-	Status   int32
-	DataFileF DataFile
-}
-
-// Struct with custom type fields (from substrait)
-type ExprNode struct {
-	Kind     ExprKind
-	Children []int
-	ValueIdx int
-}
-
-type RelNode struct {
-	Kind     RelNodeKind
-	InputIdx int
-	ExprIdxs []int
-}
-
-// Struct with slices of structs (from substrait)
-type Plan struct {
-	RelNodes []RelNode
-	Exprs    []ExprNode
-	Literals []string
-	Root     int
 }
 
 // Basic function with single return value
@@ -385,31 +322,31 @@ func testInt32Int64Types() {
 	fmt.Println(b)
 
 	// Struct with int32/int64 fields
-	record := DataRecord{
-		id:          1,
-		size:        1024,
-		count:       10,
-		sequenceNum: 999,
+	record := types.DataRecord{
+		ID:          1,
+		Size:        1024,
+		Count:       10,
+		SequenceNum: 999,
 	}
-	fmt.Println(record.id)
-	fmt.Println(record.size)
+	fmt.Println(record.ID)
+	fmt.Println(record.Size)
 }
 
 // Test type aliases (from substrait)
 func testTypeAliases() {
-	var kind ExprKind
-	kind = ExprLiteral
+	var kind types.ExprKind
+	kind = types.ExprLiteral
 
-	if kind == ExprLiteral {
+	if kind == types.ExprLiteral {
 		fmt.Println("literal")
 	}
-	if kind == ExprColumn {
+	if kind == types.ExprColumn {
 		fmt.Println("column")
 	}
 
-	var relKind RelNodeKind
-	relKind = RelOpScan
-	if relKind == RelOpScan {
+	var relKind types.RelNodeKind
+	relKind = types.RelOpScan
+	if relKind == types.RelOpScan {
 		fmt.Println("scan")
 	}
 }
@@ -422,27 +359,21 @@ func testPrintfMultipleArgs() {
 
 // Test zero-value struct declaration (from substrait)
 func testZeroValueStruct() {
-	var plan Plan
+	var plan types.Plan
 	plan.Literals = []string{}
 	plan.Root = 0
 	fmt.Println(plan.Root)
 	fmt.Println(len(plan.Literals))
 }
 
-// Helper function returning modified struct (pattern from substrait)
-func AddLiteralToPlan(plan Plan, value string) (Plan, int) {
-	plan.Literals = append(plan.Literals, value)
-	return plan, len(plan.Literals) - 1
-}
-
 // Test function returning modified struct
 func testReturnModifiedStruct() {
-	var plan Plan
+	var plan types.Plan
 	plan.Literals = []string{}
 
 	idx := 0
-	plan, idx = AddLiteralToPlan(plan, "first")
-	plan, idx = AddLiteralToPlan(plan, "second")
+	plan, idx = types.AddLiteralToPlan(plan, "first")
+	plan, idx = types.AddLiteralToPlan(plan, "second")
 
 	fmt.Println(idx)
 	fmt.Println(len(plan.Literals))
@@ -450,7 +381,7 @@ func testReturnModifiedStruct() {
 
 // Test bool field in struct (from iceberg)
 func testBoolFieldInStruct() {
-	f := Field{
+	f := types.Field{
 		ID:       1,
 		Name:     "column1",
 		Required: true,
@@ -461,7 +392,7 @@ func testBoolFieldInStruct() {
 		fmt.Println("required")
 	}
 
-	f2 := Field{
+	f2 := types.Field{
 		ID:       2,
 		Name:     "column2",
 		Required: false,
@@ -473,14 +404,14 @@ func testBoolFieldInStruct() {
 
 // Test nested struct field (from iceberg)
 func testNestedStructField() {
-	stats := ColumnStats{NullCount: 100}
-	dataFile := DataFile{
+	stats := types.ColumnStats{NullCount: 100}
+	dataFile := types.DataFile{
 		FilePath:    "/path/to/file",
 		RecordCount: 1000,
 		Stats:       stats,
 	}
-	entry := ManifestEntry{
-		Status:   1,
+	entry := types.ManifestEntry{
+		Status:    1,
 		DataFileF: dataFile,
 	}
 
@@ -488,6 +419,43 @@ func testNestedStructField() {
 	fmt.Println(entry.DataFileF.FilePath)
 	fmt.Println(entry.DataFileF.RecordCount)
 	fmt.Println(entry.DataFileF.Stats.NullCount)
+}
+
+// Test multi-package import (from iceberg pattern)
+func testMultiPackageImport() {
+	// Use types from the types package
+	record := types.DataRecord{
+		ID:          42,
+		Size:        2048,
+		Count:       5,
+		SequenceNum: 100,
+	}
+	types.LoadData(record)
+
+	// Use function from types package
+	var plan types.Plan
+	plan.Literals = []string{}
+	idx := 0
+	plan, idx = types.AddLiteralToPlan(plan, "value1")
+	plan, idx = types.AddLiteralToPlan(plan, "value2")
+	fmt.Println(idx)
+	fmt.Println(len(plan.Literals))
+
+	// Use constants from types package
+	if types.ExprLiteral == 0 {
+		fmt.Println("literal is 0")
+	}
+
+	// Use nested struct from types package
+	entry := types.ManifestEntry{
+		Status: 1,
+		DataFileF: types.DataFile{
+			FilePath:    "/data/file.parquet",
+			RecordCount: 500,
+			Stats:       types.ColumnStats{NullCount: 10},
+		},
+	}
+	fmt.Println(entry.DataFileF.FilePath)
 }
 
 // Complete language feature test
@@ -548,6 +516,7 @@ func main() {
 	testReturnModifiedStruct()
 	testBoolFieldInStruct()
 	testNestedStructField()
+	testMultiPackageImport()
 
 	fmt.Println("=== Done ===")
 }

@@ -16,14 +16,9 @@ type TestCase struct {
 }
 
 var e2eTestCases = []TestCase{
-	{"basic", "../tests/basic", true, true},
-	{"slice", "../tests/slice", true, true},
-	{"complex", "../tests/complex", true, true},
-	{"all", "../tests/all", true, true},
-	{"contlib", "../libs/contlib", true, true},
-	{"uql", "../libs/uql", true, true},
-	{"iceberg", "../libs/iceberg", true, true},
-	{"substrait", "../libs/substrait", true, true},
+	{"lang-constructs", "../tests/lang-constructs", true, true},
+	{"contlib", "../examples/contlib", true, true},
+	{"uql", "../examples/uql", true, true},
 }
 
 func TestE2E(t *testing.T) {
