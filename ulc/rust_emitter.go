@@ -60,6 +60,7 @@ type RustEmitter struct {
 	declNameCount        int    // Count of names in current declaration
 	declNameIndex        int    // Current name index
 	inAssignRhs                       bool   // Track if we're in assignment RHS
+	inAssignLhs                       bool   // Track if we're in assignment LHS
 	inFieldAssign                     bool   // Track if we're assigning to a struct field
 	isArrayStack                      []bool // Stack to save/restore isArray for nested composite literals
 	pkgHasInterfaceTypes              bool   // Track if current package has any interface{} types
@@ -112,12 +113,13 @@ func escapeRustKeyword(name string) string {
 	rustKeywords := map[string]bool{
 		"as": true, "break": true, "const": true, "continue": true,
 		"crate": true, "else": true, "enum": true, "extern": true,
-		"false": true, "fn": true, "for": true, "if": true,
+		// Note: "false" and "true" are NOT escaped - they're boolean literals
+		"fn": true, "for": true, "if": true,
 		"impl": true, "in": true, "let": true, "loop": true,
 		"match": true, "mod": true, "move": true, "mut": true,
 		"pub": true, "ref": true, "return": true, "self": true,
 		"Self": true, "static": true, "struct": true, "super": true,
-		"trait": true, "true": true, "type": true, "unsafe": true,
+		"trait": true, "type": true, "unsafe": true,
 		"use": true, "where": true, "while": true,
 		// Reserved for future use
 		"abstract": true, "async": true, "await": true, "become": true,
@@ -1618,6 +1620,7 @@ func (re *RustEmitter) PreVisitAssignStmtLhsExpr(node ast.Expr, index int, inden
 
 func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
+	re.inAssignLhs = true // Track that we're in LHS
 	assignmentToken := node.Tok.String()
 	// Check if LHS is a field access (SelectorExpr)
 	re.inFieldAssign = false
@@ -1681,6 +1684,7 @@ func (re *RustEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) 
 	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
 		re.emitToken(")", RightParen, indent)
 	}
+	re.inAssignLhs = false // Done with LHS
 	re.shouldGenerate = false
 }
 
@@ -1728,7 +1732,8 @@ func (re *RustEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) 
 
 	// Add .clone() for Vec element access when the element type doesn't implement Copy
 	// This is needed because Rust doesn't allow moving out of indexed collections
-	if node.X != nil {
+	// BUT: Don't add .clone() when we're in the LHS of an assignment (we're assigning TO it)
+	if node.X != nil && !re.inAssignLhs {
 		tv := re.pkg.TypesInfo.Types[node.X]
 		if tv.Type != nil {
 			// Check if it's a slice/array type
@@ -2131,7 +2136,19 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 		// For slice type aliases (like AST = []Statement), replace with Vec::new()
 		// The braces will be suppressed in PreVisitCompositeLitElts/PostVisitCompositeLitElts
 		if re.currentCompLitIsSlice {
-			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{"Vec::new()"})
+			if re.inKeyValueExpr || re.inFieldAssign || re.inReturnStmt {
+				// Inside struct field initialization, field assignment, or return statement
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{"Vec::new()"})
+			} else {
+				// Variable declaration: let x = []Type{} -> let x: Vec<type> = Vec::new()
+				// Extract the type tokens for the type annotation
+				vecTypeStrRepr, _ := ExtractTokensBetween(pointerAndPosition.Index, len(re.gir.tokenSlice), re.gir.tokenSlice)
+				newTokens := []string{}
+				newTokens = append(newTokens, ":")
+				newTokens = append(newTokens, tokensToStrings(vecTypeStrRepr)...)
+				newTokens = append(newTokens, " = Vec::new()")
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index-len("=")-len(" "), len(re.gir.tokenSlice), newTokens)
+			}
 			return
 		}
 		// TODO not very effective
@@ -2279,13 +2296,8 @@ func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 			}
 		}
 	}
-	// Wrap closure - use Rc::new() for struct fields (KeyValueExpr), Box::new() otherwise
-	var wrapperStr string
-	if re.inKeyValueExpr {
-		wrapperStr = "Rc::new("
-	} else {
-		wrapperStr = "Box::new("
-	}
+	// Wrap closure with Rc::new() since all function types use Rc<dyn Fn>
+	wrapperStr := "Rc::new("
 	str := re.emitAsString(wrapperStr, 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.emitToken("|", Identifier, indent)
