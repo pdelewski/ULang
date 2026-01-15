@@ -46,51 +46,7 @@ jobs:
           cd ulc/astyle
           make -f Makefile.cgo
 
-      - name: Run tests sequentially
+      - name: Run E2E tests
         run: |
-          tests=(
-            "tests/basic basic true true"
-            "tests/slice slice true true"
-            "tests/complex complex true false "
-            "libs/iceberg iceberg true false"
-            "libs/contlib contlib true false"
-            "libs/uql uql true false"
-            "libs/substrait substrait true false"
-          )
-
-          for test_case in "${tests[@]}"; do
-            read test_dir test_name dotnet_enabled rust_enabled <<< "$test_case"
-
-            echo "▶️ Running: $test_name"
-
-            echo "🚀 go run"
-            (cd ulc && go run . --source=./../$test_dir --output=$test_name)
-
-            echo "⚙️ C++ compile"
-            (cd ulc && g++ -std=c++17 $test_name.cpp)
-
-            if [[ "$dotnet_enabled" == "true" ]]; then
-              echo "🧱 .NET setup"
-              mkdir -p dotnet_project/app
-              dotnet new console --output dotnet_project/app
-              mv ulc/$test_name.cs dotnet_project/app/Program.cs
-              (cd dotnet_project/app && dotnet build)
-              rm -rf dotnet_project
-            fi
-
-            if [[ "$rust_enabled" == "true" ]]; then
-              echo "🦀 Rust setup"
-              mkdir -p rust_project/src
-              mv ulc/$test_name.rs rust_project/src/main.rs
-              echo "[package]" > rust_project/Cargo.toml
-              echo "name = \"$test_name\"" >> rust_project/Cargo.toml
-              echo "version = \"0.1.0\"" >> rust_project/Cargo.toml
-              echo "edition = \"2021\"" >> rust_project/Cargo.toml
-              (cd rust_project && cargo build)
-              rm -rf rust_project
-            fi
-
-            echo "🧹 Cleanup"
-            rm -f ulc/$test_name.cpp
-            echo "✅ Done with: $test_name"
-          done
+          cd ulc
+          go test -v -run TestE2E
