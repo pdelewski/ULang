@@ -19,8 +19,31 @@ package main
 //
 // 5. iota - Constant enumeration
 //    Not yet implemented
+//
+// 6. fmt.Sprintf - String formatting
+//    Rust backend has type mismatch issues with string_format2
+//
+// 7. for _, x := range []int{1,2,3} - Range over inline slice literal
+//    Rust backend generates malformed code
 
 import "fmt"
+
+// Constants with explicit values (from substrait)
+const (
+	ExprLiteral  ExprKind = 0
+	ExprColumn   ExprKind = 1
+	ExprFunction ExprKind = 2
+)
+
+const (
+	RelOpScan    RelNodeKind = 0
+	RelOpFilter  RelNodeKind = 1
+	RelOpProject RelNodeKind = 2
+)
+
+// Type aliases (from substrait)
+type ExprKind int
+type RelNodeKind int
 
 // Struct type declaration with slice field
 type Composite struct {
@@ -31,6 +54,58 @@ type Composite struct {
 type Person struct {
 	name string
 	age  int
+}
+
+// Struct with int32, int64 types (from iceberg)
+type DataRecord struct {
+	id          int32
+	size        int64
+	count       int32
+	sequenceNum int64
+}
+
+// Struct with bool field (from iceberg Field)
+type Field struct {
+	ID       int32
+	Name     string
+	Required bool
+}
+
+// Struct with nested struct field - not slice (from iceberg ManifestEntry)
+type ColumnStats struct {
+	NullCount int64
+}
+
+type DataFile struct {
+	FilePath    string
+	RecordCount int64
+	Stats       ColumnStats
+}
+
+type ManifestEntry struct {
+	Status   int32
+	DataFileF DataFile
+}
+
+// Struct with custom type fields (from substrait)
+type ExprNode struct {
+	Kind     ExprKind
+	Children []int
+	ValueIdx int
+}
+
+type RelNode struct {
+	Kind     RelNodeKind
+	InputIdx int
+	ExprIdxs []int
+}
+
+// Struct with slices of structs (from substrait)
+type Plan struct {
+	RelNodes []RelNode
+	Exprs    []ExprNode
+	Literals []string
+	Root     int
 }
 
 // Basic function with single return value
@@ -298,6 +373,123 @@ func testNestedIf() {
 	}
 }
 
+// Test int32, int64 types (from iceberg)
+func testInt32Int64Types() {
+	var a int32
+	var b int64
+
+	a = 100
+	b = 200
+
+	fmt.Println(a)
+	fmt.Println(b)
+
+	// Struct with int32/int64 fields
+	record := DataRecord{
+		id:          1,
+		size:        1024,
+		count:       10,
+		sequenceNum: 999,
+	}
+	fmt.Println(record.id)
+	fmt.Println(record.size)
+}
+
+// Test type aliases (from substrait)
+func testTypeAliases() {
+	var kind ExprKind
+	kind = ExprLiteral
+
+	if kind == ExprLiteral {
+		fmt.Println("literal")
+	}
+	if kind == ExprColumn {
+		fmt.Println("column")
+	}
+
+	var relKind RelNodeKind
+	relKind = RelOpScan
+	if relKind == RelOpScan {
+		fmt.Println("scan")
+	}
+}
+
+// Test fmt.Printf with multiple arguments (from substrait)
+func testPrintfMultipleArgs() {
+	fmt.Printf("a=%d, b=%d\n", 10, 20)
+	fmt.Printf("name=%s, value=%d\n", "test", 100)
+}
+
+// Test zero-value struct declaration (from substrait)
+func testZeroValueStruct() {
+	var plan Plan
+	plan.Literals = []string{}
+	plan.Root = 0
+	fmt.Println(plan.Root)
+	fmt.Println(len(plan.Literals))
+}
+
+// Helper function returning modified struct (pattern from substrait)
+func AddLiteralToPlan(plan Plan, value string) (Plan, int) {
+	plan.Literals = append(plan.Literals, value)
+	return plan, len(plan.Literals) - 1
+}
+
+// Test function returning modified struct
+func testReturnModifiedStruct() {
+	var plan Plan
+	plan.Literals = []string{}
+
+	idx := 0
+	plan, idx = AddLiteralToPlan(plan, "first")
+	plan, idx = AddLiteralToPlan(plan, "second")
+
+	fmt.Println(idx)
+	fmt.Println(len(plan.Literals))
+}
+
+// Test bool field in struct (from iceberg)
+func testBoolFieldInStruct() {
+	f := Field{
+		ID:       1,
+		Name:     "column1",
+		Required: true,
+	}
+	fmt.Println(f.ID)
+	fmt.Println(f.Name)
+	if f.Required {
+		fmt.Println("required")
+	}
+
+	f2 := Field{
+		ID:       2,
+		Name:     "column2",
+		Required: false,
+	}
+	if !f2.Required {
+		fmt.Println("optional")
+	}
+}
+
+// Test nested struct field (from iceberg)
+func testNestedStructField() {
+	stats := ColumnStats{NullCount: 100}
+	dataFile := DataFile{
+		FilePath:    "/path/to/file",
+		RecordCount: 1000,
+		Stats:       stats,
+	}
+	entry := ManifestEntry{
+		Status:   1,
+		DataFileF: dataFile,
+	}
+
+	fmt.Println(entry.Status)
+	fmt.Println(entry.DataFileF.FilePath)
+	fmt.Println(entry.DataFileF.RecordCount)
+	fmt.Println(entry.DataFileF.Stats.NullCount)
+}
+
 // Complete language feature test
 func testCompleteLanguageFeatures() {
 	var a int8
@@ -349,6 +541,13 @@ func main() {
 	testAppend()
 	testStructInitialization()
 	testNestedIf()
+	testInt32Int64Types()
+	testTypeAliases()
+	testPrintfMultipleArgs()
+	testZeroValueStruct()
+	testReturnModifiedStruct()
+	testBoolFieldInStruct()
+	testNestedStructField()
 
 	fmt.Println("=== Done ===")
 }
