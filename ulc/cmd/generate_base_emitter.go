@@ -1,3 +1,5 @@
+//go:build ignore
+
 // generate_base_emitter.go - Tool for automatically generating base_emitter.go
 //
 // This tool reads the Emitter interface from emitter.go and generates empty
