@@ -82,6 +82,7 @@ type RustEmitter struct {
 	localClosureBodyTokens            map[string][]Token // Map of local closure names to their body tokens
 	currentClosureName                string // Name of the variable being assigned a closure
 	inLocalClosureInline              bool   // Track if we're inlining a local closure
+	inLocalClosureBody                bool   // Track if we're inside a local closure body being processed
 	localClosureBodyStartIndex        int    // Token index where closure body starts (after opening brace)
 	localClosureAssignStartIndex      int    // Token index where the assignment statement starts
 	currentCompLitIsSlice             bool   // Track if current composite literal is a slice type alias
@@ -1586,7 +1587,9 @@ func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) 
 
 	// For local closure assignments, remove the entire statement from token stream
 	// The body tokens have already been stored in PostVisitFuncLit
-	if re.localClosureAssign && re.currentClosureName != "" {
+	// Only truncate for the outer closure assignment, not inner assignments
+	// inLocalClosureBody is false after PostVisitFuncLit, true while inside closure body
+	if re.localClosureAssign && re.currentClosureName != "" && !re.inLocalClosureBody {
 		// Remove all tokens from the assignment start to current position
 		if re.localClosureAssignStartIndex < len(re.gir.tokenSlice) {
 			re.gir.tokenSlice = re.gir.tokenSlice[:re.localClosureAssignStartIndex]
@@ -1624,12 +1627,15 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 		}
 	}
 	// Check if RHS is a function literal (for local closure inlining)
-	re.localClosureAssign = false
-	re.currentClosureName = ""
+	// Don't reset if we're inside a local closure body being processed
+	if !re.inLocalClosureBody {
+		re.localClosureAssign = false
+		re.currentClosureName = ""
+	}
 	if assignmentToken == ":=" && len(node.Rhs) == 1 {
 		if funcLit, ok := node.Rhs[0].(*ast.FuncLit); ok {
 			if ident, ok := node.Lhs[0].(*ast.Ident); ok {
-				re.localClosureAssign = true
+					re.localClosureAssign = true
 				re.currentClosureName = ident.Name
 				re.localClosures[ident.Name] = funcLit
 				// Record assignment start index for later removal
@@ -1665,15 +1671,15 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 }
 
 func (re *RustEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
+	// For local closure inlining, skip all emission - the assignment will be removed
+	if re.localClosureAssign && re.currentClosureName != "" {
+		re.shouldGenerate = false
+		return
+	}
 	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
 		re.emitToken(")", RightParen, indent)
 	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
 		re.emitToken(")", RightParen, indent)
-	}
-	// Add type annotation for local closures that mutate captured variables
-	// This changes the inferred type from Box<dyn Fn()> to Box<dyn FnMut()>
-	if re.localClosureAssign {
-		re.gir.emitToFileBuffer(": Box<dyn FnMut()>", EmptyVisitMethod)
 	}
 	re.shouldGenerate = false
 }
@@ -2253,6 +2259,10 @@ func (re *RustEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
+	// For local closure inlining, skip wrapper emission
+	if re.localClosureAssign && re.currentClosureName != "" {
+		return
+	}
 	// Check if this closure returns any (interface{})
 	re.currentFuncReturnsAny = false
 	if node.Type != nil && node.Type.Results != nil {
@@ -2281,8 +2291,8 @@ func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 	re.emitToken("|", Identifier, indent)
 }
 func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
-	// For local closures being inlined, extract and store body tokens
-	if re.localClosureAssign && re.currentClosureName != "" {
+	// For local closures being inlined, extract and store body tokens, skip wrapper
+	if re.inLocalClosureBody && re.currentClosureName != "" {
 		// Extract body tokens (from after { to current position)
 		bodyEndIndex := len(re.gir.tokenSlice)
 		if re.localClosureBodyStartIndex < bodyEndIndex {
@@ -2290,6 +2300,10 @@ func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
 			copy(bodyTokens, re.gir.tokenSlice[re.localClosureBodyStartIndex:bodyEndIndex])
 			re.localClosureBodyTokens[re.currentClosureName] = bodyTokens
 		}
+		// Clear the flag
+		re.inLocalClosureBody = false
+		// Don't emit the closing braces - the entire assignment will be truncated
+		return
 	}
 	re.emitToken("}", RightBrace, 0)
 	// Close the Rc::new() or Box::new() wrapper
@@ -2298,6 +2312,10 @@ func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
 }
 
 func (re *RustEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
+	// For local closure inlining, skip wrapper emission
+	if re.localClosureAssign && re.currentClosureName != "" {
+		return
+	}
 	re.emitToken("|", Identifier, 0)
 }
 
@@ -2320,13 +2338,15 @@ func (re *RustEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, ind
 }
 
 func (re *RustEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
+	// For local closures being inlined, skip wrapper emission but record body start
+	if re.localClosureAssign && re.currentClosureName != "" {
+		re.localClosureBodyStartIndex = len(re.gir.tokenSlice)
+		re.inLocalClosureBody = true // Track that we're inside the closure body
+		return
+	}
 	re.emitToken("{", LeftBrace, 0)
 	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	// For local closures being inlined, record where body starts
-	if re.localClosureAssign && re.currentClosureName != "" {
-		re.localClosureBodyStartIndex = len(re.gir.tokenSlice)
-	}
 }
 
 func (re *RustEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
