@@ -252,24 +252,39 @@ pub fn printf<T: fmt::Display>(val: T) {
     print!("{}", val);
 }
 
-pub fn printf2<T: fmt::Display>(_fmt: String, val: T) {
-    // Simplified: ignoring format string, just printing value
-    print!("{}", val);
+pub fn printf2<T: fmt::Display>(fmt_str: String, val: T) {
+    // Convert C-style format to Rust format
+    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+    let result = rust_fmt.replace("{}", &format!("{}", val));
+    print!("{}", result);
 }
 
-pub fn printf3<T1: fmt::Display, T2: fmt::Display>(_fmt: String, v1: T1, v2: T2) {
-    // Simplified: ignoring format string, just printing values
-    print!("{} {}", v1, v2);
+pub fn printf3<T1: fmt::Display, T2: fmt::Display>(fmt_str: String, v1: T1, v2: T2) {
+    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+    let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1);
+    print!("{}", result);
 }
 
-pub fn printf4<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display>(_fmt: String, v1: T1, v2: T2, v3: T3) {
-    // Simplified: ignoring format string, just printing values
-    print!("{} {} {}", v1, v2, v3);
+pub fn printf4<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display>(fmt_str: String, v1: T1, v2: T2, v3: T3) {
+    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+    let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1).replacen("{}", &format!("{}", v3), 1);
+    print!("{}", result);
 }
 
-pub fn printf5<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display, T4: fmt::Display>(_fmt: String, v1: T1, v2: T2, v3: T3, v4: T4) {
-    // Simplified: ignoring format string, just printing values
-    print!("{} {} {} {}", v1, v2, v3, v4);
+pub fn printf5<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display, T4: fmt::Display>(fmt_str: String, v1: T1, v2: T2, v3: T3, v4: T4) {
+    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+    let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1).replacen("{}", &format!("{}", v3), 1).replacen("{}", &format!("{}", v4), 1);
+    print!("{}", result);
+}
+
+// Print byte as character (for %c format)
+pub fn printc(b: i8) {
+    print!("{}", b as u8 as char);
+}
+
+// Convert byte to character string (for Sprintf %c format)
+pub fn byte_to_char(b: i8) -> String {
+    (b as u8 as char).to_string()
 }
 
 // Go-style append (returns a new Vec)
@@ -299,8 +314,9 @@ pub fn string_format(fmt_str: &str, args: &[&dyn fmt::Display]) -> String {
 }
 
 // string_format for 2 args (format string + 1 value)
-pub fn string_format2<T: fmt::Display>(_fmt: &str, val: T) -> String {
-    format!("{}", val)
+pub fn string_format2<T: fmt::Display>(fmt_str: &str, val: T) -> String {
+    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+    rust_fmt.replace("{}", &format!("{}", val))
 }
 
 pub fn len<T>(slice: &[T]) -> i32 {
@@ -557,6 +573,33 @@ func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 		if funNameStr == "printf" {
 			switch len(node) {
 			case 2:
+				// Special case: printf("%c", byte) -> printc(byte)
+				if basicLit, ok := node[0].(*ast.BasicLit); ok && basicLit.Kind == token.STRING {
+					fmtStr := strings.Trim(basicLit.Value, "\"")
+					if fmtStr == "%c" {
+						// Rewrite to printc and remove the format string argument
+						// Find the argument tokens
+						argTokens, err := ExtractTokensBetween(pArgsIndex, len(re.gir.tokenSlice), re.gir.tokenSlice)
+						if err == nil && len(argTokens) > 0 {
+							// Find the comma that separates the format string from the actual argument
+							argStr := strings.Join(tokensToStrings(argTokens), "")
+							// Skip the opening paren
+							if len(argStr) > 0 && argStr[0] == '(' {
+								argStr = argStr[1:]
+							}
+							// Find comma and extract just the second argument
+							commaIdx := strings.Index(argStr, ",")
+							if commaIdx >= 0 {
+								secondArg := strings.TrimSpace(argStr[commaIdx+1:])
+								// Rewrite: printf("%c", b) -> printc(b)
+								newTokens := []string{"printc", "(", secondArg}
+								re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1Index, len(re.gir.tokenSlice), newTokens)
+								// Don't return here - let the closing paren be added normally
+								break
+							}
+						}
+					}
+				}
 				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1Index, p2Index, []string{"printf2"})
 			case 3:
 				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1Index, p2Index, []string{"printf3"})
@@ -570,6 +613,27 @@ func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 		if funNameStr == "string_format" {
 			switch len(node) {
 			case 2:
+				// Special case: Sprintf("%c", byte) -> byte_to_char(byte)
+				if basicLit, ok := node[0].(*ast.BasicLit); ok && basicLit.Kind == token.STRING {
+					fmtStr := strings.Trim(basicLit.Value, "\"")
+					if fmtStr == "%c" {
+						// Rewrite to byte_to_char and remove the format string argument
+						argTokens, err := ExtractTokensBetween(pArgsIndex, len(re.gir.tokenSlice), re.gir.tokenSlice)
+						if err == nil && len(argTokens) > 0 {
+							argStr := strings.Join(tokensToStrings(argTokens), "")
+							if len(argStr) > 0 && argStr[0] == '(' {
+								argStr = argStr[1:]
+							}
+							commaIdx := strings.Index(argStr, ",")
+							if commaIdx >= 0 {
+								secondArg := strings.TrimSpace(argStr[commaIdx+1:])
+								newTokens := []string{"byte_to_char", "(", secondArg}
+								re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1Index, len(re.gir.tokenSlice), newTokens)
+								break
+							}
+						}
+					}
+				}
 				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1Index, p2Index, []string{"string_format2"})
 			}
 		}
