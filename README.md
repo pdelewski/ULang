@@ -16,9 +16,21 @@ To build the compiler:
 
 ```bash
 cd ulc
-go generate
-go build -o ulc .
+make
 ```
+
+### Make Targets
+
+| Target | Description |
+|--------|-------------|
+| `make` | Build the project (default) |
+| `make build` | Generate code, build astyle, and build ULC binary |
+| `make clean` | Clean all build artifacts |
+| `make rebuild` | Clean and rebuild everything |
+| `make dev` | Development build (with debug info) |
+| `make prod` | Production build (optimized) |
+| `make test` | Run tests |
+| `make help` | Show all available targets |
 
 ## Usage
 
