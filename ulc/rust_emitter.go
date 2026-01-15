@@ -79,8 +79,11 @@ type RustEmitter struct {
 	callExprArgsMarkerStack           []int  // Stack of indices for nested call arg markers
 	localClosureAssign                bool   // Track if current assignment has a function literal RHS
 	localClosures                     map[string]*ast.FuncLit // Map of local closure names to their AST
+	localClosureBodyTokens            map[string][]Token // Map of local closure names to their body tokens
 	currentClosureName                string // Name of the variable being assigned a closure
 	inLocalClosureInline              bool   // Track if we're inlining a local closure
+	localClosureBodyStartIndex        int    // Token index where closure body starts (after opening brace)
+	localClosureAssignStartIndex      int    // Token index where the assignment statement starts
 	currentCompLitIsSlice             bool   // Track if current composite literal is a slice type alias
 }
 
@@ -220,6 +223,7 @@ func (re *RustEmitter) PreVisitProgram(indent int) {
 	}
 	builtin := `use std::fmt;
 use std::any::Any;
+use std::rc::Rc;
 
 // Type aliases (Go-style)
 type Int8 = i8;
@@ -508,6 +512,19 @@ func (re *RustEmitter) PostVisitCallExprArgs(node []ast.Expr, indent int) {
 	funName, err := ExtractTokensBetween(p1Index, p2Index, re.gir.tokenSlice)
 	if err == nil {
 		funNameStr := strings.Join(tokensToStrings(funName), "")
+
+		// Handle local closure inlining: addToken() -> { body }
+		funNameTrimmedForClosure := strings.TrimSpace(funNameStr)
+		if bodyTokens, ok := re.localClosureBodyTokens[funNameTrimmedForClosure]; ok && len(node) == 0 {
+			// Replace the entire call with the inlined body wrapped in a block
+			newTokens := []string{"{"}
+			for _, tok := range bodyTokens {
+				newTokens = append(newTokens, tok.Content)
+			}
+			newTokens = append(newTokens, "}")
+			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, p1Index, len(re.gir.tokenSlice), newTokens)
+			return // Skip emitting closing paren since we replaced everything
+		}
 
 		// Handle type conversions: i8(x) -> (x as i8)
 		funNameTrimmed := strings.TrimSpace(funNameStr)
@@ -835,6 +852,9 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	if re.localClosures == nil {
 		re.localClosures = make(map[string]*ast.FuncLit)
 	}
+	if re.localClosureBodyTokens == nil {
+		re.localClosureBodyTokens = make(map[string][]Token)
+	}
 	// Check if package has any interface{} types
 	re.pkgHasInterfaceTypes = re.packageHasInterfaceTypes(pkg)
 	// Cache this package's result
@@ -932,8 +952,9 @@ func (re *RustEmitter) PreVisitGenStructInfo(node GenTypeInfo, indent int) {
 	hasInterfaceFields := re.structHasInterfaceFields(node.Name)
 	hasFunctionFields := re.structHasFunctionFields(node.Name)
 	if hasFunctionFields {
-		// No derives for structs with function fields - Box<dyn Fn> doesn't implement Debug
-		str = re.emitAsString("", indent+2)
+		// Structs with function fields can derive Clone (Rc implements Clone)
+		// but not Default or Debug (dyn Fn doesn't implement these)
+		str = re.emitAsString("#[derive(Clone)]\n", indent+2)
 	} else if hasInterfaceFields {
 		// Only derive Debug for structs with Any/interface{} fields
 		str = re.emitAsString("#[derive(Debug)]\n", indent+2)
@@ -1142,8 +1163,8 @@ func (re *RustEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 		return
 	}
 	re.gir.emitToFileBuffer("", "@@PreVisitFuncType")
-	// TODO use Box<dyn Fn> for function types for now
-	str := re.emitAsString("Box<dyn Fn(", indent)
+	// Use Rc<dyn Fn> for function types - Rc implements Clone so structs with function fields can be cloned
+	str := re.emitAsString("Rc<dyn Fn(", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
@@ -1159,7 +1180,7 @@ func (re *RustEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 		if len(tokens) > 2 {
 			// Find and move return type to end with arrow separator
 			var reorderedTokens []string
-			reorderedTokens = append(reorderedTokens, tokens[0]) // "Box<dyn Fn("
+			reorderedTokens = append(reorderedTokens, tokens[0]) // "Rc<dyn Fn("
 			if len(tokens) > 3 {
 				// Skip return type (index 1) and add parameters first
 				reorderedTokens = append(reorderedTokens, tokens[2:]...)
@@ -1562,6 +1583,19 @@ func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) 
 			}
 		}
 	}
+
+	// For local closure assignments, remove the entire statement from token stream
+	// The body tokens have already been stored in PostVisitFuncLit
+	if re.localClosureAssign && re.currentClosureName != "" {
+		// Remove all tokens from the assignment start to current position
+		if re.localClosureAssignStartIndex < len(re.gir.tokenSlice) {
+			re.gir.tokenSlice = re.gir.tokenSlice[:re.localClosureAssignStartIndex]
+		}
+		// Reset flags
+		re.localClosureAssign = false
+		re.currentClosureName = ""
+	}
+
 	re.shouldGenerate = false
 	re.isTuple = false
 	re.inAssignRhs = false
@@ -1589,11 +1623,21 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 			re.inFieldAssign = true
 		}
 	}
-	// Check if RHS is a function literal (for local closure type annotation)
+	// Check if RHS is a function literal (for local closure inlining)
 	re.localClosureAssign = false
+	re.currentClosureName = ""
 	if assignmentToken == ":=" && len(node.Rhs) == 1 {
-		if _, ok := node.Rhs[0].(*ast.FuncLit); ok {
-			re.localClosureAssign = true
+		if funcLit, ok := node.Rhs[0].(*ast.FuncLit); ok {
+			if ident, ok := node.Lhs[0].(*ast.Ident); ok {
+				re.localClosureAssign = true
+				re.currentClosureName = ident.Name
+				re.localClosures[ident.Name] = funcLit
+				// Record assignment start index for later removal
+				re.localClosureAssignStartIndex = len(re.gir.tokenSlice)
+				// Skip emitting the assignment - we'll inline the closure body at call sites
+				re.shouldGenerate = false
+				return
+			}
 		}
 	}
 	re.inMultiValueDecl = false
@@ -1744,26 +1788,23 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 		if named, ok := tv.Type.(*types.Named); ok {
 			// Check if underlying type is a struct
 			if underlyingStruct, isStruct := named.Underlying().(*types.Struct); isStruct {
-				// Check if any field has a function type (Box<dyn Fn> doesn't implement Clone)
+				// Check if any field has interface{} type (Box<dyn Any> doesn't implement Clone)
+				// Note: function fields now use Rc<dyn Fn> which implements Clone
 				hasNonClonableField := false
 				for i := 0; i < underlyingStruct.NumFields(); i++ {
 					field := underlyingStruct.Field(i)
 					fieldTypeStr := field.Type().String()
-					if strings.Contains(fieldTypeStr, "func(") || strings.Contains(fieldTypeStr, "interface{}") || strings.Contains(fieldTypeStr, "interface {") {
+					if strings.Contains(fieldTypeStr, "interface{}") || strings.Contains(fieldTypeStr, "interface {") {
 						hasNonClonableField = true
 						break
 					}
 				}
 				if hasNonClonableField {
-					// Don't clone structs with function or interface fields
+					// Don't clone structs with interface fields (Box<dyn Any> doesn't implement Clone)
 					return
 				}
-				// Also check our local lookup
-				structName := named.Obj().Name()
-				if !re.structHasInterfaceFields(structName) {
-					// Add .clone() for struct types without interface{}/func fields
-					re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
-				}
+				// Clone all other structs (including those with function fields - Rc implements Clone)
+				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 				return
 			}
 		}
@@ -2228,14 +2269,30 @@ func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 			}
 		}
 	}
-	// Wrap closure in Box::new() for Rust
-	str := re.emitAsString("Box::new(", 0)
+	// Wrap closure - use Rc::new() for struct fields (KeyValueExpr), Box::new() otherwise
+	var wrapperStr string
+	if re.inKeyValueExpr {
+		wrapperStr = "Rc::new("
+	} else {
+		wrapperStr = "Box::new("
+	}
+	str := re.emitAsString(wrapperStr, 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.emitToken("|", Identifier, indent)
 }
 func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	// For local closures being inlined, extract and store body tokens
+	if re.localClosureAssign && re.currentClosureName != "" {
+		// Extract body tokens (from after { to current position)
+		bodyEndIndex := len(re.gir.tokenSlice)
+		if re.localClosureBodyStartIndex < bodyEndIndex {
+			bodyTokens := make([]Token, bodyEndIndex-re.localClosureBodyStartIndex)
+			copy(bodyTokens, re.gir.tokenSlice[re.localClosureBodyStartIndex:bodyEndIndex])
+			re.localClosureBodyTokens[re.currentClosureName] = bodyTokens
+		}
+	}
 	re.emitToken("}", RightBrace, 0)
-	// Close the Box::new() wrapper
+	// Close the Rc::new() or Box::new() wrapper
 	re.emitToken(")", RightParen, 0)
 	re.currentFuncReturnsAny = false
 }
@@ -2266,6 +2323,10 @@ func (re *RustEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
 	re.emitToken("{", LeftBrace, 0)
 	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	// For local closures being inlined, record where body starts
+	if re.localClosureAssign && re.currentClosureName != "" {
+		re.localClosureBodyStartIndex = len(re.gir.tokenSlice)
+	}
 }
 
 func (re *RustEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
