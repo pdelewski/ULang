@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"golang.org/x/tools/go/packages"
 	"log"
+	"os/exec"
 	"strings"
 )
 
@@ -76,17 +77,38 @@ func main() {
 
 	passManager.RunPasses()
 
-	// Format generated files using astyle C API
-	if len(programFiles) > 0 {
+	// Format generated files
+	// Use astyle for C++/C#, rustfmt for Rust
+	hasAstyleFiles := useCpp || useCs
+	if hasAstyleFiles {
 		log.Printf("Using astyle version: %s\n", GetAStyleVersion())
 		const astyleOptions = "--style=webkit"
 
-		for _, fileExt := range programFiles {
-			filePath := fmt.Sprintf("%s.%s", output, fileExt)
+		if useCpp {
+			filePath := fmt.Sprintf("%s.cpp", output)
 			err = FormatFile(filePath, astyleOptions)
 			if err != nil {
 				log.Fatalf("Failed to format %s: %v", filePath, err)
 			}
+		}
+		if useCs {
+			filePath := fmt.Sprintf("%s.cs", output)
+			err = FormatFile(filePath, astyleOptions)
+			if err != nil {
+				log.Fatalf("Failed to format %s: %v", filePath, err)
+			}
+		}
+	}
+
+	// Use rustfmt for Rust files
+	if useRust {
+		rustFile := fmt.Sprintf("%s.rs", output)
+		cmd := exec.Command("rustfmt", rustFile)
+		if err := cmd.Run(); err != nil {
+			// rustfmt not available or failed - just log warning, don't fail
+			log.Printf("Warning: rustfmt failed for %s: %v (install with: rustup component add rustfmt)", rustFile, err)
+		} else {
+			log.Printf("Successfully formatted: %s", rustFile)
 		}
 	}
 }
