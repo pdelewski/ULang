@@ -78,6 +78,10 @@ type RustEmitter struct {
 	callExprFunEndMarkerStack         []int  // Stack of end indices for nested call markers
 	callExprArgsMarkerStack           []int  // Stack of indices for nested call arg markers
 	localClosureAssign                bool   // Track if current assignment has a function literal RHS
+	localClosures                     map[string]*ast.FuncLit // Map of local closure names to their AST
+	currentClosureName                string // Name of the variable being assigned a closure
+	inLocalClosureInline              bool   // Track if we're inlining a local closure
+	currentCompLitIsSlice             bool   // Track if current composite literal is a slice type alias
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -733,12 +737,22 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 		str += " = Vec::new()"
 		re.isArray = false
 	} else {
-		// For struct types declared without value (var x StructType), initialize with default
-		// Check if this is likely a struct type (capitalized name, not a primitive)
-		// Skip Box<dyn Any> - can't call default() on trait objects
-		if len(typeName) > 0 && typeName[0] >= 'A' && typeName[0] <= 'Z' &&
+		// Add default initialization based on type
+		// Primitive numeric types get zero initialization
+		primitiveDefaults := map[string]string{
+			"i8": "0", "i16": "0", "i32": "0", "i64": "0",
+			"u8": "0", "u16": "0", "u32": "0", "u64": "0",
+			"f32": "0.0", "f64": "0.0",
+			"bool": "false",
+		}
+		if defaultVal, isPrimitive := primitiveDefaults[typeName]; isPrimitive {
+			str += " = " + defaultVal
+		} else if typeName == "String" {
+			str += " = String::new()"
+		} else if len(typeName) > 0 && typeName[0] >= 'A' && typeName[0] <= 'Z' &&
 			!strings.Contains(typeName, "Box<dyn") {
-			// Add default initialization (semicolon added by PostVisitDeclStmt)
+			// For struct types declared without value (var x StructType), initialize with default
+			// Skip Box<dyn Any> - can't call default() on trait objects
 			str += " = " + typeName + "::default()"
 		}
 	}
@@ -814,9 +828,12 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 		return
 	}
 	re.pkg = pkg
-	// Initialize the cache if not already done
+	// Initialize the caches if not already done
 	if re.processedPkgsInterfaceTypes == nil {
 		re.processedPkgsInterfaceTypes = make(map[string]bool)
+	}
+	if re.localClosures == nil {
+		re.localClosures = make(map[string]*ast.FuncLit)
 	}
 	// Check if package has any interface{} types
 	re.pkgHasInterfaceTypes = re.packageHasInterfaceTypes(pkg)
@@ -1572,6 +1589,13 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 			re.inFieldAssign = true
 		}
 	}
+	// Check if RHS is a function literal (for local closure type annotation)
+	re.localClosureAssign = false
+	if assignmentToken == ":=" && len(node.Rhs) == 1 {
+		if _, ok := node.Rhs[0].(*ast.FuncLit); ok {
+			re.localClosureAssign = true
+		}
+	}
 	re.inMultiValueDecl = false
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
 		re.emitToken("let", RustKeyword, indent)
@@ -1602,8 +1626,12 @@ func (re *RustEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) 
 	} else if node.Tok.String() == "=" && len(node.Lhs) > 1 {
 		re.emitToken(")", RightParen, indent)
 	}
+	// Add type annotation for local closures that mutate captured variables
+	// This changes the inferred type from Box<dyn Fn()> to Box<dyn FnMut()>
+	if re.localClosureAssign {
+		re.gir.emitToFileBuffer(": Box<dyn FnMut()>", EmptyVisitMethod)
+	}
 	re.shouldGenerate = false
-
 }
 
 func (re *RustEmitter) PreVisitIndexExpr(node *ast.IndexExpr, indent int) {
@@ -1647,6 +1675,23 @@ func (re *RustEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) 
 		}
 	}
 	re.emitToken("]", RightBracket, 0)
+
+	// Add .clone() for Vec element access when the element type doesn't implement Copy
+	// This is needed because Rust doesn't allow moving out of indexed collections
+	if node.X != nil {
+		tv := re.pkg.TypesInfo.Types[node.X]
+		if tv.Type != nil {
+			// Check if it's a slice/array type
+			underlying := tv.Type.Underlying()
+			if sliceType, ok := underlying.(*types.Slice); ok {
+				elemType := sliceType.Elem()
+				// Check if element type is a struct (non-Copy type)
+				if _, isStruct := elemType.Underlying().(*types.Struct); isStruct {
+					re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+				}
+			}
+		}
+	}
 }
 
 func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
@@ -1676,9 +1721,25 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 	if re.forwardDecls {
 		return
 	}
-	// Check if the argument is a struct type that needs .clone()
+	// Check if the argument type needs .clone()
 	tv := re.pkg.TypesInfo.Types[node]
 	if tv.Type != nil {
+		typeStr := tv.Type.String()
+
+		// Clone Vec/slice types
+		if strings.HasPrefix(typeStr, "[]") {
+			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			return
+		}
+
+		// Clone String types (but not string literals - those get .to_string() anyway)
+		if typeStr == "string" {
+			if _, isBasicLit := node.(*ast.BasicLit); !isBasicLit {
+				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+				return
+			}
+		}
+
 		// Check if it's a named type (potential struct)
 		if named, ok := tv.Type.(*types.Named); ok {
 			// Check if underlying type is a struct
@@ -1974,6 +2035,7 @@ func (re *RustEmitter) PreVisitCompositeLit(node *ast.CompositeLit, indent int) 
 	re.isArrayStack = append(re.isArrayStack, re.isArray)
 	// Reset for this composite literal
 	re.isArray = false
+	re.currentCompLitIsSlice = false
 
 	// Push the type to the stack so we can check it in PostVisitCompositeLitElts
 	var compLitType types.Type
@@ -1981,6 +2043,18 @@ func (re *RustEmitter) PreVisitCompositeLit(node *ast.CompositeLit, indent int) 
 		typeInfo := re.pkg.TypesInfo.Types[node.Type]
 		if typeInfo.Type != nil {
 			compLitType = typeInfo.Type
+			// Check if the underlying type is a slice (for type aliases like AST = []Statement)
+			if underlying := compLitType.Underlying(); underlying != nil {
+				if _, ok := underlying.(*types.Slice); ok {
+					// Only use Vec::new() for empty slice literals
+					// For non-empty, set isArray so vec![] syntax is used
+					if len(node.Elts) == 0 {
+						re.currentCompLitIsSlice = true
+					} else {
+						re.isArray = true
+					}
+				}
+			}
 		}
 	}
 	re.compLitTypeStack = append(re.compLitTypeStack, compLitType)
@@ -2007,6 +2081,12 @@ func (re *RustEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 	pointerAndPosition := SearchPointerIndexReverse("@PreVisitCompositeLitType", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
+		// For slice type aliases (like AST = []Statement), replace with Vec::new()
+		// The braces will be suppressed in PreVisitCompositeLitElts/PostVisitCompositeLitElts
+		if re.currentCompLitIsSlice {
+			re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{"Vec::new()"})
+			return
+		}
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
 		for aliasName, alias := range re.aliases {
@@ -2037,6 +2117,10 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 }
 
 func (re *RustEmitter) PreVisitCompositeLitElts(node []ast.Expr, indent int) {
+	// Skip braces for slice type aliases - Vec::new() is already emitted
+	if re.currentCompLitIsSlice {
+		return
+	}
 	re.emitToken("{", LeftBrace, 0)
 }
 
@@ -2054,16 +2138,30 @@ func (re *RustEmitter) PostVisitCompositeLitElts(node []ast.Expr, indent int) {
 	// Check if this specific type has interface/function fields that prevent Default
 	typeHasNoDefault := currentType != nil && re.typeHasInterfaceFields(currentType)
 
-	if !re.isArray && !typeHasNoDefault {
-		if len(node) > 0 {
-			// Partial struct init - add comma before Default
-			re.gir.emitToFileBuffer(", ..Default::default()", EmptyVisitMethod)
-		} else {
-			// Empty struct init
-			re.gir.emitToFileBuffer("..Default::default()", EmptyVisitMethod)
+	// Check if the underlying type is a slice (for type aliases like AST = []Statement)
+	isSliceType := false
+	if currentType != nil {
+		underlying := currentType.Underlying()
+		if _, ok := underlying.(*types.Slice); ok {
+			isSliceType = true
 		}
 	}
-	re.emitToken("}", RightBrace, 0)
+
+	// Skip braces and default for slice type aliases - Vec::new() is already emitted
+	if re.currentCompLitIsSlice {
+		re.currentCompLitIsSlice = false
+	} else {
+		if !re.isArray && !isSliceType && !typeHasNoDefault {
+			if len(node) > 0 {
+				// Partial struct init - add comma before Default
+				re.gir.emitToFileBuffer(", ..Default::default()", EmptyVisitMethod)
+			} else {
+				// Empty struct init
+				re.gir.emitToFileBuffer("..Default::default()", EmptyVisitMethod)
+			}
+		}
+		re.emitToken("}", RightBrace, 0)
+	}
 
 	// Restore isArray from stack for nested composite literals
 	if len(re.isArrayStack) > 0 {
@@ -2252,6 +2350,23 @@ func (re *RustEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
+	// Check if the switch has a default case
+	hasDefault := false
+	if node.Body != nil {
+		for _, stmt := range node.Body.List {
+			if caseClause, ok := stmt.(*ast.CaseClause); ok {
+				if len(caseClause.List) == 0 {
+					hasDefault = true
+					break
+				}
+			}
+		}
+	}
+	// If no default case, add one for Rust match exhaustiveness
+	if !hasDefault {
+		str := re.emitAsString("_ => {}\n", indent+2)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
 	re.emitToken("}", RightBrace, indent)
 }
 
