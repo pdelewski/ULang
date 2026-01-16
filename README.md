@@ -86,6 +86,40 @@ Transpile to C# and Rust:
 
 Some Go features may not be fully supported due to differences in target platforms. See `cmd/doc/rust_backend_rules.md` for detailed implementation notes on the Rust backend.
 
+## Runtime Libraries
+
+### Graphics Runtime (SDL2)
+
+A cross-platform 2D graphics library for window creation and drawing shapes.
+
+**Setup dependencies:**
+```bash
+./scripts/setup-deps.sh
+```
+
+**Example usage:**
+```go
+package main
+
+import "myapp/graphics"
+
+func main() {
+    w := graphics.CreateWindow("Demo", 800, 600)
+
+    running := true
+    for running {
+        w, running = graphics.PollEvents(w)
+        graphics.Clear(w, graphics.Black())
+        graphics.FillRect(w, graphics.NewRect(100, 100, 200, 150), graphics.Red())
+        graphics.Present(w)
+    }
+
+    graphics.CloseWindow(w)
+}
+```
+
+See [runtime/graphics/README.md](runtime/graphics/README.md) for full API documentation.
+
 ## Project Structure
 
 ```
@@ -96,9 +130,14 @@ goany/
 │   ├── csharp_emitter.go  # C# backend
 │   ├── cpp_emitter.go     # C++ backend
 │   └── doc/               # Documentation
+├── runtime/                # Runtime libraries
+│   └── graphics/          # SDL2 graphics runtime
 ├── examples/               # Example projects
 │   ├── uql/               # SQL query parser
-│   └── contlib/           # Container library
+│   ├── contlib/           # Container library
+│   └── graphics-demo/     # Graphics demo
+├── scripts/                # Utility scripts
+│   └── setup-deps.sh      # Install dependencies
 └── tests/                  # Test cases
 ```
 

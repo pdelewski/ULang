@@ -3,24 +3,43 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"golang.org/x/tools/go/packages"
 	"log"
 	"os/exec"
-	"strings"
 )
 
 func main() {
 	var sourceDir string
 	var output string
 	var backend string
+	var linkRuntime string
 	flag.StringVar(&sourceDir, "source", "", "Source directory")
-	flag.StringVar(&output, "output", "", "Output program name")
+	flag.StringVar(&output, "output", "", "Output program name (can include path, e.g., ./build/project)")
 	flag.StringVar(&backend, "backend", "all", "Backend to use: all, cpp, cs, rust (comma-separated for multiple)")
+	flag.StringVar(&linkRuntime, "link-runtime", "", "Path to runtime for linking (generates Makefile with -I flag)")
 	flag.Parse()
 	if sourceDir == "" {
 		fmt.Println("Please provide a source directory")
 		return
 	}
+
+	// Parse output directory and name
+	outputDir := filepath.Dir(output)
+	outputName := filepath.Base(output)
+
+	// Create output directory if it doesn't exist
+	if outputDir != "." && outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			log.Fatalf("Failed to create output directory: %v", err)
+		}
+	}
+
+	// Note: We allow overwriting existing build files (Cargo.toml, Makefile, etc.)
+	// to support iterative development
 	cfg := &packages.Config{
 		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
 		Dir:   sourceDir,
@@ -55,17 +74,35 @@ func main() {
 	var programFiles []string
 
 	if useCpp {
-		cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{Emitter: &BaseEmitter{}, Output: output + ".cpp"}}
+		cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{
+			Emitter:     &BaseEmitter{},
+			Output:      output + ".cpp",
+			LinkRuntime: linkRuntime,
+			OutputDir:   outputDir,
+			OutputName:  outputName,
+		}}
 		passes = append(passes, cppBackend)
 		programFiles = append(programFiles, "cpp")
 	}
 	if useCs {
-		csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{BaseEmitter: BaseEmitter{}, Output: output + ".cs"}}
+		csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{
+			BaseEmitter: BaseEmitter{},
+			Output:      output + ".cs",
+			LinkRuntime: linkRuntime,
+			OutputDir:   outputDir,
+			OutputName:  outputName,
+		}}
 		passes = append(passes, csBackend)
 		programFiles = append(programFiles, "cs")
 	}
 	if useRust {
-		rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{BaseEmitter: BaseEmitter{}, Output: output + ".rs"}}
+		rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{
+			BaseEmitter: BaseEmitter{},
+			Output:      output + ".rs",
+			LinkRuntime: linkRuntime,
+			OutputDir:   outputDir,
+			OutputName:  outputName,
+		}}
 		passes = append(passes, rustBackend)
 		programFiles = append(programFiles, "rs")
 	}
@@ -102,7 +139,13 @@ func main() {
 
 	// Use rustfmt for Rust files
 	if useRust {
-		rustFile := fmt.Sprintf("%s.rs", output)
+		var rustFile string
+		if linkRuntime != "" {
+			// For Cargo projects, the file is in src/main.rs
+			rustFile = filepath.Join(outputDir, "src", "main.rs")
+		} else {
+			rustFile = fmt.Sprintf("%s.rs", output)
+		}
 		cmd := exec.Command("rustfmt", rustFile)
 		if err := cmd.Run(); err != nil {
 			// rustfmt not available or failed - just log warning, don't fail

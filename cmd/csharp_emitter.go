@@ -5,7 +5,9 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -36,8 +38,11 @@ type Alias struct {
 }
 
 type CSharpEmitter struct {
-	Output string
-	file   *os.File
+	Output      string
+	OutputDir   string
+	OutputName  string
+	LinkRuntime string // Path to runtime directory (empty = disabled)
+	file        *os.File
 	BaseEmitter
 	pkg               *packages.Package
 	insideForPostCond bool
@@ -50,6 +55,7 @@ type CSharpEmitter struct {
 	isArray           bool
 	arrayType         string
 	isTuple           bool
+	isInfiniteLoop    bool // Track if current for loop is infinite (no init, cond, post)
 }
 
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
@@ -308,6 +314,16 @@ public class Formatter {
 func (cse *CSharpEmitter) PostVisitProgram(indent int) {
 	emitTokensToFile(cse.file, cse.gir.tokenSlice)
 	cse.file.Close()
+
+	// Generate .NET project files if link-runtime is enabled
+	if cse.LinkRuntime != "" {
+		if err := cse.GenerateCsproj(); err != nil {
+			log.Printf("Warning: %v", err)
+		}
+		if err := cse.CopyGraphicsRuntime(); err != nil {
+			log.Printf("Warning: %v", err)
+		}
+	}
 }
 
 func (cse *CSharpEmitter) PreVisitFuncDeclSignatures(indent int) {
@@ -1381,4 +1397,76 @@ func (cse *CSharpEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
 		str := cse.emitAsString(node.Tok.String()+";", indent)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	})
+}
+
+// GenerateCsproj creates a .csproj file for building the C# project with SDL2-CS
+func (cse *CSharpEmitter) GenerateCsproj() error {
+	if cse.LinkRuntime == "" {
+		return nil
+	}
+
+	csprojPath := filepath.Join(cse.OutputDir, cse.OutputName+".csproj")
+	file, err := os.Create(csprojPath)
+	if err != nil {
+		return fmt.Errorf("failed to create .csproj: %w", err)
+	}
+	defer file.Close()
+
+	csproj := `<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Sayers.SDL2.Core" Version="1.0.11" />
+  </ItemGroup>
+
+  <!-- Copy native SDL2 library on macOS (Homebrew installation) -->
+  <Target Name="CopyNativeSDL2" AfterTargets="Build" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PropertyGroup>
+      <SDL2HomebrewPath Condition="Exists('/opt/homebrew/lib/libSDL2.dylib')">/opt/homebrew/lib/libSDL2.dylib</SDL2HomebrewPath>
+      <SDL2HomebrewPath Condition="$(SDL2HomebrewPath) == '' And Exists('/usr/local/lib/libSDL2.dylib')">/usr/local/lib/libSDL2.dylib</SDL2HomebrewPath>
+    </PropertyGroup>
+    <Copy SourceFiles="$(SDL2HomebrewPath)" DestinationFolder="$(OutputPath)" Condition="$(SDL2HomebrewPath) != ''" />
+    <Warning Text="SDL2 native library not found. Install with: brew install sdl2" Condition="$(SDL2HomebrewPath) == ''" />
+  </Target>
+
+</Project>
+`
+
+	_, err = file.WriteString(csproj)
+	if err != nil {
+		return fmt.Errorf("failed to write .csproj: %w", err)
+	}
+
+	log.Printf("Generated .csproj at %s", csprojPath)
+	return nil
+}
+
+// CopyGraphicsRuntime copies the graphics runtime file from the runtime directory
+func (cse *CSharpEmitter) CopyGraphicsRuntime() error {
+	if cse.LinkRuntime == "" {
+		return nil
+	}
+
+	// Source path: LinkRuntime points to runtime directory, graphics runtime is in graphics/csharp/
+	runtimeSrcPath := filepath.Join(cse.LinkRuntime, "graphics", "csharp", "GraphicsRuntime.cs")
+	graphicsCs, err := os.ReadFile(runtimeSrcPath)
+	if err != nil {
+		return fmt.Errorf("failed to read graphics runtime from %s: %w", runtimeSrcPath, err)
+	}
+
+	// Destination path
+	graphicsPath := filepath.Join(cse.OutputDir, "GraphicsRuntime.cs")
+	if err := os.WriteFile(graphicsPath, graphicsCs, 0644); err != nil {
+		return fmt.Errorf("failed to write GraphicsRuntime.cs: %w", err)
+	}
+
+	log.Printf("Copied GraphicsRuntime.cs from %s to %s", runtimeSrcPath, graphicsPath)
+	return nil
 }
