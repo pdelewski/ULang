@@ -1,7 +1,7 @@
-//go:generate go run cmd/generate_base_emitter.go
+//go:generate go run ../cmd/generate_base_emitter.go
 
 // Package main provides the core functionality for the goany compiler.
-package main
+package compiler
 
 import (
 	"go/ast"

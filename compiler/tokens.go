@@ -1,4 +1,4 @@
-package main
+package compiler
 
 // TokenType represents different types of tokens in the code generation
 type TokenType int

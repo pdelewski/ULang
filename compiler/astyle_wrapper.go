@@ -1,4 +1,4 @@
-package main
+package compiler
 
 /*
 #cgo CXXFLAGS: -I./astyle -DASTYLE_LIB -std=c++17

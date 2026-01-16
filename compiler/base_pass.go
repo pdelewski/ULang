@@ -1,4 +1,4 @@
-package main
+package compiler
 
 import (
 	"fmt"
@@ -42,7 +42,7 @@ type BasePass struct {
 	outputFile string
 	file       *os.File
 	visitor    *BasePassVisitor
-	emitter    Emitter
+	Emitter    Emitter
 }
 
 type BasePassVisitor struct {
@@ -57,7 +57,7 @@ func (v *BasePass) Name() string {
 }
 
 func (v *BasePass) Visitors(pkg *packages.Package) []ast.Visitor {
-	v.visitor = &BasePassVisitor{pkg: pkg, emitter: v.emitter}
+	v.visitor = &BasePassVisitor{pkg: pkg, emitter: v.Emitter}
 	v.visitor.pass = v
 	return []ast.Visitor{v.visitor}
 }
@@ -836,14 +836,14 @@ func (v *BasePassVisitor) Visit(node ast.Node) ast.Visitor {
 
 func (v *BasePass) ProLog() {
 	namespaces = make(map[string]struct{})
-	v.emitter.GetGoFIR().emitToFileBuffer("", PreVisitProgram)
-	v.emitter.PreVisitProgram(0)
-	v.file = v.emitter.GetFile()
+	v.Emitter.GetGoFIR().emitToFileBuffer("", PreVisitProgram)
+	v.Emitter.PreVisitProgram(0)
+	v.file = v.Emitter.GetFile()
 }
 
 func (v *BasePass) EpiLog() {
-	v.emitter.GetGoFIR().emitToFileBuffer("", PostVisitProgram)
-	v.emitter.PostVisitProgram(0)
+	v.Emitter.GetGoFIR().emitToFileBuffer("", PostVisitProgram)
+	v.Emitter.PostVisitProgram(0)
 }
 
 func (v *BasePass) PreVisit(visitor ast.Visitor) {
@@ -853,8 +853,8 @@ func (v *BasePass) PreVisit(visitor ast.Visitor) {
 	for _, imp := range cppVisitor.pkg.Imports {
 		namespaces[imp.Name] = struct{}{}
 	}
-	v.emitter.GetGoFIR().emitToFileBuffer("", PreVisitPackage)
-	v.emitter.PreVisitPackage(cppVisitor.pkg, 0)
+	v.Emitter.GetGoFIR().emitToFileBuffer("", PreVisitPackage)
+	v.Emitter.PreVisitPackage(cppVisitor.pkg, 0)
 }
 
 func (v *BasePassVisitor) complementPrecedenceMap(sortedTypes map[string]int) {
@@ -890,6 +890,6 @@ func (v *BasePass) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	}
 	DebugPrintf("Types precedence: %v\n", typesPrecedence)
 	cppVisitor.gen(typesPrecedence)
-	v.emitter.GetGoFIR().emitToFileBuffer("", PostVisitPackage)
-	v.emitter.PostVisitPackage(cppVisitor.pkg, 0)
+	v.Emitter.GetGoFIR().emitToFileBuffer("", PostVisitPackage)
+	v.Emitter.PostVisitPackage(cppVisitor.pkg, 0)
 }

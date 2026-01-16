@@ -9,25 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"goany/compiler"
+
 	"golang.org/x/tools/go/packages"
 )
-
-// Global debug flag
-var DebugMode bool
-
-// DebugPrintf prints only when debug mode is enabled
-func DebugPrintf(format string, args ...interface{}) {
-	if DebugMode {
-		fmt.Printf(format, args...)
-	}
-}
-
-// DebugLogPrintf logs only when debug mode is enabled
-func DebugLogPrintf(format string, args ...interface{}) {
-	if DebugMode {
-		log.Printf(format, args...)
-	}
-}
 
 func main() {
 	var sourceDir string
@@ -38,7 +23,7 @@ func main() {
 	flag.StringVar(&output, "output", "", "Output program name (can include path, e.g., ./build/project)")
 	flag.StringVar(&backend, "backend", "all", "Backend to use: all, cpp, cs, rust (comma-separated for multiple)")
 	flag.StringVar(&linkRuntime, "link-runtime", "", "Path to runtime for linking (generates Makefile with -I flag)")
-	flag.BoolVar(&DebugMode, "debug", false, "Enable debug output")
+	flag.BoolVar(&compiler.DebugMode, "debug", false, "Enable debug output")
 	flag.Parse()
 	if sourceDir == "" {
 		fmt.Println("Please provide a source directory")
@@ -87,13 +72,13 @@ func main() {
 	useRust := useAll || backendSet["rust"]
 
 	// Build passes list
-	sema := &BasePass{PassName: "Sema", emitter: &SemaChecker{Emitter: &BaseEmitter{}}}
-	passes := []Pass{sema}
+	sema := &compiler.BasePass{PassName: "Sema", Emitter: &compiler.SemaChecker{Emitter: &compiler.BaseEmitter{}}}
+	passes := []compiler.Pass{sema}
 	var programFiles []string
 
 	if useCpp {
-		cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{
-			Emitter:     &BaseEmitter{},
+		cppBackend := &compiler.BasePass{PassName: "CppGen", Emitter: &compiler.CPPEmitter{
+			Emitter:     &compiler.BaseEmitter{},
 			Output:      output + ".cpp",
 			LinkRuntime: linkRuntime,
 			OutputDir:   outputDir,
@@ -103,8 +88,8 @@ func main() {
 		programFiles = append(programFiles, "cpp")
 	}
 	if useCs {
-		csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{
-			BaseEmitter: BaseEmitter{},
+		csBackend := &compiler.BasePass{PassName: "CsGen", Emitter: &compiler.CSharpEmitter{
+			BaseEmitter: compiler.BaseEmitter{},
 			Output:      output + ".cs",
 			LinkRuntime: linkRuntime,
 			OutputDir:   outputDir,
@@ -114,8 +99,8 @@ func main() {
 		programFiles = append(programFiles, "cs")
 	}
 	if useRust {
-		rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{
-			BaseEmitter: BaseEmitter{},
+		rustBackend := &compiler.BasePass{PassName: "RustGen", Emitter: &compiler.RustEmitter{
+			BaseEmitter: compiler.BaseEmitter{},
 			Output:      output + ".rs",
 			LinkRuntime: linkRuntime,
 			OutputDir:   outputDir,
@@ -125,9 +110,9 @@ func main() {
 		programFiles = append(programFiles, "rs")
 	}
 
-	passManager := &PassManager{
-		pkgs:   pkgs,
-		passes: passes,
+	passManager := &compiler.PassManager{
+		Pkgs:   pkgs,
+		Passes: passes,
 	}
 
 	passManager.RunPasses()
@@ -136,19 +121,19 @@ func main() {
 	// Use astyle for C++/C#, rustfmt for Rust
 	hasAstyleFiles := useCpp || useCs
 	if hasAstyleFiles {
-		DebugLogPrintf("Using astyle version: %s\n", GetAStyleVersion())
+		compiler.DebugLogPrintf("Using astyle version: %s\n", compiler.GetAStyleVersion())
 		const astyleOptions = "--style=webkit"
 
 		if useCpp {
 			filePath := fmt.Sprintf("%s.cpp", output)
-			err = FormatFile(filePath, astyleOptions)
+			err = compiler.FormatFile(filePath, astyleOptions)
 			if err != nil {
 				log.Fatalf("Failed to format %s: %v", filePath, err)
 			}
 		}
 		if useCs {
 			filePath := fmt.Sprintf("%s.cs", output)
-			err = FormatFile(filePath, astyleOptions)
+			err = compiler.FormatFile(filePath, astyleOptions)
 			if err != nil {
 				log.Fatalf("Failed to format %s: %v", filePath, err)
 			}
@@ -169,7 +154,7 @@ func main() {
 			// rustfmt not available or failed - just log warning, don't fail
 			log.Printf("Warning: rustfmt failed for %s: %v (install with: rustup component add rustfmt)", rustFile, err)
 		} else {
-			DebugLogPrintf("Successfully formatted: %s", rustFile)
+			compiler.DebugLogPrintf("Successfully formatted: %s", rustFile)
 		}
 	}
 

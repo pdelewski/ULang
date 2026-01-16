@@ -45,6 +45,8 @@ make
 | `-source` | Source directory containing Go files | (required) |
 | `-output` | Output file name (without extension) | (required) |
 | `-backend` | Backend(s) to use: `all`, `cpp`, `cs`, `rust` | `all` |
+| `-link-runtime` | Path to runtime for linking (generates build files with include paths) | (none) |
+| `-debug` | Enable debug output | `false` |
 
 The `-backend` flag accepts comma-separated values for multiple backends.
 
@@ -63,6 +65,11 @@ Transpile to Rust only:
 Transpile to C# and Rust:
 ```bash
 ./goany -source=../examples/uql -output=uql -backend=cs,rust
+```
+
+Transpile graphics demo with runtime linking:
+```bash
+./goany -source=../examples/graphics-demo -output=./build/graphics-demo -backend=rust -link-runtime=../runtime
 ```
 
 ## Supported Features
@@ -124,12 +131,17 @@ See [runtime/graphics/README.md](runtime/graphics/README.md) for full API docume
 
 ```
 goany/
-├── cmd/                    # Compiler source code
-│   ├── main.go            # Entry point
+├── cmd/                    # CLI entry point
+│   ├── main.go            # Main entry point
+│   ├── Makefile           # Build configuration
+│   └── doc/               # Documentation
+├── compiler/               # Compiler library
 │   ├── rust_emitter.go    # Rust backend
 │   ├── csharp_emitter.go  # C# backend
 │   ├── cpp_emitter.go     # C++ backend
-│   └── doc/               # Documentation
+│   ├── base_pass.go       # Pass infrastructure
+│   ├── emitter.go         # Emitter interface
+│   └── astyle/            # Code formatting (CGO)
 ├── runtime/                # Runtime libraries
 │   └── graphics/          # SDL2 graphics runtime
 ├── examples/               # Example projects

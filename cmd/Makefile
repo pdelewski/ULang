@@ -3,12 +3,12 @@
 # Variables
 BINARY_NAME = goany
 GO_FILES = $(wildcard *.go)
-ASTYLE_DIR = astyle
+ASTYLE_DIR = ../compiler/astyle
 ASTYLE_LIB = $(ASTYLE_DIR)/libastyle.a
 
 # Go build flags
 GO_BUILD_FLAGS = -v
-GO_GENERATE_FLAGS = 
+GO_GENERATE_FLAGS =
 
 # Default target
 .PHONY: all
@@ -18,7 +18,7 @@ all: build
 .PHONY: generate
 generate:
 	@echo "Generating code..."
-	go generate $(GO_GENERATE_FLAGS) ./...
+	cd .. && go generate $(GO_GENERATE_FLAGS) ./...
 
 # Build astyle static library
 .PHONY: astyle
@@ -64,12 +64,12 @@ vet:
 # Run go mod tidy
 .PHONY: tidy
 tidy:
-	go mod tidy
+	cd .. && go mod tidy
 
 # Install dependencies
 .PHONY: deps
 deps:
-	go mod download
+	cd .. && go mod download
 
 # Development build (no optimizations, with debug info)
 .PHONY: dev
@@ -122,5 +122,5 @@ help:
 
 # Dependencies
 build: $(GO_FILES) $(ASTYLE_LIB)
-$(ASTYLE_LIB): 
+$(ASTYLE_LIB):
 	$(MAKE) astyle

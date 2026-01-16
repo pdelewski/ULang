@@ -131,7 +131,7 @@ func generateBaseEmitter(methods []string, visitConstants []string) {
 	defer output.Close()
 
 	// Write the header
-	fmt.Fprintf(output, `package main
+	fmt.Fprintf(output, `package compiler
 
 import (
 	"go/ast"
