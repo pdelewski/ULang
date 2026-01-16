@@ -359,7 +359,7 @@ func (cppe *CPPEmitter) PreVisitSliceExprLow(node ast.Expr, indent int) {
 		str := cppe.emitAsString("+ ", 0)
 		cppe.emitToFile(str)
 	} else {
-		log.Println("Low index: <nil>")
+		DebugLogPrintf("Low index: <nil>\n")
 	}
 }
 
@@ -911,6 +911,6 @@ clean:
 		return fmt.Errorf("failed to write Makefile: %w", err)
 	}
 
-	log.Printf("Generated Makefile at %s", makefilePath)
+	DebugLogPrintf("Generated Makefile at %s", makefilePath)
 	return nil
 }

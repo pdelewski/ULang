@@ -3,14 +3,31 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
-	"log"
-	"os/exec"
 )
+
+// Global debug flag
+var DebugMode bool
+
+// DebugPrintf prints only when debug mode is enabled
+func DebugPrintf(format string, args ...interface{}) {
+	if DebugMode {
+		fmt.Printf(format, args...)
+	}
+}
+
+// DebugLogPrintf logs only when debug mode is enabled
+func DebugLogPrintf(format string, args ...interface{}) {
+	if DebugMode {
+		log.Printf(format, args...)
+	}
+}
 
 func main() {
 	var sourceDir string
@@ -21,6 +38,7 @@ func main() {
 	flag.StringVar(&output, "output", "", "Output program name (can include path, e.g., ./build/project)")
 	flag.StringVar(&backend, "backend", "all", "Backend to use: all, cpp, cs, rust (comma-separated for multiple)")
 	flag.StringVar(&linkRuntime, "link-runtime", "", "Path to runtime for linking (generates Makefile with -I flag)")
+	flag.BoolVar(&DebugMode, "debug", false, "Enable debug output")
 	flag.Parse()
 	if sourceDir == "" {
 		fmt.Println("Please provide a source directory")
@@ -118,7 +136,7 @@ func main() {
 	// Use astyle for C++/C#, rustfmt for Rust
 	hasAstyleFiles := useCpp || useCs
 	if hasAstyleFiles {
-		log.Printf("Using astyle version: %s\n", GetAStyleVersion())
+		DebugLogPrintf("Using astyle version: %s\n", GetAStyleVersion())
 		const astyleOptions = "--style=webkit"
 
 		if useCpp {
@@ -151,7 +169,16 @@ func main() {
 			// rustfmt not available or failed - just log warning, don't fail
 			log.Printf("Warning: rustfmt failed for %s: %v (install with: rustup component add rustfmt)", rustFile, err)
 		} else {
-			log.Printf("Successfully formatted: %s", rustFile)
+			DebugLogPrintf("Successfully formatted: %s", rustFile)
 		}
 	}
+
+	// Print colorful success message
+	green := "\033[32m"
+	bold := "\033[1m"
+	reset := "\033[0m"
+	checkmark := "✓"
+
+	fmt.Printf("\n%s%s%s Transpilation successful!%s\n", bold, green, checkmark, reset)
+	fmt.Printf("%s  Generated:%s %s\n", green, reset, strings.Join(programFiles, ", "))
 }

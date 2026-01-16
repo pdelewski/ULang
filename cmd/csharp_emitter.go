@@ -1444,7 +1444,7 @@ func (cse *CSharpEmitter) GenerateCsproj() error {
 		return fmt.Errorf("failed to write .csproj: %w", err)
 	}
 
-	log.Printf("Generated .csproj at %s", csprojPath)
+	DebugLogPrintf("Generated .csproj at %s", csprojPath)
 	return nil
 }
 
@@ -1467,6 +1467,6 @@ func (cse *CSharpEmitter) CopyGraphicsRuntime() error {
 		return fmt.Errorf("failed to write GraphicsRuntime.cs: %w", err)
 	}
 
-	log.Printf("Copied GraphicsRuntime.cs from %s to %s", runtimeSrcPath, graphicsPath)
+	DebugLogPrintf("Copied GraphicsRuntime.cs from %s to %s", runtimeSrcPath, graphicsPath)
 	return nil
 }
