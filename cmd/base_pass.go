@@ -230,7 +230,7 @@ func (v *BasePassVisitor) traverseExpression(expr ast.Expr, indent int) string {
 		if e.Slice3 && e.Max != nil {
 			v.traverseExpression(e.Max, indent)
 		} else if e.Slice3 {
-			log.Println("Max index: <nil>")
+			DebugLogPrintf("Max index: <nil>\n")
 		}
 		v.emitter.GetGoFIR().emitToFileBuffer("", PostVisitSliceExpr)
 		v.emitter.PostVisitSliceExpr(e, indent)
@@ -567,7 +567,7 @@ func (v *BasePassVisitor) traverseStmt(stmt ast.Stmt, indent int) {
 		v.emitter.GetGoFIR().emitToFileBuffer("", PostVisitBlockStmt)
 		v.emitter.PostVisitBlockStmt(stmt, indent)
 	default:
-		fmt.Printf("<Other statement type>\n")
+		DebugPrintf("<Other statement type>\n")
 	}
 }
 
@@ -874,13 +874,13 @@ func (v *BasePass) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 	cppVisitor := visitor.(*BasePassVisitor)
 	typesGraph := cppVisitor.buildTypesGraph()
 	for name, val := range typesGraph {
-		fmt.Println("Type:", name, "Parent:", val)
+		DebugPrintf("Type: %s Parent: %v\n", name, val)
 	}
 	typesTopoSorted, err := TopologicalSort(typesGraph)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
-	fmt.Println("Types Topological Sort:", typesTopoSorted)
+	DebugPrintf("Types Topological Sort: %v\n", typesTopoSorted)
 	typesPrecedence := SliceToMap(typesTopoSorted)
 	cppVisitor.complementPrecedenceMap(typesPrecedence)
 	for name, _ := range typesPrecedence {
@@ -888,7 +888,7 @@ func (v *BasePass) PostVisit(visitor ast.Visitor, visited map[string]struct{}) {
 			delete(typesPrecedence, name)
 		}
 	}
-	fmt.Println("Types precedence:", typesPrecedence)
+	DebugPrintf("Types precedence: %v\n", typesPrecedence)
 	cppVisitor.gen(typesPrecedence)
 	v.emitter.GetGoFIR().emitToFileBuffer("", PostVisitPackage)
 	v.emitter.PostVisitPackage(cppVisitor.pkg, 0)

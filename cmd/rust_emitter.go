@@ -2847,7 +2847,7 @@ sdl2 = "0.36"
 		return fmt.Errorf("failed to write Cargo.toml: %w", err)
 	}
 
-	log.Printf("Generated Cargo.toml at %s", cargoPath)
+	DebugLogPrintf("Generated Cargo.toml at %s", cargoPath)
 	return nil
 }
 
@@ -2876,7 +2876,7 @@ func (re *RustEmitter) GenerateGraphicsMod() error {
 		return fmt.Errorf("failed to write graphics.rs: %w", err)
 	}
 
-	log.Printf("Copied graphics.rs from %s to %s", runtimeSrcPath, graphicsPath)
+	DebugLogPrintf("Copied graphics.rs from %s to %s", runtimeSrcPath, graphicsPath)
 	return nil
 }
 
@@ -2917,6 +2917,6 @@ func (re *RustEmitter) GenerateBuildRs() error {
 		return fmt.Errorf("failed to write build.rs: %w", err)
 	}
 
-	log.Printf("Generated build.rs at %s", buildRsPath)
+	DebugLogPrintf("Generated build.rs at %s", buildRsPath)
 	return nil
 }

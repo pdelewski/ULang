@@ -36,7 +36,6 @@ import "C"
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"unsafe"
 )
 
@@ -90,7 +89,7 @@ func FormatFile(filePath, options string) error {
 		return fmt.Errorf("failed to write formatted file %s: %v", filePath, err)
 	}
 
-	log.Printf("Successfully formatted: %s\n", filePath)
+	DebugLogPrintf("Successfully formatted: %s\n", filePath)
 	return nil
 }
 
