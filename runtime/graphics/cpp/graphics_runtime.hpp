@@ -1,0 +1,205 @@
+// graphics_runtime.hpp - SDL2 runtime for goany graphics package
+// This file provides the native implementations for the graphics package.
+
+#ifndef GRAPHICS_RUNTIME_HPP
+#define GRAPHICS_RUNTIME_HPP
+
+#include <SDL.h>
+#include <string>
+#include <tuple>
+#include <cstdint>
+
+namespace graphics {
+
+struct Color {
+    uint8_t R;
+    uint8_t G;
+    uint8_t B;
+    uint8_t A;
+};
+
+struct Rect {
+    int32_t X;
+    int32_t Y;
+    int32_t Width;
+    int32_t Height;
+};
+
+struct Window {
+    int64_t handle;   // SDL_Window*
+    int64_t renderer; // SDL_Renderer*
+    int32_t width;
+    int32_t height;
+    bool running;
+};
+
+// --- Color constructors ---
+
+inline Color NewColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    return Color{r, g, b, a};
+}
+
+inline Color Black() { return Color{0, 0, 0, 255}; }
+inline Color White() { return Color{255, 255, 255, 255}; }
+inline Color Red() { return Color{255, 0, 0, 255}; }
+inline Color Green() { return Color{0, 255, 0, 255}; }
+inline Color Blue() { return Color{0, 0, 255, 255}; }
+
+// --- Rect constructor ---
+
+inline Rect NewRect(int32_t x, int32_t y, int32_t width, int32_t height) {
+    return Rect{x, y, width, height};
+}
+
+// --- Window management ---
+
+inline Window CreateWindow(const std::string& title, int32_t width, int32_t height) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        return Window{0, 0, width, height, false};
+    }
+
+    SDL_Window* sdlWindow = SDL_CreateWindow(
+        title.c_str(),
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        width,
+        height,
+        SDL_WINDOW_SHOWN
+    );
+
+    if (!sdlWindow) {
+        return Window{0, 0, width, height, false};
+    }
+
+    SDL_Renderer* sdlRenderer = SDL_CreateRenderer(
+        sdlWindow, -1,
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
+    );
+
+    if (!sdlRenderer) {
+        SDL_DestroyWindow(sdlWindow);
+        return Window{0, 0, width, height, false};
+    }
+
+    return Window{
+        reinterpret_cast<int64_t>(sdlWindow),
+        reinterpret_cast<int64_t>(sdlRenderer),
+        width,
+        height,
+        true
+    };
+}
+
+inline void CloseWindow(Window w) {
+    if (w.renderer) {
+        SDL_DestroyRenderer(reinterpret_cast<SDL_Renderer*>(w.renderer));
+    }
+    if (w.handle) {
+        SDL_DestroyWindow(reinterpret_cast<SDL_Window*>(w.handle));
+    }
+    SDL_Quit();
+}
+
+inline bool IsRunning(Window w) {
+    return w.running;
+}
+
+inline std::tuple<Window, bool> PollEvents(Window w) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
+            w.running = false;
+            return std::make_tuple(w, false);
+        }
+    }
+    return std::make_tuple(w, true);
+}
+
+inline int32_t GetWidth(Window w) { return w.width; }
+inline int32_t GetHeight(Window w) { return w.height; }
+
+// --- Rendering ---
+
+inline void Clear(Window w, Color c) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, c.A);
+    SDL_RenderClear(renderer);
+}
+
+inline void Present(Window w) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_RenderPresent(renderer);
+}
+
+// --- Drawing primitives ---
+
+inline void DrawRect(Window w, Rect rect, Color c) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, c.A);
+    SDL_Rect sdlRect = {rect.X, rect.Y, rect.Width, rect.Height};
+    SDL_RenderDrawRect(renderer, &sdlRect);
+}
+
+inline void FillRect(Window w, Rect rect, Color c) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, c.A);
+    SDL_Rect sdlRect = {rect.X, rect.Y, rect.Width, rect.Height};
+    SDL_RenderFillRect(renderer, &sdlRect);
+}
+
+inline void DrawLine(Window w, int32_t x1, int32_t y1, int32_t x2, int32_t y2, Color c) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, c.A);
+    SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+}
+
+inline void DrawPoint(Window w, int32_t x, int32_t y, Color c) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, c.A);
+    SDL_RenderDrawPoint(renderer, x, y);
+}
+
+inline void DrawCircle(Window w, int32_t centerX, int32_t centerY, int32_t radius, Color c) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, c.A);
+
+    // Bresenham's circle algorithm
+    int32_t x = radius;
+    int32_t y = 0;
+    int32_t err = 0;
+
+    while (x >= y) {
+        SDL_RenderDrawPoint(renderer, centerX + x, centerY + y);
+        SDL_RenderDrawPoint(renderer, centerX + y, centerY + x);
+        SDL_RenderDrawPoint(renderer, centerX - y, centerY + x);
+        SDL_RenderDrawPoint(renderer, centerX - x, centerY + y);
+        SDL_RenderDrawPoint(renderer, centerX - x, centerY - y);
+        SDL_RenderDrawPoint(renderer, centerX - y, centerY - x);
+        SDL_RenderDrawPoint(renderer, centerX + y, centerY - x);
+        SDL_RenderDrawPoint(renderer, centerX + x, centerY - y);
+
+        y++;
+        err += 1 + 2 * y;
+        if (2 * (err - x) + 1 > 0) {
+            x--;
+            err += 1 - 2 * x;
+        }
+    }
+}
+
+inline void FillCircle(Window w, int32_t centerX, int32_t centerY, int32_t radius, Color c) {
+    SDL_Renderer* renderer = reinterpret_cast<SDL_Renderer*>(w.renderer);
+    SDL_SetRenderDrawColor(renderer, c.R, c.G, c.B, c.A);
+
+    for (int32_t y = -radius; y <= radius; y++) {
+        for (int32_t x = -radius; x <= radius; x++) {
+            if (x * x + y * y <= radius * radius) {
+                SDL_RenderDrawPoint(renderer, centerX + x, centerY + y);
+            }
+        }
+    }
+}
+
+} // namespace graphics
+
+#endif // GRAPHICS_RUNTIME_HPP

@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"golang.org/x/tools/go/packages"
 	"log"
-	"os"
-	"strings"
 )
 
 var cppTypesMap = map[string]string{
@@ -22,8 +24,11 @@ var cppTypesMap = map[string]string{
 }
 
 type CPPEmitter struct {
-	Output string
-	file   *os.File
+	Output      string
+	OutputDir   string
+	OutputName  string
+	LinkRuntime string // Path to runtime directory (empty = disabled)
+	file        *os.File
 	Emitter
 	pkg               *packages.Package
 	insideForPostCond bool
@@ -79,12 +84,16 @@ func (cppe *CPPEmitter) PreVisitProgram(indent int) {
 		"#include <tuple>\n" +
 		"#include <any>\n" +
 		"#include <cstdint>\n" +
-		"#include <functional>")
-	cppe.file.WriteString(`
-#include <cstdarg> // For va_start, etc.
+		"#include <functional>\n")
+	cppe.file.WriteString(`#include <cstdarg> // For va_start, etc.
 #include <initializer_list>
 #include <iostream>
-
+`)
+	// Include runtime header if link-runtime is enabled
+	if cppe.LinkRuntime != "" {
+		cppe.file.WriteString("#include \"runtime.hpp\"\n")
+	}
+	cppe.file.WriteString(`
 using int8 = int8_t;
 using int16 = int16_t;
 using int32 = int32_t;
@@ -166,6 +175,11 @@ std::vector<T> append(const std::vector<T> &vec, const T &element) {
 
 func (cppe *CPPEmitter) PostVisitProgram(indent int) {
 	cppe.file.Close()
+
+	// Generate Makefile if link-runtime is enabled
+	if err := cppe.GenerateMakefile(); err != nil {
+		log.Printf("Warning: %v", err)
+	}
 }
 
 func (cppe *CPPEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
@@ -853,4 +867,44 @@ func (cppe *CPPEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
 
 func (cppe *CPPEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	cppe.emitToFile(";\n\n")
+}
+
+// GenerateMakefile creates a Makefile for building the C++ project with SDL2
+func (cppe *CPPEmitter) GenerateMakefile() error {
+	if cppe.LinkRuntime == "" {
+		return nil
+	}
+
+	makefilePath := filepath.Join(cppe.OutputDir, "Makefile")
+	file, err := os.Create(makefilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create Makefile: %w", err)
+	}
+	defer file.Close()
+
+	makefile := fmt.Sprintf(`CXX = g++
+CXXFLAGS = -std=c++17 -I%s $(shell sdl2-config --cflags)
+LDFLAGS = $(shell sdl2-config --libs)
+
+TARGET = %s
+SRCS = %s.cpp
+
+all: $(TARGET)
+
+$(TARGET): $(SRCS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+clean:
+	rm -f $(TARGET)
+
+.PHONY: all clean
+`, cppe.LinkRuntime, cppe.OutputName, cppe.OutputName)
+
+	_, err = file.WriteString(makefile)
+	if err != nil {
+		return fmt.Errorf("failed to write Makefile: %w", err)
+	}
+
+	log.Printf("Generated Makefile at %s", makefilePath)
+	return nil
 }

@@ -3,23 +3,47 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"golang.org/x/tools/go/packages"
 	"log"
 	"os/exec"
-	"strings"
 )
 
 func main() {
 	var sourceDir string
 	var output string
 	var backend string
+	var linkRuntime string
 	flag.StringVar(&sourceDir, "source", "", "Source directory")
-	flag.StringVar(&output, "output", "", "Output program name")
+	flag.StringVar(&output, "output", "", "Output program name (can include path, e.g., ./build/project)")
 	flag.StringVar(&backend, "backend", "all", "Backend to use: all, cpp, cs, rust (comma-separated for multiple)")
+	flag.StringVar(&linkRuntime, "link-runtime", "", "Path to runtime for linking (generates Makefile with -I flag)")
 	flag.Parse()
 	if sourceDir == "" {
 		fmt.Println("Please provide a source directory")
 		return
+	}
+
+	// Parse output directory and name
+	outputDir := filepath.Dir(output)
+	outputName := filepath.Base(output)
+
+	// Create output directory if it doesn't exist
+	if outputDir != "." && outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			log.Fatalf("Failed to create output directory: %v", err)
+		}
+	}
+
+	// Check if Makefile already exists when link-runtime is enabled
+	if linkRuntime != "" {
+		makefilePath := filepath.Join(outputDir, "Makefile")
+		if _, err := os.Stat(makefilePath); err == nil {
+			log.Fatalf("Makefile already exists at %s. Remove it first or choose a different output directory.", makefilePath)
+		}
 	}
 	cfg := &packages.Config{
 		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
@@ -55,7 +79,13 @@ func main() {
 	var programFiles []string
 
 	if useCpp {
-		cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{Emitter: &BaseEmitter{}, Output: output + ".cpp"}}
+		cppBackend := &BasePass{PassName: "CppGen", emitter: &CPPEmitter{
+			Emitter:     &BaseEmitter{},
+			Output:      output + ".cpp",
+			LinkRuntime: linkRuntime,
+			OutputDir:   outputDir,
+			OutputName:  outputName,
+		}}
 		passes = append(passes, cppBackend)
 		programFiles = append(programFiles, "cpp")
 	}
