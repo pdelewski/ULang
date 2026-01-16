@@ -1,4 +1,4 @@
-package main
+package compiler
 
 import (
 	"fmt"
@@ -17,13 +17,13 @@ type Pass interface {
 }
 
 type PassManager struct {
-	pkgs   []*packages.Package
-	passes []Pass
+	Pkgs   []*packages.Package
+	Passes []Pass
 }
 
 func (pm *PassManager) RunPasses() {
-	totalPasses := len(pm.passes)
-	for i, pass := range pm.passes {
+	totalPasses := len(pm.Passes)
+	for i, pass := range pm.Passes {
 		DebugPrintf("Running pass: %s\n", pass.Name())
 		// Show progress in normal mode
 		if !DebugMode {
@@ -31,7 +31,7 @@ func (pm *PassManager) RunPasses() {
 		}
 		visited := make(map[string]struct{})
 		pass.ProLog()
-		for _, pkg := range pm.pkgs {
+		for _, pkg := range pm.Pkgs {
 			DebugPrintf("Package: %s\n", pkg.Name)
 			DebugPrintf("Types Topological Sort: %v\n", pkg.TypesInfo)
 			visitors := pass.Visitors(pkg)

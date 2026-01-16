@@ -34,17 +34,10 @@ jobs:
           profile: minimal
           override: true
 
-      - name: Generate code
+      - name: Build
         run: |
-          echo "🔄 Generating code with go generate"
           cd cmd
-          go generate ./...
-
-      - name: Build astyle library
-        run: |
-          echo "🔧 Building astyle static library for CGO"
-          cd cmd/astyle
-          make -f Makefile.cgo
+          make
 
       - name: Run E2E tests
         run: |
