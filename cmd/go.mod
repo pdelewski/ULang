@@ -1,4 +1,4 @@
-module ulc
+module goany
 
 go 1.22.5
 

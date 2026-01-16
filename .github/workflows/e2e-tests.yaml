@@ -37,16 +37,16 @@ jobs:
       - name: Generate code
         run: |
           echo "🔄 Generating code with go generate"
-          cd ulc
+          cd cmd
           go generate ./...
 
       - name: Build astyle library
         run: |
           echo "🔧 Building astyle static library for CGO"
-          cd ulc/astyle
+          cd cmd/astyle
           make -f Makefile.cgo
 
       - name: Run E2E tests
         run: |
-          cd ulc
+          cd cmd
           go test -v -run TestE2E

@@ -1,7 +1,7 @@
-# Makefile for ULC (ULang Compiler)
+# Makefile for goany (Go to Any Language Transpiler)
 
 # Variables
-BINARY_NAME = ulc
+BINARY_NAME = goany
 GO_FILES = $(wildcard *.go)
 ASTYLE_DIR = astyle
 ASTYLE_LIB = $(ASTYLE_DIR)/libastyle.a
@@ -35,7 +35,7 @@ clean-astyle:
 # Build the main binary
 .PHONY: build
 build: generate astyle
-	@echo "Building ULC..."
+	@echo "Building goany..."
 	go build $(GO_BUILD_FLAGS) -o $(BINARY_NAME) .
 	@echo "Build completed successfully!"
 
@@ -74,13 +74,13 @@ deps:
 # Development build (no optimizations, with debug info)
 .PHONY: dev
 dev: generate astyle
-	@echo "Building ULC (development)..."
+	@echo "Building goany (development)..."
 	go build $(GO_BUILD_FLAGS) -gcflags="all=-N -l" -o $(BINARY_NAME) .
 
 # Production build (optimizations enabled)
 .PHONY: prod
 prod: generate astyle
-	@echo "Building ULC (production)..."
+	@echo "Building goany (production)..."
 	go build $(GO_BUILD_FLAGS) -ldflags="-w -s" -o $(BINARY_NAME) .
 
 # Rebuild everything from scratch
@@ -97,7 +97,7 @@ run: build
 help:
 	@echo "Available targets:"
 	@echo "  all        - Build the project (default)"
-	@echo "  build      - Generate code, build astyle, and build ULC binary"
+	@echo "  build      - Generate code, build astyle, and build goany binary"
 	@echo "  generate   - Run go generate to generate code"
 	@echo "  astyle     - Build astyle static library"
 	@echo "  clean      - Clean all build artifacts"

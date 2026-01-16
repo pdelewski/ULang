@@ -1,4 +1,4 @@
-# ULang
+# goany
 
 A Go language transpiler that generates portable code for multiple target platforms. Write your code once in Go and transpile it to C++, C#, or Rust.
 
@@ -15,7 +15,7 @@ This project provides a foundation for writing portable libraries in Go that can
 To build the compiler:
 
 ```bash
-cd ulc
+cd cmd
 make
 ```
 
@@ -24,7 +24,7 @@ make
 | Target | Description |
 |--------|-------------|
 | `make` | Build the project (default) |
-| `make build` | Generate code, build astyle, and build ULC binary |
+| `make build` | Generate code, build astyle, and build goany binary |
 | `make clean` | Clean all build artifacts |
 | `make rebuild` | Clean and rebuild everything |
 | `make dev` | Development build (with debug info) |
@@ -35,7 +35,7 @@ make
 ## Usage
 
 ```bash
-./ulc -source=[directory] -output=[name] -backend=[backend]
+./goany -source=[directory] -output=[name] -backend=[backend]
 ```
 
 ### Flags
@@ -52,17 +52,17 @@ The `-backend` flag accepts comma-separated values for multiple backends.
 
 Transpile to all backends:
 ```bash
-./ulc -source=./libs/uql -output=uql
+./goany -source=./libs/uql -output=uql
 ```
 
 Transpile to Rust only:
 ```bash
-./ulc -source=./libs/uql -output=uql -backend=rust
+./goany -source=./libs/uql -output=uql -backend=rust
 ```
 
 Transpile to C# and Rust:
 ```bash
-./ulc -source=./libs/uql -output=uql -backend=cs,rust
+./goany -source=./libs/uql -output=uql -backend=cs,rust
 ```
 
 ## Supported Features
@@ -73,7 +73,6 @@ Transpile to C# and Rust:
 - Slices: `[]T`
 - Structs
 - Function types
-- `interface{}`
 
 ### Language Constructs
 - Variable declarations and assignments
@@ -85,13 +84,13 @@ Transpile to C# and Rust:
 
 ### Limitations
 
-Some Go features may not be fully supported due to differences in target platforms. See `ulc/doc/rust_backend_rules.md` for detailed implementation notes on the Rust backend.
+Some Go features may not be fully supported due to differences in target platforms. See `cmd/doc/rust_backend_rules.md` for detailed implementation notes on the Rust backend.
 
 ## Project Structure
 
 ```
-ULang/
-├── ulc/                    # Compiler source code
+goany/
+├── cmd/                    # Compiler source code
 │   ├── main.go            # Entry point
 │   ├── rust_emitter.go    # Rust backend
 │   ├── csharp_emitter.go  # C# backend
