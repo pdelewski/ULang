@@ -1,6 +1,6 @@
 //go:generate go run cmd/generate_base_emitter.go
 
-// Package main provides the core functionality for the ULang compiler.
+// Package main provides the core functionality for the goany compiler.
 package main
 
 import (
@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-// Emitter defines the interface for code generation in the ULang compiler.
+// Emitter defines the interface for code generation in the goany compiler.
 // It provides a comprehensive set of methods for traversing and emitting code
 // for different types of AST nodes. The interface is designed to support
 // multiple output languages (e.g., C++, C#) while maintaining a consistent

@@ -1,1 +1,1 @@
-# This directory contains ULang compiler
+# This directory contains goany compiler

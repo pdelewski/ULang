@@ -1,6 +1,6 @@
 # Supported Go Features
 
-This document lists all Go language features supported by the ULang transpiler, based on analysis of the test cases and library code.
+This document lists all Go language features supported by the goany transpiler, based on analysis of the test cases and library code.
 
 ## 1. Primitive Types
 
