@@ -22,7 +22,7 @@ func main() {
 		return
 	}
 	cfg := &packages.Config{
-		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps,
+		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
 		Dir:   sourceDir,
 		Tests: false,
 	}
