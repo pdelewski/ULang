@@ -849,6 +849,10 @@ func (v *BasePass) EpiLog() {
 func (v *BasePass) PreVisit(visitor ast.Visitor) {
 	cppVisitor := visitor.(*BasePassVisitor)
 	namespaces[cppVisitor.pkg.Name] = struct{}{}
+	// Add imported package names to namespaces
+	for _, imp := range cppVisitor.pkg.Imports {
+		namespaces[imp.Name] = struct{}{}
+	}
 	v.emitter.GetGoFIR().emitToFileBuffer("", PreVisitPackage)
 	v.emitter.PreVisitPackage(cppVisitor.pkg, 0)
 }
