@@ -1037,9 +1037,7 @@ func (cse *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 
 func (cse *CSharpEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		if node != nil {
-			cse.insideForPostCond = false
-		}
+		cse.insideForPostCond = false
 		cse.emitToken(")", RightParen, 0)
 		str := cse.emitAsString("\n", 0)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)

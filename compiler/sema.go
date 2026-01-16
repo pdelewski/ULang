@@ -40,14 +40,18 @@ func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) 
 }
 
 func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
-	// Check for for key, value := range (only for _, value is allowed)
-	if node.Key != nil {
+	// Check for for key, value := range (both key and value)
+	// Allowed: for _, v := range slice (value-only)
+	// Allowed: for i := range slice (index-only, Value is nil)
+	// Not allowed: for i, v := range slice (both key and value)
+	if node.Key != nil && node.Value != nil {
 		if node.Key.(*ast.Ident).Name != "_" {
 			fmt.Println("\033[31m\033[1mCompilation error : for key, value := range is not allowed for now\033[0m")
 			os.Exit(-1)
 		}
+		// For value-only range (for _, v := range), set Key to nil so emitters work correctly
+		node.Key = nil
 	}
-	node.Key = nil
 
 	// Check for range over inline composite literal (e.g., for _, x := range []int{1,2,3})
 	if _, ok := node.X.(*ast.CompositeLit); ok {

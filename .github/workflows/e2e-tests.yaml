@@ -19,8 +19,8 @@ jobs:
         with:
           go-version: 1.23
 
-      - name: Install GCC/G++
-        run: sudo apt-get install -y g++
+      - name: Install GCC/G++ and SDL2
+        run: sudo apt-get install -y g++ libsdl2-dev
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v3

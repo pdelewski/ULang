@@ -11,14 +11,19 @@ import (
 type TestCase struct {
 	Name          string
 	SourceDir     string
+	CppEnabled    bool
 	DotnetEnabled bool
 	RustEnabled   bool
 }
 
+const runtimePath = "../runtime"
+
 var e2eTestCases = []TestCase{
-	{"lang-constructs", "../tests/lang-constructs", true, true},
-	{"contlib", "../examples/contlib", true, true},
-	{"uql", "../examples/uql", true, true},
+	{"lang-constructs", "../tests/lang-constructs", true, true, true},
+	{"contlib", "../examples/contlib", true, true, true},
+	{"uql", "../examples/uql", true, true, true},
+	{"graphics-minimal", "../examples/graphics-minimal", true, true, true},
+	{"graphics-demo", "../examples/graphics-demo", true, true, true},
 }
 
 func TestE2E(t *testing.T) {
@@ -31,18 +36,49 @@ func TestE2E(t *testing.T) {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
 
+	// Create build directory
+	buildDir := filepath.Join(wd, "build")
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		t.Fatalf("Failed to create build directory: %v", err)
+	}
+
+	// Clean up build directory at the end
+	t.Cleanup(func() {
+		os.RemoveAll(buildDir)
+	})
+
 	for _, tc := range e2eTestCases {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
-			runE2ETest(t, wd, tc)
+			runE2ETest(t, wd, buildDir, tc)
 		})
 	}
 }
 
-func runE2ETest(t *testing.T, wd string, tc TestCase) {
-	// Step 1: Generate code using go run
+func runE2ETest(t *testing.T, wd, buildDir string, tc TestCase) {
+	outputDir := filepath.Join(buildDir, tc.Name)
+
+	// Create output directory
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Fatalf("Failed to create output directory: %v", err)
+	}
+
+	// Ensure cleanup runs even if test fails
+	t.Cleanup(func() {
+		os.RemoveAll(outputDir)
+	})
+
+	// Step 1: Generate code using go run with -link-runtime
+	// Output path includes the name so files are created in the subdirectory
 	t.Logf("Generating code for %s", tc.Name)
-	cmd := exec.Command("go", "run", ".", fmt.Sprintf("--source=%s", tc.SourceDir), fmt.Sprintf("--output=%s", tc.Name))
+	outputPath := filepath.Join(outputDir, tc.Name)
+	args := []string{
+		"run", ".",
+		fmt.Sprintf("--source=%s", tc.SourceDir),
+		fmt.Sprintf("--output=%s", outputPath),
+		fmt.Sprintf("--link-runtime=%s", runtimePath),
+	}
+	cmd := exec.Command("go", args...)
 	cmd.Dir = wd
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -50,119 +86,41 @@ func runE2ETest(t *testing.T, wd string, tc TestCase) {
 	}
 	t.Logf("Code generation output: %s", output)
 
-	// Step 2: Compile C++
-	t.Logf("Compiling C++ for %s", tc.Name)
-	cppFile := filepath.Join(wd, tc.Name+".cpp")
-	cmd = exec.Command("g++", "-std=c++17", cppFile)
-	cmd.Dir = wd
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("C++ compilation failed: %v\nOutput: %s", err, output)
+	// Step 2: Compile C++ using make
+	if tc.CppEnabled {
+		t.Logf("Compiling C++ for %s", tc.Name)
+		cmd = exec.Command("make")
+		cmd.Dir = outputDir
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("C++ compilation failed: %v\nOutput: %s", err, output)
+		}
+		t.Logf("C++ compilation output: %s", output)
 	}
 
-	// Step 3: Compile C# if enabled
+	// Step 3: Compile C# using dotnet build
 	if tc.DotnetEnabled {
 		t.Logf("Compiling C# for %s", tc.Name)
-		if err := compileDotnet(t, wd, tc.Name); err != nil {
-			t.Fatalf("C# compilation failed: %v", err)
+		cmd = exec.Command("dotnet", "build")
+		cmd.Dir = outputDir
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("C# compilation failed: %v\nOutput: %s", err, output)
 		}
+		t.Logf("C# compilation output: %s", output)
 	}
 
-	// Step 4: Compile Rust if enabled
+	// Step 4: Compile Rust using cargo build
 	if tc.RustEnabled {
 		t.Logf("Compiling Rust for %s", tc.Name)
-		if err := compileRust(t, wd, tc.Name); err != nil {
-			t.Fatalf("Rust compilation failed: %v", err)
+		cmd = exec.Command("cargo", "build")
+		cmd.Dir = outputDir
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Rust compilation failed: %v\nOutput: %s", err, output)
 		}
+		t.Logf("Rust compilation output: %s", output)
 	}
 
-	// Cleanup
-	cleanup(wd, tc.Name)
 	t.Logf("Done with %s", tc.Name)
-}
-
-func compileDotnet(t *testing.T, wd, name string) error {
-	projectDir := filepath.Join(wd, "dotnet_temp_"+name)
-	if err := os.MkdirAll(projectDir, 0755); err != nil {
-		return fmt.Errorf("failed to create project dir: %w", err)
-	}
-	defer os.RemoveAll(projectDir)
-
-	// Create new console project
-	cmd := exec.Command("dotnet", "new", "console", "--output", projectDir, "--force")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("dotnet new failed: %w\nOutput: %s", err, output)
-	}
-
-	// Copy generated .cs file to Program.cs
-	csFile := filepath.Join(wd, name+".cs")
-	programCs := filepath.Join(projectDir, "Program.cs")
-
-	content, err := os.ReadFile(csFile)
-	if err != nil {
-		return fmt.Errorf("failed to read cs file: %w", err)
-	}
-	if err := os.WriteFile(programCs, content, 0644); err != nil {
-		return fmt.Errorf("failed to write Program.cs: %w", err)
-	}
-
-	// Build the project
-	cmd = exec.Command("dotnet", "build")
-	cmd.Dir = projectDir
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("dotnet build failed: %w\nOutput: %s", err, output)
-	}
-
-	return nil
-}
-
-func compileRust(t *testing.T, wd, name string) error {
-	projectDir := filepath.Join(wd, "rust_temp_"+name)
-	srcDir := filepath.Join(projectDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
-		return fmt.Errorf("failed to create src dir: %w", err)
-	}
-	defer os.RemoveAll(projectDir)
-
-	// Copy generated .rs file to src/main.rs
-	rsFile := filepath.Join(wd, name+".rs")
-	mainRs := filepath.Join(srcDir, "main.rs")
-
-	content, err := os.ReadFile(rsFile)
-	if err != nil {
-		return fmt.Errorf("failed to read rs file: %w", err)
-	}
-	if err := os.WriteFile(mainRs, content, 0644); err != nil {
-		return fmt.Errorf("failed to write main.rs: %w", err)
-	}
-
-	// Create Cargo.toml
-	cargoToml := filepath.Join(projectDir, "Cargo.toml")
-	cargoContent := fmt.Sprintf(`[package]
-name = "%s"
-version = "0.1.0"
-edition = "2021"
-`, name)
-	if err := os.WriteFile(cargoToml, []byte(cargoContent), 0644); err != nil {
-		return fmt.Errorf("failed to write Cargo.toml: %w", err)
-	}
-
-	// Build the project
-	cmd := exec.Command("cargo", "build")
-	cmd.Dir = projectDir
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("cargo build failed: %w\nOutput: %s", err, output)
-	}
-
-	return nil
-}
-
-func cleanup(wd, name string) {
-	os.Remove(filepath.Join(wd, name+".cpp"))
-	os.Remove(filepath.Join(wd, name+".cs"))
-	os.Remove(filepath.Join(wd, name+".rs"))
-	os.Remove(filepath.Join(wd, "a.out"))
 }

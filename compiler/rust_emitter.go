@@ -1984,9 +1984,7 @@ func (re *RustEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 }
 
 func (re *RustEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
-	if node != nil {
-		re.insideForPostCond = false
-	}
+	re.insideForPostCond = false
 	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
