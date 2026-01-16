@@ -78,7 +78,7 @@ func testSliceOperations() {
 	}
 }
 
-// Loop constructs: C-style for, range for
+// Loop constructs: C-style for, range for, while-style
 func testLoopConstructs() {
 	var a []int
 
@@ -93,6 +93,39 @@ func testLoopConstructs() {
 	for _, x := range a {
 		if x == 0 {
 		}
+	}
+
+	// While-style loop
+	counter := 0
+	for counter < 5 {
+		counter++
+	}
+	fmt.Println(counter)
+
+	// Infinite loop with break
+	counter2 := 0
+	for {
+		counter2++
+		if counter2 >= 3 {
+			break
+		}
+	}
+	fmt.Println(counter2)
+
+	// Continue statement
+	sum := 0
+	for i := 0; i < 10; i++ {
+		if i%2 == 0 {
+			continue
+		}
+		sum += i
+	}
+	fmt.Println(sum)
+
+	// Index-only range loop
+	nums := []int{10, 20, 30}
+	for i := range nums {
+		fmt.Println(i)
 	}
 }
 

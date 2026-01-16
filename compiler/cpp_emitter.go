@@ -542,9 +542,7 @@ func (cppe *CPPEmitter) PreVisitForStmtPost(node ast.Stmt, indent int) {
 	}
 }
 func (cppe *CPPEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
-	if node != nil {
-		cppe.insideForPostCond = false
-	}
+	cppe.insideForPostCond = false
 	str := cppe.emitAsString(")\n", 0)
 	cppe.emitToFile(str)
 }
