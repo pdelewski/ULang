@@ -52,17 +52,17 @@ The `-backend` flag accepts comma-separated values for multiple backends.
 
 Transpile to all backends:
 ```bash
-./goany -source=./libs/uql -output=uql
+./goany -source=../examples/uql -output=uql
 ```
 
 Transpile to Rust only:
 ```bash
-./goany -source=./libs/uql -output=uql -backend=rust
+./goany -source=../examples/uql -output=uql -backend=rust
 ```
 
 Transpile to C# and Rust:
 ```bash
-./goany -source=./libs/uql -output=uql -backend=cs,rust
+./goany -source=../examples/uql -output=uql -backend=cs,rust
 ```
 
 ## Supported Features
@@ -96,7 +96,7 @@ goany/
 │   ├── csharp_emitter.go  # C# backend
 │   ├── cpp_emitter.go     # C++ backend
 │   └── doc/               # Documentation
-├── libs/                   # Example libraries
+├── examples/               # Example projects
 │   ├── uql/               # SQL query parser
 │   └── contlib/           # Container library
 └── tests/                  # Test cases
