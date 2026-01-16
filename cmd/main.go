@@ -85,7 +85,13 @@ func main() {
 		programFiles = append(programFiles, "cpp")
 	}
 	if useCs {
-		csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{BaseEmitter: BaseEmitter{}, Output: output + ".cs"}}
+		csBackend := &BasePass{PassName: "CsGen", emitter: &CSharpEmitter{
+			BaseEmitter: BaseEmitter{},
+			Output:      output + ".cs",
+			LinkRuntime: linkRuntime,
+			OutputDir:   outputDir,
+			OutputName:  outputName,
+		}}
 		passes = append(passes, csBackend)
 		programFiles = append(programFiles, "cs")
 	}

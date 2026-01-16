@@ -41,7 +41,7 @@ namespace graphics
         public bool running;
     }
 
-    public static class Graphics
+    public static class Api
     {
         // --- Color constructors ---
 
