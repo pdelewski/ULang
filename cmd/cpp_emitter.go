@@ -882,6 +882,12 @@ func (cppe *CPPEmitter) GenerateMakefile() error {
 	}
 	defer file.Close()
 
+	// Convert LinkRuntime to absolute path so Makefile works from any directory
+	absRuntimePath, err := filepath.Abs(cppe.LinkRuntime)
+	if err != nil {
+		absRuntimePath = cppe.LinkRuntime // Fall back to original if Abs fails
+	}
+
 	makefile := fmt.Sprintf(`CXX = g++
 CXXFLAGS = -std=c++17 -I%s $(shell sdl2-config --cflags)
 LDFLAGS = $(shell sdl2-config --libs)
@@ -898,7 +904,7 @@ clean:
 	rm -f $(TARGET)
 
 .PHONY: all clean
-`, cppe.LinkRuntime, cppe.OutputName, cppe.OutputName)
+`, absRuntimePath, cppe.OutputName, cppe.OutputName)
 
 	_, err = file.WriteString(makefile)
 	if err != nil {
