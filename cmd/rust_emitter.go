@@ -60,6 +60,7 @@ type RustEmitter struct {
 	arrayType            string
 	isTuple              bool
 	sawIncrement         bool   // Track if we saw ++ in for loop post statement
+	isInfiniteLoop       bool   // Track if current for loop is infinite (no init, cond, post)
 	declType             string // Store the type for multi-name declarations
 	declNameCount        int    // Count of names in current declaration
 	declNameIndex        int    // Current name index
@@ -1956,12 +1957,26 @@ func (re *RustEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
 func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	re.insideForPostCond = true
 	re.sawIncrement = false // Reset for this for loop
-	str := re.emitAsString("for ", indent)
+
+	// Detect loop type upfront to emit correct Rust keyword
+	var str string
+	if node.Init == nil && node.Cond == nil && node.Post == nil {
+		// Infinite loop: for { } -> loop { }
+		str = re.emitAsString("loop", indent)
+		re.isInfiniteLoop = true
+	} else {
+		str = re.emitAsString("for ", indent)
+		re.isInfiniteLoop = false
+	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = true
 }
 
 func (re *RustEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
+	// Don't emit semicolon for infinite loops (they use `loop` keyword)
+	if re.isInfiniteLoop {
+		return
+	}
 	if node == nil {
 		str := re.emitAsString(";", 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -1982,8 +1997,11 @@ func (re *RustEmitter) PreVisitIfStmtElse(node *ast.IfStmt, indent int) {
 }
 
 func (re *RustEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
-	str := re.emitAsString(";", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	// Don't emit semicolon for infinite loops (they use `loop` keyword)
+	if !re.isInfiniteLoop {
+		str := re.emitAsString(";", 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
 	re.shouldGenerate = false
 }
 

@@ -7,10 +7,13 @@ func main() {
 	w := graphics.CreateWindow("goany Graphics Demo", 800, 600)
 
 	// Main loop
-	running := true
-	for running {
+	for {
 		// Poll events
+		var running bool
 		w, running = graphics.PollEvents(w)
+		if !running {
+			break
+		}
 
 		// Clear screen with dark blue
 		graphics.Clear(w, graphics.NewColor(20, 20, 40, 255))
@@ -34,9 +37,11 @@ func main() {
 		graphics.DrawLine(w, 550, 200, 750, 50, graphics.NewColor(255, 255, 0, 255))
 
 		// Draw some points (small dots)
-		var x int32
-		x = 600
-		for x < 700 {
+		x := int32(600)
+		for {
+			if x >= 700 {
+				break
+			}
 			graphics.DrawPoint(w, x, 300, graphics.White())
 			x = x + 5
 		}
