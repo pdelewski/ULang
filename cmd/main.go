@@ -38,13 +38,8 @@ func main() {
 		}
 	}
 
-	// Check if Makefile already exists when link-runtime is enabled
-	if linkRuntime != "" {
-		makefilePath := filepath.Join(outputDir, "Makefile")
-		if _, err := os.Stat(makefilePath); err == nil {
-			log.Fatalf("Makefile already exists at %s. Remove it first or choose a different output directory.", makefilePath)
-		}
-	}
+	// Note: We allow overwriting existing build files (Cargo.toml, Makefile, etc.)
+	// to support iterative development
 	cfg := &packages.Config{
 		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
 		Dir:   sourceDir,
@@ -95,7 +90,13 @@ func main() {
 		programFiles = append(programFiles, "cs")
 	}
 	if useRust {
-		rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{BaseEmitter: BaseEmitter{}, Output: output + ".rs"}}
+		rustBackend := &BasePass{PassName: "RustGen", emitter: &RustEmitter{
+			BaseEmitter: BaseEmitter{},
+			Output:      output + ".rs",
+			LinkRuntime: linkRuntime,
+			OutputDir:   outputDir,
+			OutputName:  outputName,
+		}}
 		passes = append(passes, rustBackend)
 		programFiles = append(programFiles, "rs")
 	}
@@ -132,7 +133,13 @@ func main() {
 
 	// Use rustfmt for Rust files
 	if useRust {
-		rustFile := fmt.Sprintf("%s.rs", output)
+		var rustFile string
+		if linkRuntime != "" {
+			// For Cargo projects, the file is in src/main.rs
+			rustFile = filepath.Join(outputDir, "src", "main.rs")
+		} else {
+			rustFile = fmt.Sprintf("%s.rs", output)
+		}
 		cmd := exec.Command("rustfmt", rustFile)
 		if err := cmd.Run(); err != nil {
 			// rustfmt not available or failed - just log warning, don't fail

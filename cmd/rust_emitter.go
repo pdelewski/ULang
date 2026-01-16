@@ -5,9 +5,10 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
-
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -41,8 +42,11 @@ func (re *RustEmitter) mapGoTypeToRust(goType string) string {
 }
 
 type RustEmitter struct {
-	Output string
-	file   *os.File
+	Output      string
+	OutputDir   string
+	OutputName  string
+	LinkRuntime string // Path to runtime directory (empty = disabled)
+	file        *os.File
 	BaseEmitter
 	pkg                  *packages.Package
 	insideForPostCond    bool
@@ -217,6 +221,17 @@ func (re *RustEmitter) GetFile() *os.File {
 func (re *RustEmitter) PreVisitProgram(indent int) {
 	re.aliases = make(map[string]Alias)
 	outputFile := re.Output
+
+	// For Cargo projects, write to src/main.rs instead
+	if re.LinkRuntime != "" {
+		srcDir := filepath.Join(re.OutputDir, "src")
+		if err := os.MkdirAll(srcDir, 0755); err != nil {
+			fmt.Println("Error creating src directory:", err)
+			return
+		}
+		outputFile = filepath.Join(srcDir, "main.rs")
+	}
+
 	var err error
 	re.file, err = os.Create(outputFile)
 	re.SetFile(re.file)
@@ -326,12 +341,35 @@ pub fn len<T>(slice: &[T]) -> i32 {
 	str := re.emitAsString(builtin, indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 
+	// Include runtime module if link-runtime is enabled
+	if re.LinkRuntime != "" {
+		runtimeInclude := `
+// Graphics runtime
+mod graphics;
+use graphics::*;
+`
+		re.gir.emitToFileBuffer(runtimeInclude, EmptyVisitMethod)
+	}
+
 	re.insideForPostCond = false
 }
 
 func (re *RustEmitter) PostVisitProgram(indent int) {
 	emitTokensToFile(re.file, re.gir.tokenSlice)
 	re.file.Close()
+
+	// Generate Cargo project files if link-runtime is enabled
+	if re.LinkRuntime != "" {
+		if err := re.GenerateCargoToml(); err != nil {
+			log.Printf("Warning: %v", err)
+		}
+		if err := re.GenerateGraphicsMod(); err != nil {
+			log.Printf("Warning: %v", err)
+		}
+		if err := re.GenerateBuildRs(); err != nil {
+			log.Printf("Warning: %v", err)
+		}
+	}
 }
 
 func (re *RustEmitter) PreVisitFuncDeclSignatures(indent int) {
@@ -2762,4 +2800,105 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 			return
 		}
 	}
+}
+
+// GenerateCargoToml creates a Cargo.toml for building the Rust project with SDL2
+func (re *RustEmitter) GenerateCargoToml() error {
+	if re.LinkRuntime == "" {
+		return nil
+	}
+
+	cargoPath := filepath.Join(re.OutputDir, "Cargo.toml")
+	file, err := os.Create(cargoPath)
+	if err != nil {
+		return fmt.Errorf("failed to create Cargo.toml: %w", err)
+	}
+	defer file.Close()
+
+	cargoToml := fmt.Sprintf(`[package]
+name = "%s"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdl2 = "0.36"
+`, re.OutputName)
+
+	_, err = file.WriteString(cargoToml)
+	if err != nil {
+		return fmt.Errorf("failed to write Cargo.toml: %w", err)
+	}
+
+	log.Printf("Generated Cargo.toml at %s", cargoPath)
+	return nil
+}
+
+// GenerateGraphicsMod creates the graphics.rs module file by copying from runtime
+func (re *RustEmitter) GenerateGraphicsMod() error {
+	if re.LinkRuntime == "" {
+		return nil
+	}
+
+	// Create src directory if needed (Cargo convention)
+	srcDir := filepath.Join(re.OutputDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		return fmt.Errorf("failed to create src directory: %w", err)
+	}
+
+	// Source path: LinkRuntime points to runtime directory, graphics runtime is in graphics/rust/
+	runtimeSrcPath := filepath.Join(re.LinkRuntime, "graphics", "rust", "graphics_runtime.rs")
+	graphicsRs, err := os.ReadFile(runtimeSrcPath)
+	if err != nil {
+		return fmt.Errorf("failed to read graphics runtime from %s: %w", runtimeSrcPath, err)
+	}
+
+	// Destination path
+	graphicsPath := filepath.Join(srcDir, "graphics.rs")
+	if err := os.WriteFile(graphicsPath, graphicsRs, 0644); err != nil {
+		return fmt.Errorf("failed to write graphics.rs: %w", err)
+	}
+
+	log.Printf("Copied graphics.rs from %s to %s", runtimeSrcPath, graphicsPath)
+	return nil
+}
+
+// GenerateBuildRs creates a build.rs file that sets library search paths for SDL2
+func (re *RustEmitter) GenerateBuildRs() error {
+	if re.LinkRuntime == "" {
+		return nil
+	}
+
+	buildRsPath := filepath.Join(re.OutputDir, "build.rs")
+	file, err := os.Create(buildRsPath)
+	if err != nil {
+		return fmt.Errorf("failed to create build.rs: %w", err)
+	}
+	defer file.Close()
+
+	buildRs := `fn main() {
+    // Add Homebrew library path for macOS
+    #[cfg(target_os = "macos")]
+    {
+        // Apple Silicon Macs
+        println!("cargo:rustc-link-search=/opt/homebrew/lib");
+        // Intel Macs
+        println!("cargo:rustc-link-search=/usr/local/lib");
+    }
+
+    // Add common Linux library paths
+    #[cfg(target_os = "linux")]
+    {
+        println!("cargo:rustc-link-search=/usr/lib");
+        println!("cargo:rustc-link-search=/usr/local/lib");
+    }
+}
+`
+
+	_, err = file.WriteString(buildRs)
+	if err != nil {
+		return fmt.Errorf("failed to write build.rs: %w", err)
+	}
+
+	log.Printf("Generated build.rs at %s", buildRsPath)
+	return nil
 }
