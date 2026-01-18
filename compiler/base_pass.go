@@ -853,6 +853,34 @@ func (v *BasePass) PreVisit(visitor ast.Visitor) {
 	for _, imp := range cppVisitor.pkg.Imports {
 		namespaces[imp.Name] = struct{}{}
 	}
+	// Also scan AST imports to catch pseudo-packages like "runtime/graphics"
+	for _, file := range cppVisitor.pkg.Syntax {
+		for _, imp := range file.Imports {
+			if imp.Path != nil {
+				// Extract package name from import path (last component)
+				path := imp.Path.Value
+				// Remove quotes
+				if len(path) > 2 {
+					path = path[1 : len(path)-1]
+				}
+				// Get last component of path
+				lastSlash := -1
+				for i := len(path) - 1; i >= 0; i-- {
+					if path[i] == '/' {
+						lastSlash = i
+						break
+					}
+				}
+				var pkgName string
+				if lastSlash >= 0 {
+					pkgName = path[lastSlash+1:]
+				} else {
+					pkgName = path
+				}
+				namespaces[pkgName] = struct{}{}
+			}
+		}
+	}
 	v.Emitter.GetGoFIR().emitToFileBuffer("", PreVisitPackage)
 	v.Emitter.PreVisitPackage(cppVisitor.pkg, 0)
 }
