@@ -887,7 +887,7 @@ func (cppe *CPPEmitter) GenerateMakefile() error {
 	}
 
 	makefile := fmt.Sprintf(`CXX = g++
-CXXFLAGS = -std=c++17 -I%s $(shell sdl2-config --cflags)
+CXXFLAGS = -O3 -std=c++17 -I%s $(shell sdl2-config --cflags)
 LDFLAGS = $(shell sdl2-config --libs)
 
 TARGET = %s
