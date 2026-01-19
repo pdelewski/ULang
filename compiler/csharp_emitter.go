@@ -426,6 +426,14 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	})
 }
 
+func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		// Reset isArray flag at the start of each variable declaration
+		// This prevents stale state from previous declarations affecting this one
+		cse.isArray = false
+	})
+}
+
 func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
 		pointerAndPosition := SearchPointerIndexReverse(PreVisitDeclStmtValueSpecType, cse.gir.pointerAndIndexVec)

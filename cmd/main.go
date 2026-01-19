@@ -14,6 +14,50 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// collectAllPackages recursively collects all imported packages (excluding standard library and runtime)
+// Packages are returned in dependency order: dependencies first, main package last
+func collectAllPackages(pkgs []*packages.Package) []*packages.Package {
+	visited := make(map[string]bool)
+	var result []*packages.Package
+
+	var collect func(pkg *packages.Package)
+	collect = func(pkg *packages.Package) {
+		if pkg == nil || visited[pkg.PkgPath] {
+			return
+		}
+		visited[pkg.PkgPath] = true
+
+		// Skip standard library packages (they don't have a module)
+		// User packages always have Module != nil
+		if pkg.Module == nil {
+			compiler.DebugLogPrintf("Skipping stdlib package: %s", pkg.PkgPath)
+			return
+		}
+
+		// Skip runtime packages (they are part of the transpiler runtime, not user code)
+		if strings.HasPrefix(pkg.Module.Path, "runtime/") {
+			compiler.DebugLogPrintf("Skipping runtime package: %s (module: %s)", pkg.PkgPath, pkg.Module.Path)
+			return
+		}
+
+		// First, recursively collect imports (dependencies come before dependents)
+		for _, importedPkg := range pkg.Imports {
+			collect(importedPkg)
+		}
+
+		// Then add this package (after its dependencies)
+		compiler.DebugLogPrintf("Adding package: %s (module: %s)", pkg.PkgPath, pkg.Module.Path)
+		result = append(result, pkg)
+	}
+
+	for _, pkg := range pkgs {
+		collect(pkg)
+	}
+
+	compiler.DebugLogPrintf("Total packages to transpile: %d", len(result))
+	return result
+}
+
 func main() {
 	var sourceDir string
 	var output string
@@ -44,7 +88,7 @@ func main() {
 	// Note: We allow overwriting existing build files (Cargo.toml, Makefile, etc.)
 	// to support iterative development
 	cfg := &packages.Config{
-		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
+		Mode:  packages.LoadSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports | packages.NeedModule,
 		Dir:   sourceDir,
 		Tests: false,
 	}
@@ -59,6 +103,9 @@ func main() {
 		fmt.Println("No packages found")
 		return
 	}
+
+	// Collect all imported packages recursively (excluding standard library)
+	allPkgs := collectAllPackages(pkgs)
 
 	// Parse backend selection
 	backends := strings.Split(strings.ToLower(backend), ",")
@@ -111,7 +158,7 @@ func main() {
 	}
 
 	passManager := &compiler.PassManager{
-		Pkgs:   pkgs,
+		Pkgs:   allPkgs,
 		Passes: passes,
 	}
 

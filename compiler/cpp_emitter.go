@@ -164,6 +164,13 @@ std::vector<T> append(const std::vector<T> &vec, const T &element) {
   result.push_back(element);   // Append the single element
   return result;               // Return the new vector
 }
+
+// Specialization for appending const char* to vector of strings
+std::vector<std::string> append(const std::vector<std::string> &vec, const char *element) {
+  std::vector<std::string> result = vec;
+  result.push_back(std::string(element));
+  return result;
+}
 `)
 	cppe.file.WriteString("\n\n")
 	if err != nil {
@@ -184,6 +191,7 @@ func (cppe *CPPEmitter) PostVisitProgram(indent int) {
 
 func (cppe *CPPEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	name := pkg.Name
+	DebugLogPrintf("CPPEmitter: PreVisitPackage: %s (path: %s)", name, pkg.PkgPath)
 	if name == "main" {
 		return
 	}
@@ -749,6 +757,7 @@ func (cppe *CPPEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl,
 }
 
 func (cppe *CPPEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
+	DebugLogPrintf("CPPEmitter: PreVisitFuncDeclName: %s", node.Name)
 	str := cppe.emitAsString(node.Name, 0)
 	cppe.emitToFile(str)
 }

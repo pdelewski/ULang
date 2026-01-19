@@ -1,7 +1,7 @@
 package assembler
 
 import (
-	"mos6502/cpu"
+	"mos6502lib/cpu"
 )
 
 // Token types for 6502 assembly
@@ -151,24 +151,7 @@ func Tokenize(text string) []Token {
 			continue
 		}
 
-		// Number (decimal)
-		if IsDigit(b) {
-			repr := []int8{}
-			for {
-				if i >= len(bytes) {
-					break
-				}
-				if !IsDigit(bytes[i]) {
-					break
-				}
-				repr = append(repr, bytes[i])
-				i = i + 1
-			}
-			tokens = append(tokens, Token{Type: TokenTypeNumber, Representation: repr})
-			continue
-		}
-
-		// Hex number (after $)
+		// Number (hex or decimal - treat all as hex since hex includes 0-9)
 		if IsHexDigit(b) {
 			repr := []int8{}
 			for {
@@ -640,24 +623,7 @@ func TokenizeBytes(bytes []int8) []Token {
 			continue
 		}
 
-		// Number (decimal)
-		if IsDigit(b) {
-			repr := []int8{}
-			for {
-				if i >= len(bytes) {
-					break
-				}
-				if !IsDigit(bytes[i]) {
-					break
-				}
-				repr = append(repr, bytes[i])
-				i = i + 1
-			}
-			tokens = append(tokens, Token{Type: TokenTypeNumber, Representation: repr})
-			continue
-		}
-
-		// Hex number (after $)
+		// Number (hex or decimal - treat all as hex since hex includes 0-9)
 		if IsHexDigit(b) {
 			repr := []int8{}
 			for {

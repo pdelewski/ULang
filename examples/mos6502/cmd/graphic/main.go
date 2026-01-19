@@ -1,8 +1,8 @@
 package main
 
 import (
-	"mos6502/assembler"
-	"mos6502/cpu"
+	"mos6502lib/assembler"
+	"mos6502lib/cpu"
 	"runtime/graphics"
 )
 
