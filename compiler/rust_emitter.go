@@ -1923,6 +1923,19 @@ func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	re.binaryNeedsLeftCast = false
 	re.binaryNeedsRightCast = ""
 
+	// Check for string concatenation - in Rust, String + &str is needed
+	if node.Op == token.ADD {
+		leftType := re.pkg.TypesInfo.Types[node.X]
+		if leftType.Type != nil && leftType.Type.String() == "string" {
+			// Check if right side is a function call or identifier returning string
+			rightType := re.pkg.TypesInfo.Types[node.Y]
+			if rightType.Type != nil && rightType.Type.String() == "string" {
+				// Mark that we need to add & before right operand
+				re.binaryNeedsRightCast = "&"
+			}
+		}
+	}
+
 	// Check if left operand is u8/i8/u16/i16 and right is a constant
 	// Go's type checker sees both as same type after implicit conversion, but
 	// we generate constants as i32, so we need to handle type mismatches
@@ -2010,9 +2023,17 @@ func (re *RustEmitter) PostVisitBinaryExprLeft(node ast.Expr, indent int) {
 	}
 }
 
+func (re *RustEmitter) PreVisitBinaryExprRight(node ast.Expr, indent int) {
+	// Add & before right operand for string concatenation (Rust requires String + &str)
+	if re.binaryNeedsRightCast == "&" && !re.forwardDecls {
+		re.gir.emitToFileBuffer("&", EmptyVisitMethod)
+	}
+}
+
 func (re *RustEmitter) PostVisitBinaryExprRight(node ast.Expr, indent int) {
 	// Add cast for right operand (constant) if needed for bitwise operations
-	if re.binaryNeedsRightCast != "" && !re.forwardDecls {
+	// Skip if it was the & for string concatenation (that's a prefix, not a suffix)
+	if re.binaryNeedsRightCast != "" && re.binaryNeedsRightCast != "&" && !re.forwardDecls {
 		re.gir.emitToFileBuffer(fmt.Sprintf(" as %s", re.binaryNeedsRightCast), EmptyVisitMethod)
 	}
 }
