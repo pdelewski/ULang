@@ -92,6 +92,10 @@ type RustEmitter struct {
 	localClosureBodyStartIndex   int                     // Token index where closure body starts (after opening brace)
 	localClosureAssignStartIndex int                     // Token index where the assignment statement starts
 	currentCompLitIsSlice        bool                    // Track if current composite literal is a slice type alias
+	binaryNeedsLeftCast          bool                    // Track if left operand of binary expr needs cast to i32
+	binaryNeedsLeftCastStack     []bool                  // Stack for nested binary expressions
+	binaryNeedsRightCast         string                  // Type to cast right operand of binary expr (e.g., "u8")
+	binaryNeedsRightCastStack    []string                // Stack for nested binary expressions
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -1912,9 +1916,118 @@ func (re *RustEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) 
 func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	re.shouldGenerate = true
 	re.emitToken("(", LeftParen, 1)
+
+	// Save current state for nested expressions
+	re.binaryNeedsLeftCastStack = append(re.binaryNeedsLeftCastStack, re.binaryNeedsLeftCast)
+	re.binaryNeedsRightCastStack = append(re.binaryNeedsRightCastStack, re.binaryNeedsRightCast)
+	re.binaryNeedsLeftCast = false
+	re.binaryNeedsRightCast = ""
+
+	// Check if left operand is u8/i8/u16/i16 and right is a constant
+	// Go's type checker sees both as same type after implicit conversion, but
+	// we generate constants as i32, so we need to handle type mismatches
+	isComparisonOp := node.Op == token.EQL || node.Op == token.NEQ ||
+		node.Op == token.LSS || node.Op == token.GTR ||
+		node.Op == token.LEQ || node.Op == token.GEQ
+	isBitwiseOp := node.Op == token.AND || node.Op == token.OR || node.Op == token.XOR
+
+	leftType := re.pkg.TypesInfo.Types[node.X]
+	if leftType.Type != nil {
+		leftStr := leftType.Type.String()
+		// Check if left is a small integer type
+		if leftStr == "uint8" || leftStr == "int8" || leftStr == "uint16" || leftStr == "int16" {
+			// Helper function to check if right side is a constant
+			rightIsConst := false
+			if ident, ok := node.Y.(*ast.Ident); ok {
+				if obj := re.pkg.TypesInfo.Uses[ident]; obj != nil {
+					if _, isConst := obj.(*types.Const); isConst {
+						rightIsConst = true
+					}
+				}
+			}
+			if sel, ok := node.Y.(*ast.SelectorExpr); ok {
+				if obj := re.pkg.TypesInfo.Uses[sel.Sel]; obj != nil {
+					if _, isConst := obj.(*types.Const); isConst {
+						rightIsConst = true
+					}
+				}
+			}
+
+			if rightIsConst {
+				if isComparisonOp {
+					// For comparisons, cast left to i32 (result is bool)
+					re.binaryNeedsLeftCast = true
+				} else if isBitwiseOp {
+					// For bitwise ops, cast right constant to match left type
+					// so the result has the correct type
+					rustType := re.mapGoTypeToRust(leftStr)
+					re.binaryNeedsRightCast = rustType
+				}
+			}
+
+			// Also check if right side is a binary expression or paren expr containing one
+			// (e.g., 0xFF - FlagZ or (0xFF - FlagZ)) that will evaluate to i32 in Rust
+			if isBitwiseOp {
+				// Get the actual expression, unwrapping ParenExpr if needed
+				rightExpr := node.Y
+				if parenExpr, ok := rightExpr.(*ast.ParenExpr); ok {
+					rightExpr = parenExpr.X
+				}
+
+				if _, ok := rightExpr.(*ast.BinaryExpr); ok {
+					// Check if the expression contains constants or literals
+					// that will result in i32
+					hasIntLiteral := false
+					ast.Inspect(rightExpr, func(n ast.Node) bool {
+						if lit, ok := n.(*ast.BasicLit); ok {
+							if lit.Kind == token.INT {
+								hasIntLiteral = true
+							}
+						}
+						if ident, ok := n.(*ast.Ident); ok {
+							if obj := re.pkg.TypesInfo.Uses[ident]; obj != nil {
+								if _, isConst := obj.(*types.Const); isConst {
+									hasIntLiteral = true
+								}
+							}
+						}
+						return true
+					})
+					if hasIntLiteral {
+						rustType := re.mapGoTypeToRust(leftStr)
+						re.binaryNeedsRightCast = rustType
+					}
+				}
+			}
+		}
+	}
 }
+
+func (re *RustEmitter) PostVisitBinaryExprLeft(node ast.Expr, indent int) {
+	// Add cast to i32 if needed for type compatibility with constants
+	if re.binaryNeedsLeftCast {
+		re.gir.emitToFileBuffer(" as i32", EmptyVisitMethod)
+	}
+}
+
+func (re *RustEmitter) PostVisitBinaryExprRight(node ast.Expr, indent int) {
+	// Add cast for right operand (constant) if needed for bitwise operations
+	if re.binaryNeedsRightCast != "" && !re.forwardDecls {
+		re.gir.emitToFileBuffer(fmt.Sprintf(" as %s", re.binaryNeedsRightCast), EmptyVisitMethod)
+	}
+}
+
 func (re *RustEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	re.emitToken(")", RightParen, 1)
+	// Restore previous state for nested expressions
+	if len(re.binaryNeedsLeftCastStack) > 0 {
+		re.binaryNeedsLeftCast = re.binaryNeedsLeftCastStack[len(re.binaryNeedsLeftCastStack)-1]
+		re.binaryNeedsLeftCastStack = re.binaryNeedsLeftCastStack[:len(re.binaryNeedsLeftCastStack)-1]
+	}
+	if len(re.binaryNeedsRightCastStack) > 0 {
+		re.binaryNeedsRightCast = re.binaryNeedsRightCastStack[len(re.binaryNeedsRightCastStack)-1]
+		re.binaryNeedsRightCastStack = re.binaryNeedsRightCastStack[:len(re.binaryNeedsRightCastStack)-1]
+	}
 	// Note: Do NOT set shouldGenerate = false here!
 	// This would prevent the right operand of nested binary expressions from being generated.
 	// For example, in (a + b) + c, setting false after (a + b) would suppress 'c'.
@@ -2605,7 +2718,10 @@ func (re *RustEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 			if constType == re.pkg.TypesInfo.Defs[node].Type().String() {
 				constType = trimBeforeChar(constType, '.')
 			}
+
 			// Map Go types to Rust types for constants
+			// Keep untyped int as i32 since Go's implicit type conversion at usage
+			// sites will be handled by explicit casts in binary expressions
 			rustType := re.mapGoTypeToRust(constType)
 			str := re.emitAsString(fmt.Sprintf("pub const %s: %s = ", node.Name, rustType), 0)
 
