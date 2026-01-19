@@ -386,7 +386,7 @@ func (re *RustEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 		return
 	}
 	var str string
-	str = re.emitAsString(fmt.Sprintf("fn %s", node.Name), 0)
+	str = re.emitAsString(fmt.Sprintf("pub fn %s", node.Name), 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -952,6 +952,7 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 		return
 	}
 	re.pkg = pkg
+	re.currentPackage = pkg.Name
 	// Initialize the caches if not already done
 	if re.processedPkgsInterfaceTypes == nil {
 		re.processedPkgsInterfaceTypes = make(map[string]bool)
@@ -966,6 +967,15 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	re.pkgHasInterfaceTypes = re.packageHasInterfaceTypes(pkg)
 	// Cache this package's result
 	re.processedPkgsInterfaceTypes[pkg.PkgPath] = re.pkgHasInterfaceTypes
+
+	// Generate module declaration for non-main packages
+	if pkg.Name != "main" {
+		str := re.emitAsString(fmt.Sprintf("pub mod %s {\n", pkg.Name), indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Import crate-root items (helper functions like append, len, println, etc.)
+		str = re.emitAsString("use crate::*;\n\n", indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
 }
 
 // packageHasInterfaceTypes scans all structs in the package for interface{} fields
@@ -1023,6 +1033,11 @@ func (re *RustEmitter) typeHasInterfaceFields(t types.Type) bool {
 func (re *RustEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	if re.forwardDecls {
 		return
+	}
+	// Close the module declaration for non-main packages
+	if pkg.Name != "main" {
+		str := re.emitAsString(fmt.Sprintf("} // pub mod %s\n\n", pkg.Name), indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
 }
 
@@ -1318,17 +1333,8 @@ func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent 
 }
 
 func (re *RustEmitter) PreVisitSelectorExprX(node ast.Expr, indent int) {
-	// For package names, suppress generation since we're generating single-file output
-	if ident, ok := node.(*ast.Ident); ok {
-		obj := re.pkg.TypesInfo.Uses[ident]
-		if obj != nil {
-			if _, ok := obj.(*types.PkgName); ok {
-				// Don't generate the package name
-				re.shouldGenerate = false
-				return
-			}
-		}
-	}
+	// For package names, we now generate module-qualified access
+	// Package names are generated normally, and :: operator is added in PostVisitSelectorExprX
 }
 
 func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
@@ -1337,27 +1343,36 @@ func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	}
 	var str string
 	scopeOperator := "." // Default to dot for field access
+	isBuiltinPackage := false
 	if ident, ok := node.(*ast.Ident); ok {
+		// Check if this is a builtin package (like fmt) that we lower to crate-level functions
 		if re.lowerToBuiltins(ident.Name) == "" {
-			// Re-enable generation for the selector part (e.g., Printf after fmt)
-			re.shouldGenerate = true
-			return
+			// This is a builtin package like "fmt"
+			isBuiltinPackage = true
 		}
-		// Check if this is a package name - skip operator for single-file output
+
+		// Check if this is a package name - use :: for module-qualified access
 		obj := re.pkg.TypesInfo.Uses[ident]
 		if obj != nil {
 			if _, ok := obj.(*types.PkgName); ok {
-				// For single-file output, don't emit any scope operator for package references
-				// The type/function will be referenced directly
-				re.shouldGenerate = true // Re-enable for the selector part
-				return
+				// For builtin packages (fmt), don't emit any operator
+				// The selector will be lowered to a crate-level function
+				if isBuiltinPackage {
+					re.shouldGenerate = true
+					return
+				}
+				// Use :: for module-qualified access in Rust
+				scopeOperator = "::"
 			}
+		}
+		// Also check if the identifier is a known namespace/module
+		if _, found := namespaces[ident.Name]; found {
+			scopeOperator = "::"
 		}
 	}
 
 	str = re.emitAsString(scopeOperator, 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-
 }
 
 func (re *RustEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
@@ -1447,7 +1462,7 @@ func (re *RustEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 		return
 	}
 	re.gir.emitToFileBuffer("", "@@PreVisitTypeAliasName")
-	str := re.emitAsString("type ", indent+2)
+	str := re.emitAsString("pub type ", indent+2)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = true
 }
