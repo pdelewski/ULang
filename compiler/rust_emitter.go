@@ -92,6 +92,7 @@ type RustEmitter struct {
 	localClosureBodyStartIndex        int    // Token index where closure body starts (after opening brace)
 	localClosureAssignStartIndex      int    // Token index where the assignment statement starts
 	currentCompLitIsSlice             bool   // Track if current composite literal is a slice type alias
+	emittedCratePrefix                bool   // Track if we emitted crate:: prefix in PreVisitSelectorExprX
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -244,100 +245,111 @@ func (re *RustEmitter) PreVisitProgram(indent int) {
 use std::any::Any;
 use std::rc::Rc;
 
-// Type aliases (Go-style)
-type Int8 = i8;
-type Int16 = i16;
-type Int32 = i32;
-type Int64 = i64;
-type Uint8 = u8;
-type Uint16 = u16;
-type Uint32 = u32;
-type Uint64 = u64;
+// Type aliases (Go-style) - must be pub to be accessible from modules
+pub type Int8 = i8;
+pub type Int16 = i16;
+pub type Int32 = i32;
+pub type Int64 = i64;
+pub type Uint8 = u8;
+pub type Uint16 = u16;
+pub type Uint32 = u32;
+pub type Uint64 = u64;
 
-// println equivalents - multiple versions for different arg counts
-pub fn println<T: fmt::Display>(val: T) {
-    std::println!("{}", val);
-}
+// Runtime module containing all builtin functions
+pub mod runtime {
+    pub mod std {
+        use std::fmt;
 
-pub fn println0() {
-    std::println!();
-}
+        // println equivalents - multiple versions for different arg counts
+        pub fn println<T: fmt::Display>(val: T) {
+            std::println!("{}", val);
+        }
 
-// printf - multiple versions for different arg counts
-pub fn printf<T: fmt::Display>(val: T) {
-    print!("{}", val);
-}
+        pub fn println0() {
+            std::println!();
+        }
 
-pub fn printf2<T: fmt::Display>(fmt_str: String, val: T) {
-    // Convert C-style format to Rust format
-    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
-    let result = rust_fmt.replace("{}", &format!("{}", val));
-    print!("{}", result);
-}
+        // printf - multiple versions for different arg counts
+        pub fn printf<T: fmt::Display>(val: T) {
+            print!("{}", val);
+        }
 
-pub fn printf3<T1: fmt::Display, T2: fmt::Display>(fmt_str: String, v1: T1, v2: T2) {
-    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
-    let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1);
-    print!("{}", result);
-}
+        pub fn printf2<T: fmt::Display>(fmt_str: String, val: T) {
+            // Convert C-style format to Rust format
+            let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+            let result = rust_fmt.replace("{}", &format!("{}", val));
+            print!("{}", result);
+        }
 
-pub fn printf4<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display>(fmt_str: String, v1: T1, v2: T2, v3: T3) {
-    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
-    let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1).replacen("{}", &format!("{}", v3), 1);
-    print!("{}", result);
-}
+        pub fn printf3<T1: fmt::Display, T2: fmt::Display>(fmt_str: String, v1: T1, v2: T2) {
+            let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+            let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1);
+            print!("{}", result);
+        }
 
-pub fn printf5<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display, T4: fmt::Display>(fmt_str: String, v1: T1, v2: T2, v3: T3, v4: T4) {
-    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
-    let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1).replacen("{}", &format!("{}", v3), 1).replacen("{}", &format!("{}", v4), 1);
-    print!("{}", result);
-}
+        pub fn printf4<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display>(fmt_str: String, v1: T1, v2: T2, v3: T3) {
+            let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+            let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1).replacen("{}", &format!("{}", v3), 1);
+            print!("{}", result);
+        }
 
-// Print byte as character (for %c format)
-pub fn printc(b: i8) {
-    print!("{}", b as u8 as char);
-}
+        pub fn printf5<T1: fmt::Display, T2: fmt::Display, T3: fmt::Display, T4: fmt::Display>(fmt_str: String, v1: T1, v2: T2, v3: T3, v4: T4) {
+            let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+            let result = rust_fmt.replacen("{}", &format!("{}", v1), 1).replacen("{}", &format!("{}", v2), 1).replacen("{}", &format!("{}", v3), 1).replacen("{}", &format!("{}", v4), 1);
+            print!("{}", result);
+        }
 
-// Convert byte to character string (for Sprintf %c format)
-pub fn byte_to_char(b: i8) -> String {
-    (b as u8 as char).to_string()
-}
+        // Print byte as character (for %c format)
+        pub fn printc(b: i8) {
+            print!("{}", b as u8 as char);
+        }
 
-// Go-style append (returns a new Vec)
-pub fn append<T: Clone>(vec: &Vec<T>, value: T) -> Vec<T> {
-    let mut new_vec = vec.clone();
-    new_vec.push(value);
-    new_vec
-}
+        // Convert byte to character string (for Sprintf %c format)
+        pub fn byte_to_char(b: i8) -> String {
+            (b as u8 as char).to_string()
+        }
 
-pub fn append_many<T: Clone>(vec: &Vec<T>, values: &[T]) -> Vec<T> {
-    let mut new_vec = vec.clone();
-    new_vec.extend_from_slice(values);
-    new_vec
-}
+        // Go-style append (returns a new Vec)
+        pub fn append<T: Clone>(vec: &Vec<T>, value: T) -> Vec<T> {
+            let mut new_vec = vec.clone();
+            new_vec.push(value);
+            new_vec
+        }
 
-// Simple string_format using format!
-pub fn string_format(fmt_str: &str, args: &[&dyn fmt::Display]) -> String {
-    let mut result = String::new();
-    let mut split = fmt_str.split("{}");
-    for (i, segment) in split.enumerate() {
-        result.push_str(segment);
-        if i < args.len() {
-            result.push_str(&format!("{}", args[i]));
+        pub fn append_many<T: Clone>(vec: &Vec<T>, values: &[T]) -> Vec<T> {
+            let mut new_vec = vec.clone();
+            new_vec.extend_from_slice(values);
+            new_vec
+        }
+
+        // Simple string_format using format!
+        pub fn string_format(fmt_str: &str, args: &[&dyn fmt::Display]) -> String {
+            let mut result = String::new();
+            let mut split = fmt_str.split("{}");
+            for (i, segment) in split.enumerate() {
+                result.push_str(segment);
+                if i < args.len() {
+                    result.push_str(&format!("{}", args[i]));
+                }
+            }
+            result
+        }
+
+        // string_format for 2 args (format string + 1 value)
+        pub fn string_format2<T: fmt::Display>(fmt_str: &str, val: T) -> String {
+            let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
+            rust_fmt.replace("{}", &format!("{}", val))
+        }
+
+        pub fn len<T>(slice: &[T]) -> i32 {
+            slice.len() as i32
         }
     }
-    result
 }
 
-// string_format for 2 args (format string + 1 value)
-pub fn string_format2<T: fmt::Display>(fmt_str: &str, val: T) -> String {
-    let rust_fmt = fmt_str.replace("%d", "{}").replace("%s", "{}").replace("%v", "{}");
-    rust_fmt.replace("{}", &format!("{}", val))
-}
+// Import runtime functions for main scope
+use crate::runtime::std::*;
 
-pub fn len<T>(slice: &[T]) -> i32 {
-    slice.len() as i32
-}
 `
 	str := re.emitAsString(builtin, indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -386,7 +398,12 @@ func (re *RustEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 		return
 	}
 	var str string
-	str = re.emitAsString(fmt.Sprintf("fn %s", node.Name), 0)
+	// Use pub fn for all functions except main (main can't be pub)
+	if node.Name == "main" {
+		str = re.emitAsString("fn main", 0)
+	} else {
+		str = re.emitAsString(fmt.Sprintf("pub fn %s", node.Name), 0)
+	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -454,7 +471,10 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 
 	var str string
 	name := e.Name
-	name = re.lowerToBuiltins(name)
+	loweredName := re.lowerToBuiltins(name)
+	// Apply builtin lowering (e.g., Println -> println)
+	name = loweredName
+
 	if name == "nil" {
 		// In Go, nil for slices means empty slice - use Vec::new() in Rust
 		// For pointers/interfaces, None would be correct, but Vec::new() is safer
@@ -466,6 +486,8 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		} else {
 			// Escape Rust keywords
 			name = escapeRustKeyword(name)
+			// Builtin functions are imported via "use crate::runtime::std::*;" in each module
+			// So they can be called directly without prefix
 			str = re.emitAsString(name, indent)
 		}
 	}
@@ -800,9 +822,17 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 	}
 	pointerAndPosition := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
-		for aliasName, alias := range re.aliases {
-			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+		// Get the actual type name being used
+		typeInfo := re.pkg.TypesInfo.Types[node.Type]
+		if typeInfo.Type != nil {
+			actualTypeName := typeInfo.Type.String()
+			// Extract just the type name (strip package prefix if any)
+			if strings.Contains(actualTypeName, ".") {
+				actualTypeName = actualTypeName[strings.LastIndex(actualTypeName, ".")+1:]
+			}
+			// Only rewrite if we have an alias with a matching name
+			if _, exists := re.aliases[actualTypeName]; exists {
+				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{actualTypeName})
 			}
 		}
 	}
@@ -965,6 +995,21 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	re.pkgHasInterfaceTypes = re.packageHasInterfaceTypes(pkg)
 	// Cache this package's result
 	re.processedPkgsInterfaceTypes[pkg.PkgPath] = re.pkgHasInterfaceTypes
+
+	// Emit module declaration (skip for main package)
+	name := pkg.Name
+	if name != "main" {
+		// Import builtins and common types for each module
+		modHeader := fmt.Sprintf(`pub mod %s {
+    use crate::runtime::std::*;
+    use std::rc::Rc;
+    use std::any::Any;
+    use std::fmt;
+
+`, name)
+		str := re.emitAsString(modHeader, 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
 }
 
 // packageHasInterfaceTypes scans all structs in the package for interface{} fields
@@ -1022,6 +1067,12 @@ func (re *RustEmitter) typeHasInterfaceFields(t types.Type) bool {
 func (re *RustEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	if re.forwardDecls {
 		return
+	}
+	// Close module declaration (skip for main package)
+	name := pkg.Name
+	if name != "main" {
+		str := re.emitAsString(fmt.Sprintf("} // mod %s\n\n", name), 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
 }
 
@@ -1317,14 +1368,27 @@ func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent 
 }
 
 func (re *RustEmitter) PreVisitSelectorExprX(node ast.Expr, indent int) {
-	// For package names, suppress generation since we're generating single-file output
+	re.emittedCratePrefix = false // Reset at start of each selector expr
+	// For builtin package names like "fmt", suppress generation
 	if ident, ok := node.(*ast.Ident); ok {
+		if re.lowerToBuiltins(ident.Name) == "" {
+			// Builtin package (like fmt) - suppress the package name
+			re.shouldGenerate = false
+			return
+		}
+		// For user-defined packages, keep generating - we need the module prefix
+		// Check if this is a package name - if so, emit crate:: prefix for cross-module reference
 		obj := re.pkg.TypesInfo.Uses[ident]
 		if obj != nil {
-			if _, ok := obj.(*types.PkgName); ok {
-				// Don't generate the package name
-				re.shouldGenerate = false
-				return
+			if pkgName, ok := obj.(*types.PkgName); ok {
+				// This is a package name reference - emit crate:: prefix for Rust module system
+				// But only if we're referencing a different package (not the current one)
+				if pkgName.Imported().Name() != re.pkg.Name {
+					re.shouldGenerate = false // Suppress the package name itself
+					str := re.emitAsString("crate::"+pkgName.Imported().Name()+"::", 0)
+					re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+					re.emittedCratePrefix = true // Mark that we already emitted the prefix with ::
+				}
 			}
 		}
 	}
@@ -1334,29 +1398,29 @@ func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	if re.forwardDecls {
 		return
 	}
-	var str string
-	scopeOperator := "." // Default to dot for field access
 	if ident, ok := node.(*ast.Ident); ok {
 		if re.lowerToBuiltins(ident.Name) == "" {
-			// Re-enable generation for the selector part (e.g., Printf after fmt)
+			// Builtin package (like fmt) - re-enable generation for the selector part
 			re.shouldGenerate = true
 			return
 		}
-		// Check if this is a package name - skip operator for single-file output
-		obj := re.pkg.TypesInfo.Uses[ident]
-		if obj != nil {
-			if _, ok := obj.(*types.PkgName); ok {
-				// For single-file output, don't emit any scope operator for package references
-				// The type/function will be referenced directly
-				re.shouldGenerate = true // Re-enable for the selector part
-				return
-			}
+		// If we already emitted crate::pkgName:: in PreVisit, just re-enable generation and return
+		if re.emittedCratePrefix {
+			re.shouldGenerate = true
+			re.emittedCratePrefix = false
+			return
 		}
+		// Check if this is a module/namespace - use :: operator
+		scopeOperator := "."
+		if _, found := namespaces[ident.Name]; found {
+			scopeOperator = "::"
+		}
+		str := re.emitAsString(scopeOperator, 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	} else {
+		str := re.emitAsString(".", 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
-
-	str = re.emitAsString(scopeOperator, 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-
 }
 
 func (re *RustEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
@@ -1446,7 +1510,8 @@ func (re *RustEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 		return
 	}
 	re.gir.emitToFileBuffer("", "@@PreVisitTypeAliasName")
-	str := re.emitAsString("type ", indent+2)
+	// Use pub type for all type aliases so they're accessible from outside the module
+	str := re.emitAsString("pub type ", indent+2)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = true
 }
