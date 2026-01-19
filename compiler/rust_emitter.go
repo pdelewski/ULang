@@ -882,11 +882,18 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 			str += " = " + defaultVal
 		} else if typeName == "String" {
 			str += " = String::new()"
-		} else if len(typeName) > 0 && typeName[0] >= 'A' && typeName[0] <= 'Z' &&
-			!strings.Contains(typeName, "Box<dyn") {
+		} else if len(typeName) > 0 && !strings.Contains(typeName, "Box<dyn") {
 			// For struct types declared without value (var x StructType), initialize with default
 			// Skip Box<dyn Any> - can't call default() on trait objects
-			str += " = " + typeName + "::default()"
+			// Handle module-qualified types like types::Plan by checking the type name part
+			typeNamePart := typeName
+			if idx := strings.LastIndex(typeName, "::"); idx >= 0 {
+				typeNamePart = typeName[idx+2:]
+			}
+			// Check if type name starts with uppercase (struct type)
+			if len(typeNamePart) > 0 && typeNamePart[0] >= 'A' && typeNamePart[0] <= 'Z' {
+				str += " = " + typeName + "::default()"
+			}
 		}
 	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -1342,8 +1349,22 @@ func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent 
 }
 
 func (re *RustEmitter) PreVisitSelectorExprX(node ast.Expr, indent int) {
-	// For package names, we now generate module-qualified access
-	// Package names are generated normally, and :: operator is added in PostVisitSelectorExprX
+	// For builtin package names (like fmt), suppress generation
+	// For user-defined module names (like types, ast), generate them
+	if ident, ok := node.(*ast.Ident); ok {
+		obj := re.pkg.TypesInfo.Uses[ident]
+		if obj != nil {
+			if _, ok := obj.(*types.PkgName); ok {
+				// Check if this is a builtin package that gets lowered
+				if re.lowerToBuiltins(ident.Name) == "" {
+					// Builtin package (fmt) - suppress generation
+					re.shouldGenerate = false
+					return
+				}
+				// User-defined module - let it be generated
+			}
+		}
+	}
 }
 
 func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
