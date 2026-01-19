@@ -2880,46 +2880,85 @@ func (re *RustEmitter) PreVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) 
 func (re *RustEmitter) PostVisitKeyValueExpr(node *ast.KeyValueExpr, indent int) {
 	re.inKeyValueExpr = false
 	// Add type cast if needed for struct field initialization
-	// This handles untyped int constants assigned to i8 fields
-	if node.Value != nil {
-		// Get the key (field name)
-		if keyIdent, ok := node.Key.(*ast.Ident); ok {
-			fieldName := keyIdent.Name
-			// Use heuristic based on field name for common i8 fields
-			if fieldName == "Type" || fieldName == "Mode" {
-				// Check if this is an identifier (likely a constant) being assigned
-				if valueIdent, ok := node.Value.(*ast.Ident); ok {
-					// Check if the identifier refers to an object with int type
-					obj := re.pkg.TypesInfo.Uses[valueIdent]
-					if obj != nil {
-						objType := obj.Type().String()
-						// Cast int constants to i8 for Type fields
-						if objType == "int" || objType == "untyped int" || strings.HasSuffix(objType, ".int") {
-							re.gir.emitToFileBuffer(" as i8", EmptyVisitMethod)
-						}
-					} else {
-						// If obj is nil but it looks like a constant name (starts with uppercase), add cast
-						// This handles cross-package constant references that might not be resolved
-						if len(valueIdent.Name) > 0 && valueIdent.Name[0] >= 'A' && valueIdent.Name[0] <= 'Z' {
-							re.gir.emitToFileBuffer(" as i8", EmptyVisitMethod)
-						}
-					}
-				} else if selExpr, ok := node.Value.(*ast.SelectorExpr); ok {
-					// Handle package-qualified constants like ast.StatementTypeFrom
-					obj := re.pkg.TypesInfo.Uses[selExpr.Sel]
-					if obj != nil {
-						if _, isConst := obj.(*types.Const); isConst {
-							objType := obj.Type().String()
-							// Cast int constants to i8 for Type fields
-							if objType == "int" || objType == "untyped int" || strings.HasSuffix(objType, ".int") {
-								re.gir.emitToFileBuffer(" as i8", EmptyVisitMethod)
-							}
-						}
+	// This handles untyped int constants assigned to int8 fields
+	if node.Value == nil {
+		return
+	}
+
+	// Get the key (field name)
+	keyIdent, ok := node.Key.(*ast.Ident)
+	if !ok {
+		return
+	}
+	fieldName := keyIdent.Name
+
+	// Get the expected field type from the struct
+	// We need to find the struct type and look up the field
+	fieldType := re.getFieldTypeForKeyValue(node, fieldName)
+	if fieldType == "" {
+		return
+	}
+
+	// Determine if we need to cast based on field type and value type
+	var valueType string
+	if valueIdent, ok := node.Value.(*ast.Ident); ok {
+		obj := re.pkg.TypesInfo.Uses[valueIdent]
+		if obj != nil {
+			valueType = obj.Type().String()
+		} else if len(valueIdent.Name) > 0 && valueIdent.Name[0] >= 'A' && valueIdent.Name[0] <= 'Z' {
+			// Assume uppercase identifiers are constants (untyped int)
+			valueType = "untyped int"
+		}
+	} else if selExpr, ok := node.Value.(*ast.SelectorExpr); ok {
+		obj := re.pkg.TypesInfo.Uses[selExpr.Sel]
+		if obj != nil {
+			if _, isConst := obj.(*types.Const); isConst {
+				valueType = obj.Type().String()
+			}
+		}
+	}
+
+	// Add cast if assigning int to a smaller integer type
+	if valueType == "int" || valueType == "untyped int" || strings.HasSuffix(valueType, ".int") {
+		switch fieldType {
+		case "int8":
+			re.gir.emitToFileBuffer(" as i8", EmptyVisitMethod)
+		case "int16":
+			re.gir.emitToFileBuffer(" as i16", EmptyVisitMethod)
+		case "uint8":
+			re.gir.emitToFileBuffer(" as u8", EmptyVisitMethod)
+		case "uint16":
+			re.gir.emitToFileBuffer(" as u16", EmptyVisitMethod)
+		}
+	}
+}
+
+// getFieldTypeForKeyValue looks up the struct field type for a KeyValueExpr
+func (re *RustEmitter) getFieldTypeForKeyValue(node *ast.KeyValueExpr, fieldName string) string {
+	// Try to get the type from TypesInfo
+	if re.pkg.TypesInfo == nil {
+		return ""
+	}
+
+	// Find the parent composite literal to get the struct type
+	// We use the current composite literal type from the stack if available
+	if len(re.compLitTypeStack) > 0 {
+		compLitType := re.compLitTypeStack[len(re.compLitTypeStack)-1]
+		if compLitType != nil {
+			// Get the underlying type (in case it's a named type)
+			underlying := compLitType.Underlying()
+			if structType, ok := underlying.(*types.Struct); ok {
+				// Look up the field by name
+				for i := 0; i < structType.NumFields(); i++ {
+					field := structType.Field(i)
+					if field.Name() == fieldName {
+						return field.Type().String()
 					}
 				}
 			}
 		}
 	}
+	return ""
 }
 
 func (re *RustEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
