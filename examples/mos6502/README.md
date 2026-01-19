@@ -1,5 +1,7 @@
 # MOS 6502 Emulator
 
+![MOS 6502 Emulator](banner.png)
+
 A complete MOS 6502 CPU emulator with assembler, written in goany (Go subset that transpiles to C++/C#/Rust).
 
 ## Overview

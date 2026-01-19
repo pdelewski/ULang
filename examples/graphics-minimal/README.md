@@ -1,5 +1,7 @@
 # Graphics Minimal Example
 
+![Graphics Minimal](banner.png)
+
 The simplest possible SDL2 graphics application in goany (Go subset that transpiles to C++/C#/Rust).
 
 ## Overview

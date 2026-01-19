@@ -1,5 +1,7 @@
 # goany
 
+![goany banner](docs/goany-banner.png)
+
 A Go language transpiler that generates portable code for multiple target platforms. Write your code once in Go and transpile it to C++, C#, or Rust.
 
 ## Overview

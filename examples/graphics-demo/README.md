@@ -1,5 +1,7 @@
 # Graphics Demo
 
+![Graphics Demo](banner.png)
+
 A demonstration of SDL2 graphics capabilities in goany (Go subset that transpiles to C++/C#/Rust).
 
 ## Overview

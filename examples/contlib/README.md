@@ -1,5 +1,7 @@
 # Container Library Example
 
+![Container Library](banner.png)
+
 A demonstration of data structure implementations in goany (Go subset that transpiles to C++/C#/Rust).
 
 ## Features
