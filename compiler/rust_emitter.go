@@ -801,9 +801,18 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 	}
 	pointerAndPosition := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
-		for aliasName, alias := range re.aliases {
-			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+		typeInfo := re.pkg.TypesInfo.Types[node.Type]
+		// Only do alias replacement if the type is NOT already a named type (alias)
+		// If it's a named type like types.ExprKind, don't replace it with another alias
+		if typeInfo.Type != nil {
+			if _, isNamed := typeInfo.Type.(*types.Named); !isNamed {
+				// Type is a basic/primitive type - check for alias replacement
+				for aliasName, alias := range re.aliases {
+					if alias.UnderlyingType == typeInfo.Type.Underlying().String() {
+						re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+						break
+					}
+				}
 			}
 		}
 	}
@@ -1419,9 +1428,18 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field
 	}
 	pointerAndPosition := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResultsList", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
-		for aliasName, alias := range re.aliases {
-			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+		typeInfo := re.pkg.TypesInfo.Types[node.Type]
+		// Only do alias replacement if the type is NOT already a named type (alias)
+		// If it's a named type like ast.AST, don't replace it with another alias
+		if typeInfo.Type != nil {
+			if _, isNamed := typeInfo.Type.(*types.Named); !isNamed {
+				// Type is a basic/primitive type - check for alias replacement
+				for aliasName, alias := range re.aliases {
+					if alias.UnderlyingType == typeInfo.Type.Underlying().String() {
+						re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+						break
+					}
+				}
 			}
 		}
 	}
@@ -2287,9 +2305,17 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 		}
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
-		for aliasName, alias := range re.aliases {
-			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+		// Only do alias replacement if the type is NOT already a named type (alias)
+		typeInfo := re.pkg.TypesInfo.Types[node]
+		if typeInfo.Type != nil {
+			if _, isNamed := typeInfo.Type.(*types.Named); !isNamed {
+				// Type is a basic/primitive type - check for alias replacement
+				for aliasName, alias := range re.aliases {
+					if alias.UnderlyingType == typeInfo.Type.Underlying().String() {
+						re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+						break
+					}
+				}
 			}
 		}
 		if re.isArray {
