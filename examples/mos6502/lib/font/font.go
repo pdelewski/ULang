@@ -224,9 +224,9 @@ func GetCharBitmap(fontData []uint8, charCode int) []uint8 {
 	return result
 }
 
-// GetPixel returns true if the pixel at (x, y) within a character is set
-// x is 0-7 (left to right), y is 0-7 (top to bottom)
-func GetPixel(fontData []uint8, charCode int, x int, y int) bool {
+// GetRow returns the byte for row y of a character (0-7)
+// Each bit represents a pixel, bit 7 is leftmost
+func GetRow(fontData []uint8, charCode int, y int) uint8 {
 	code := charCode
 	if code < 32 {
 		code = 32
@@ -235,7 +235,13 @@ func GetPixel(fontData []uint8, charCode int, x int, y int) bool {
 		code = 127
 	}
 	offset := (code - 32) * 8
-	row := fontData[offset+y]
+	return fontData[offset+y]
+}
+
+// GetPixel returns true if the pixel at (x, y) within a character is set
+// x is 0-7 (left to right), y is 0-7 (top to bottom)
+func GetPixel(fontData []uint8, charCode int, x int, y int) bool {
+	row := GetRow(fontData, charCode, y)
 	mask := uint8(0x80 >> x)
 	return (row & mask) != 0
 }

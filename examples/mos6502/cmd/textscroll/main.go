@@ -250,6 +250,7 @@ func main() {
 		graphics.Clear(w, bgColor)
 
 		// Render the text screen
+		memAddr := TextScreenBase
 		charY := 0
 		for {
 			if charY >= TextRows {
@@ -261,33 +262,39 @@ func main() {
 					break
 				}
 				// Get character code from screen memory
-				memAddr := TextScreenBase + (charY * TextCols) + charX
 				charCode := int(cpu.GetMemory(c, memAddr))
+				memAddr = memAddr + 1
 
-				// Only render printable characters (32-127)
-				if charCode >= 32 {
-					if charCode <= 127 {
-						// Render 8x8 character bitmap
-						pixelY := 0
-						for {
-							if pixelY >= 8 {
-								break
-							}
+				// Only render printable non-space characters (33-127)
+				if charCode > 32 && charCode <= 127 {
+					// Render 8x8 character bitmap
+					baseScreenX := int32(charX * 8)
+					baseScreenY := int32(charY * 8)
+					pixelY := 0
+					for {
+						if pixelY >= 8 {
+							break
+						}
+						// Get entire row byte once (reduces function calls from 64 to 8)
+						rowByte := font.GetRow(fontData, charCode, pixelY)
+						if rowByte != 0 {
+							// Only iterate if row has any pixels
+							mask := uint8(0x80)
 							pixelX := 0
 							for {
 								if pixelX >= 8 {
 									break
 								}
-								// Check if this pixel is set in the font
-								if font.GetPixel(fontData, charCode, pixelX, pixelY) {
-									screenX := int32(charX*8+pixelX) * scale
-									screenY := int32(charY*8+pixelY) * scale
+								if (rowByte & mask) != 0 {
+									screenX := (baseScreenX + int32(pixelX)) * scale
+									screenY := (baseScreenY + int32(pixelY)) * scale
 									graphics.FillRect(w, graphics.NewRect(screenX, screenY, scale, scale), textColor)
 								}
+								mask = mask >> 1
 								pixelX = pixelX + 1
 							}
-							pixelY = pixelY + 1
 						}
+						pixelY = pixelY + 1
 					}
 				}
 				charX = charX + 1
