@@ -1,6 +1,7 @@
 package main
 
 import (
+	"mos6502/assembler"
 	"mos6502/cpu"
 	"runtime/graphics"
 )
@@ -33,6 +34,28 @@ func createDrawRectProgram(startX int, startY int, endX int, endY int, color uin
 	}
 
 	return program
+}
+
+// createSimpleDemo creates a simple demo using text assembly
+func createSimpleDemo() []uint8 {
+	// Assembly program that draws a small 3x3 colored pattern
+	// Red pixels at row 0, Green at row 1, Blue at row 2
+	lines := []string{
+		"LDA #$02",
+		"STA $0200",
+		"STA $0201",
+		"STA $0202",
+		"LDA #$03",
+		"STA $0220",
+		"STA $0221",
+		"STA $0222",
+		"LDA #$04",
+		"STA $0240",
+		"STA $0241",
+		"STA $0242",
+		"BRK",
+	}
+	return assembler.AssembleLines(lines)
 }
 
 // createDiagonalLineProgram creates a program that draws a diagonal line
@@ -96,11 +119,31 @@ func main() {
 	c := cpu.NewCPU()
 
 	// Build the demo program
+	// You can choose between programmatic or assembly-based approach:
+	// Option 1: Use text assembly (uncomment to try)
+	// program := createSimpleDemo()
+
+	// Option 2: Use programmatic approach (current)
 	program := []uint8{}
+
+	// Add a small assembly-generated pattern in the corner
+	asmDemo := createSimpleDemo()
+	idx := 0
+	for {
+		if idx >= len(asmDemo) {
+			break
+		}
+		program = append(program, asmDemo[idx])
+		idx = idx + 1
+	}
+	// Remove the BRK from asmDemo so we can continue with more drawing
+	if len(program) > 0 {
+		program = program[:len(program)-1]
+	}
 
 	// Draw a red filled rectangle (8,4) to (24,12)
 	rectProg := createDrawRectProgram(8, 4, 24, 12, uint8(2))
-	idx := 0
+	idx = 0
 	for {
 		if idx >= len(rectProg) {
 			break
