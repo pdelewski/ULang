@@ -307,17 +307,15 @@ pub fn byte_to_char(b: i8) -> String {
     (b as u8 as char).to_string()
 }
 
-// Go-style append (returns a new Vec)
-pub fn append<T: Clone>(vec: &Vec<T>, value: T) -> Vec<T> {
-    let mut new_vec = vec.clone();
-    new_vec.push(value);
-    new_vec
+// Go-style append - takes ownership to avoid cloning
+pub fn append<T>(mut vec: Vec<T>, value: T) -> Vec<T> {
+    vec.push(value);
+    vec
 }
 
-pub fn append_many<T: Clone>(vec: &Vec<T>, values: &[T]) -> Vec<T> {
-    let mut new_vec = vec.clone();
-    new_vec.extend_from_slice(values);
-    new_vec
+pub fn append_many<T: Clone>(mut vec: Vec<T>, values: &[T]) -> Vec<T> {
+    vec.extend_from_slice(values);
+    vec
 }
 
 // Simple string_format using format!
@@ -498,8 +496,8 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 		funNameStr := strings.Join(tokensToStrings(funName), "")
 		// Skip adding & for type conversions
 		if isConversion, _ := re.isTypeConversion(funNameStr); !isConversion {
-			if strings.Contains(funNameStr, "len") || strings.Contains(funNameStr, "append") {
-				// add & before the first argument for len and append
+			if strings.Contains(funNameStr, "len") {
+				// add & before the first argument for len (but not append - it takes ownership)
 				str := re.emitAsString("&", 0)
 				re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 			}
