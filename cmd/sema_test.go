@@ -81,30 +81,8 @@ func main() {
 `,
 		ExpectedError: "nil comparison",
 	},
-	{
-		Name: "empty_interface",
-		Code: `package main
-
-func foo(x interface{}) {
-}
-
-func main() {
-	foo(1)
-}
-`,
-		ExpectedError: "empty interface",
-	},
-	{
-		Name: "slice_of_empty_interface",
-		Code: `package main
-
-func main() {
-	var a []interface{}
-	_ = a
-}
-`,
-		ExpectedError: "empty interface",
-	},
+	// Note: empty_interface and slice_of_empty_interface tests removed
+	// interface{} is now supported (maps to std::any/Box<dyn Any>/object)
 }
 
 func TestSemaUnsupportedConstructs(t *testing.T) {

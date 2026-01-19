@@ -14,8 +14,11 @@ import (
 // 2. for key, value := range - range with both index and value (only for _, value allowed)
 // 3. for _, x := range []T{...} - range over inline composite literal
 // 4. if slice == nil / if slice != nil - nil comparison for slices
-// 5. interface{} - empty interface type (includes []interface{}, any resolves to interface{})
-// 6. type switch statements (blocked by interface{} check)
+// 5. type switch statements
+//
+// Supported (with limitations):
+// - interface{} / any - maps to std::any (C++), Box<dyn Any> (Rust), object (C#)
+//   Note: type assertions x.(T) supported in C++ only for now
 type SemaChecker struct {
 	Emitter
 	pkg      *packages.Package
@@ -73,11 +76,8 @@ func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 
 // PreVisitInterfaceType checks for interface{} / any type usage
 func (sema *SemaChecker) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
-	// Empty interface (interface{} or any) is not supported
-	if node.Methods == nil || len(node.Methods.List) == 0 {
-		fmt.Println("\033[31m\033[1mCompilation error : empty interface (interface{} / any) is not allowed for now\033[0m")
-		os.Exit(-1)
-	}
+	// Empty interface (interface{} / any) is now supported
+	// Maps to: C++ std::any, Rust Box<dyn Any>, C# object
 }
 
 // PreVisitTypeSwitchStmt checks for type switch statements (not supported)

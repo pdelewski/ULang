@@ -14,6 +14,7 @@ goany is a Go-to-C++/Rust/C# transpiler. This document specifies the supported s
 - `[]T` - Slice of type T
 - `struct` - Named struct types
 - `func(params) return` - Function types
+- `interface{}` - Empty interface (any type)
 
 ### Type Aliases
 ```go
@@ -91,6 +92,18 @@ o := Outer{Data: Inner{Value: 10}}
 p.name
 o.Data.Value
 ```
+
+## Interface
+
+### Empty Interface
+```go
+var x interface{}
+x = 1
+x = "hello"
+```
+Maps to: `std::any` (C++), `Box<dyn Any>` (Rust), `object` (C#)
+
+Note: Type assertions `x.(T)` not yet fully supported.
 
 ## Slices
 
@@ -244,7 +257,6 @@ fmt.Printf("%d %s\n", intVal, strVal)
 | `defer` | Defer not implemented |
 | `panic/recover` | Not implemented |
 | type switch | `switch x.(type)` not supported |
-| `interface{}` | Interfaces not implemented |
 | `*T` (pointers) | Pointers not implemented |
 | `make()` | Use slice literals instead |
 | `new()` | Use struct literals instead |
