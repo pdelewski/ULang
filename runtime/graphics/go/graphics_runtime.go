@@ -35,15 +35,44 @@ static int createWindowAndRenderer(const char* title, int width, int height,
     return 0;
 }
 
+// Global to store last key pressed
+static int lastKeyPressed = 0;
+
 // Poll events and return 1 if quit requested
 static int pollEvents() {
     SDL_Event event;
+    lastKeyPressed = 0;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
             return 1;
         }
+        if (event.type == SDL_KEYDOWN) {
+            SDL_Keycode key = event.key.keysym.sym;
+            // Convert SDL keycode to ASCII for printable characters
+            if (key >= SDLK_SPACE && key <= SDLK_z) {
+                // Check for shift modifier for uppercase
+                if (event.key.keysym.mod & KMOD_SHIFT) {
+                    if (key >= SDLK_a && key <= SDLK_z) {
+                        lastKeyPressed = key - 32; // Convert to uppercase
+                    } else {
+                        lastKeyPressed = key;
+                    }
+                } else {
+                    lastKeyPressed = key;
+                }
+            } else if (key == SDLK_RETURN) {
+                lastKeyPressed = 13; // Enter
+            } else if (key == SDLK_BACKSPACE) {
+                lastKeyPressed = 8; // Backspace
+            }
+        }
     }
     return 0;
+}
+
+// Get the last key pressed (0 if none)
+static int getLastKey() {
+    return lastKeyPressed;
 }
 
 // Draw circle using Bresenham's algorithm
@@ -127,6 +156,11 @@ func CloseWindow(handle int64, renderer int64) {
 // PollEvents processes pending events and returns true if quit requested.
 func PollEvents() bool {
 	return C.pollEvents() != 0
+}
+
+// GetLastKey returns the ASCII code of the last key pressed (0 if none).
+func GetLastKey() int {
+	return int(C.getLastKey())
 }
 
 // Clear clears the window with the specified color.

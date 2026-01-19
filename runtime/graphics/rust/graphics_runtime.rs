@@ -2,6 +2,7 @@
 // Requires: sdl2 crate in Cargo.toml
 
 use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color as SdlColor;
 use sdl2::rect::Rect as SdlRect;
 use sdl2::render::Canvas;
@@ -15,6 +16,7 @@ thread_local! {
     static SDL_CONTEXT: RefCell<Option<Sdl>> = RefCell::new(None);
     static CANVASES: RefCell<HashMap<i64, Canvas<SdlWindow>>> = RefCell::new(HashMap::new());
     static NEXT_HANDLE: RefCell<i64> = RefCell::new(1);
+    static LAST_KEY: RefCell<i32> = RefCell::new(0);
 }
 
 #[derive(Clone, Copy)]
@@ -124,6 +126,7 @@ pub fn IsRunning(mut w: Window) -> bool {
 }
 
 pub fn PollEvents(mut w: Window) -> (Window, bool) {
+    LAST_KEY.with(|k| *k.borrow_mut() = 0);
     SDL_CONTEXT.with(|ctx| {
         if let Some(ref sdl) = *ctx.borrow() {
             let mut event_pump = match sdl.event_pump() {
@@ -137,12 +140,39 @@ pub fn PollEvents(mut w: Window) -> (Window, bool) {
                         w.running = false;
                         return (w, false);
                     }
+                    Event::KeyDown { keycode: Some(key), keymod, .. } => {
+                        let ascii = match key {
+                            Keycode::Return => 13,
+                            Keycode::Backspace => 8,
+                            Keycode::Space => 32,
+                            k if k as i32 >= Keycode::A as i32 && k as i32 <= Keycode::Z as i32 => {
+                                let base = k as i32 - Keycode::A as i32;
+                                if keymod.contains(sdl2::keyboard::Mod::LSHIFTMOD) ||
+                                   keymod.contains(sdl2::keyboard::Mod::RSHIFTMOD) {
+                                    65 + base // Uppercase A-Z
+                                } else {
+                                    97 + base // Lowercase a-z
+                                }
+                            }
+                            k if k as i32 >= Keycode::Num0 as i32 && k as i32 <= Keycode::Num9 as i32 => {
+                                48 + (k as i32 - Keycode::Num0 as i32)
+                            }
+                            _ => 0,
+                        };
+                        if ascii != 0 {
+                            LAST_KEY.with(|k| *k.borrow_mut() = ascii);
+                        }
+                    }
                     _ => {}
                 }
             }
         }
         (w, true)
     })
+}
+
+pub fn GetLastKey() -> i32 {
+    LAST_KEY.with(|k| *k.borrow())
 }
 
 pub fn GetWidth(mut w: Window) -> i32 { w.width }
