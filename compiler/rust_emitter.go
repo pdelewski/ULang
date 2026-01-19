@@ -1633,7 +1633,9 @@ func (re *RustEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
-	re.shouldGenerate = false
+	// Note: Do NOT set shouldGenerate = false here!
+	// This would prevent subsequent operands in expressions from being generated.
+	// For example, in (a + b) + c where b is a call, setting false would suppress 'c'.
 }
 
 func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
@@ -1913,7 +1915,9 @@ func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 }
 func (re *RustEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	re.emitToken(")", RightParen, 1)
-	re.shouldGenerate = false
+	// Note: Do NOT set shouldGenerate = false here!
+	// This would prevent the right operand of nested binary expressions from being generated.
+	// For example, in (a + b) + c, setting false after (a + b) would suppress 'c'.
 }
 
 func (re *RustEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
