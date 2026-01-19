@@ -1908,6 +1908,12 @@ func (re *RustEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) 
 				if _, isStruct := elemType.Underlying().(*types.Struct); isStruct {
 					re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 				}
+				// Check if element type is a string (also non-Copy in Rust)
+				if basic, isBasic := elemType.Underlying().(*types.Basic); isBasic {
+					if basic.Kind() == types.String {
+						re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+					}
+				}
 			}
 		}
 	}

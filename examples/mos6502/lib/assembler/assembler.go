@@ -1,7 +1,7 @@
 package assembler
 
 import (
-	"mos6502/cpu"
+	"mos6502lib/cpu"
 )
 
 // Token types for 6502 assembly

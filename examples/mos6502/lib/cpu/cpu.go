@@ -421,3 +421,14 @@ func GetScreenPixel(c CPU, x int, y int) uint8 {
 func IsHalted(c CPU) bool {
 	return c.Halted
 }
+
+// GetMemory returns the byte at the specified memory address
+func GetMemory(c CPU, addr int) uint8 {
+	if addr < 0 {
+		return 0
+	}
+	if addr >= 65536 {
+		return 0
+	}
+	return c.Memory[addr]
+}
