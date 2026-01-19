@@ -28,6 +28,9 @@ package main
 //
 // 8. []interface{} - Slice of empty interface (any type)
 //    Not supported across backends
+//
+// SUPPORTED WITH LIMITATIONS:
+// - interface{} (empty interface) - works for assignment, no type assertions
 
 import (
 	"alltests/types"
@@ -524,6 +527,24 @@ func testCompleteLanguageFeatures() {
 	}
 }
 
+// Test empty interface (interface{})
+func testEmptyInterface() {
+	var x interface{}
+	x = 1
+	x = "hello"
+	x = true
+	x = 3.14
+
+	// Assign to another interface{} variable
+	var y interface{}
+	y = x
+
+	// Suppress unused variable warning by assigning back
+	x = y
+
+	fmt.Println("interface{} test passed")
+}
+
 func main() {
 	fmt.Println("=== All Language Constructs Test ===")
 
@@ -550,6 +571,7 @@ func main() {
 	testBoolFieldInStruct()
 	testNestedStructField()
 	testMultiPackageImport()
+	testEmptyInterface()
 
 	fmt.Println("=== Done ===")
 }
