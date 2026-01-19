@@ -1,5 +1,7 @@
 # UQL (Universal Query Language)
 
+![UQL Parser](banner.png)
+
 A SQL-like query language parser and AST implementation in goany (Go subset that transpiles to C++/C#/Rust).
 
 ## Overview
