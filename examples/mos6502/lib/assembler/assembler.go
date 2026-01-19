@@ -20,11 +20,18 @@ const (
 
 // Addressing modes
 const (
-	ModeImplied   = 0
-	ModeImmediate = 1
-	ModeZeroPage  = 2
-	ModeAbsolute  = 3
-	ModeZeroPageX = 4
+	ModeImplied     = 0
+	ModeImmediate   = 1
+	ModeZeroPage    = 2
+	ModeAbsolute    = 3
+	ModeZeroPageX   = 4
+	ModeZeroPageY   = 5
+	ModeAbsoluteX   = 6
+	ModeAbsoluteY   = 7
+	ModeIndirectX   = 8  // (zp,X)
+	ModeIndirectY   = 9  // (zp),Y
+	ModeAccumulator = 10 // for ASL A, LSR A, etc.
+	ModeIndirect    = 11 // for JMP ($addr)
 )
 
 // Token represents a lexical token
@@ -335,24 +342,38 @@ func Parse(tokens []Token) []Instruction {
 				i = i + 1
 				if i < len(tokens) && tokens[i].Type == TokenTypeNumber {
 					instr.Operand = ParseHex(tokens[i].Representation)
-					// Check for ,X indexing
+					// Determine base mode by operand size
 					if len(tokens[i].Representation) <= 2 {
 						instr.Mode = ModeZeroPage
 					} else {
 						instr.Mode = ModeAbsolute
 					}
 					i = i + 1
-					// Check for ,X
+					// Check for ,X or ,Y indexing
 					if i < len(tokens) && tokens[i].Type == TokenTypeComma {
 						i = i + 1
 						if i < len(tokens) && tokens[i].Type == TokenTypeIdentifier {
 							if MatchToken(tokens[i], "X") {
-								instr.Mode = ModeZeroPageX
+								if instr.Mode == ModeZeroPage {
+									instr.Mode = ModeZeroPageX
+								} else {
+									instr.Mode = ModeAbsoluteX
+								}
+							} else if MatchToken(tokens[i], "Y") {
+								if instr.Mode == ModeZeroPage {
+									instr.Mode = ModeZeroPageY
+								} else {
+									instr.Mode = ModeAbsoluteY
+								}
 							}
 							i = i + 1
 						}
 					}
 				}
+			} else if tokens[i].Type == TokenTypeIdentifier && MatchToken(tokens[i], "A") {
+				// Accumulator mode: ASL A, LSR A, ROL A, ROR A
+				instr.Mode = ModeAccumulator
+				i = i + 1
 			} else if tokens[i].Type == TokenTypeNumber {
 				// Decimal number
 				instr.Operand = ParseDecimal(tokens[i].Representation)
@@ -422,13 +443,31 @@ func Assemble(instructions []Instruction) []uint8 {
 				code = append(code, uint8(cpu.OpLDAAbs))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpLDAAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpLDAAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
 		} else if IsOpcode(opcodeBytes, "LDX") {
 			if instr.Mode == ModeImmediate {
 				code = append(code, uint8(cpu.OpLDXImm))
 				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpLDXZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageY {
+				code = append(code, uint8(cpu.OpLDXZpY))
+				code = append(code, uint8(instr.Operand))
 			} else if instr.Mode == ModeAbsolute {
 				code = append(code, uint8(cpu.OpLDXAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpLDXAbsY))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
@@ -436,8 +475,18 @@ func Assemble(instructions []Instruction) []uint8 {
 			if instr.Mode == ModeImmediate {
 				code = append(code, uint8(cpu.OpLDYImm))
 				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpLDYZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpLDYZpX))
+				code = append(code, uint8(instr.Operand))
 			} else if instr.Mode == ModeAbsolute {
 				code = append(code, uint8(cpu.OpLDYAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpLDYAbsX))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
@@ -452,29 +501,274 @@ func Assemble(instructions []Instruction) []uint8 {
 				code = append(code, uint8(cpu.OpSTAAbs))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpSTAAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpSTAAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
 		} else if IsOpcode(opcodeBytes, "STX") {
-			if instr.Mode == ModeAbsolute {
+			if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpSTXZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageY {
+				code = append(code, uint8(cpu.OpSTXZpY))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
 				code = append(code, uint8(cpu.OpSTXAbs))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
 		} else if IsOpcode(opcodeBytes, "STY") {
-			if instr.Mode == ModeAbsolute {
+			if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpSTYZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpSTYZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
 				code = append(code, uint8(cpu.OpSTYAbs))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
+
+		// ADC - Add with Carry
 		} else if IsOpcode(opcodeBytes, "ADC") {
 			if instr.Mode == ModeImmediate {
 				code = append(code, uint8(cpu.OpADCImm))
 				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpADCZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpADCZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpADCAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpADCAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpADCAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
+
+		// SBC - Subtract with Carry
 		} else if IsOpcode(opcodeBytes, "SBC") {
 			if instr.Mode == ModeImmediate {
 				code = append(code, uint8(cpu.OpSBCImm))
 				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpSBCZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpSBCZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpSBCAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpSBCAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpSBCAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
+
+		// AND - Logical AND
+		} else if IsOpcode(opcodeBytes, "AND") {
+			if instr.Mode == ModeImmediate {
+				code = append(code, uint8(cpu.OpANDImm))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpANDZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpANDZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpANDAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpANDAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpANDAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// ORA - Logical OR
+		} else if IsOpcode(opcodeBytes, "ORA") {
+			if instr.Mode == ModeImmediate {
+				code = append(code, uint8(cpu.OpORAImm))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpORAZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpORAZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpORAAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpORAAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpORAAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// EOR - Exclusive OR
+		} else if IsOpcode(opcodeBytes, "EOR") {
+			if instr.Mode == ModeImmediate {
+				code = append(code, uint8(cpu.OpEORImm))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpEORZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpEORZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpEORAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpEORAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpEORAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// ASL - Arithmetic Shift Left
+		} else if IsOpcode(opcodeBytes, "ASL") {
+			if instr.Mode == ModeAccumulator || instr.Mode == ModeImplied {
+				code = append(code, uint8(cpu.OpASLA))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpASLZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpASLZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpASLAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpASLAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// LSR - Logical Shift Right
+		} else if IsOpcode(opcodeBytes, "LSR") {
+			if instr.Mode == ModeAccumulator || instr.Mode == ModeImplied {
+				code = append(code, uint8(cpu.OpLSRA))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpLSRZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpLSRZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpLSRAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpLSRAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// ROL - Rotate Left
+		} else if IsOpcode(opcodeBytes, "ROL") {
+			if instr.Mode == ModeAccumulator || instr.Mode == ModeImplied {
+				code = append(code, uint8(cpu.OpROLA))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpROLZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpROLZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpROLAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpROLAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// ROR - Rotate Right
+		} else if IsOpcode(opcodeBytes, "ROR") {
+			if instr.Mode == ModeAccumulator || instr.Mode == ModeImplied {
+				code = append(code, uint8(cpu.OpRORA))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpRORZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpRORZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpRORAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpRORAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// INC - Increment Memory
+		} else if IsOpcode(opcodeBytes, "INC") {
+			if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpINC))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpINCZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpINCAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// DEC - Decrement Memory
+		} else if IsOpcode(opcodeBytes, "DEC") {
+			if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpDECZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpDECZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpDECAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// Register increments/decrements
 		} else if IsOpcode(opcodeBytes, "INX") {
 			code = append(code, uint8(cpu.OpINX))
 		} else if IsOpcode(opcodeBytes, "INY") {
@@ -483,31 +777,83 @@ func Assemble(instructions []Instruction) []uint8 {
 			code = append(code, uint8(cpu.OpDEX))
 		} else if IsOpcode(opcodeBytes, "DEY") {
 			code = append(code, uint8(cpu.OpDEY))
-		} else if IsOpcode(opcodeBytes, "INC") {
-			if instr.Mode == ModeZeroPage {
-				code = append(code, uint8(cpu.OpINC))
-				code = append(code, uint8(instr.Operand))
-			}
+
+		// CMP - Compare Accumulator
 		} else if IsOpcode(opcodeBytes, "CMP") {
 			if instr.Mode == ModeImmediate {
 				code = append(code, uint8(cpu.OpCMPImm))
 				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpCMPZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPageX {
+				code = append(code, uint8(cpu.OpCMPZpX))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpCMPAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteX {
+				code = append(code, uint8(cpu.OpCMPAbsX))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeAbsoluteY {
+				code = append(code, uint8(cpu.OpCMPAbsY))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
+
+		// CPX - Compare X Register
 		} else if IsOpcode(opcodeBytes, "CPX") {
 			if instr.Mode == ModeImmediate {
 				code = append(code, uint8(cpu.OpCPXImm))
 				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpCPXZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpCPXAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
+
+		// CPY - Compare Y Register
 		} else if IsOpcode(opcodeBytes, "CPY") {
 			if instr.Mode == ModeImmediate {
 				code = append(code, uint8(cpu.OpCPYImm))
 				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpCPYZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpCPYAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
 			}
-		} else if IsOpcode(opcodeBytes, "BNE") {
-			code = append(code, uint8(cpu.OpBNE))
+
+		// BIT - Bit Test
+		} else if IsOpcode(opcodeBytes, "BIT") {
+			if instr.Mode == ModeZeroPage {
+				code = append(code, uint8(cpu.OpBITZp))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeAbsolute {
+				code = append(code, uint8(cpu.OpBITAbs))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
+
+		// Branch Instructions
+		} else if IsOpcode(opcodeBytes, "BPL") {
+			code = append(code, uint8(cpu.OpBPL))
 			code = append(code, uint8(instr.Operand))
-		} else if IsOpcode(opcodeBytes, "BEQ") {
-			code = append(code, uint8(cpu.OpBEQ))
+		} else if IsOpcode(opcodeBytes, "BMI") {
+			code = append(code, uint8(cpu.OpBMI))
+			code = append(code, uint8(instr.Operand))
+		} else if IsOpcode(opcodeBytes, "BVC") {
+			code = append(code, uint8(cpu.OpBVC))
+			code = append(code, uint8(instr.Operand))
+		} else if IsOpcode(opcodeBytes, "BVS") {
+			code = append(code, uint8(cpu.OpBVS))
 			code = append(code, uint8(instr.Operand))
 		} else if IsOpcode(opcodeBytes, "BCC") {
 			code = append(code, uint8(cpu.OpBCC))
@@ -515,16 +861,74 @@ func Assemble(instructions []Instruction) []uint8 {
 		} else if IsOpcode(opcodeBytes, "BCS") {
 			code = append(code, uint8(cpu.OpBCS))
 			code = append(code, uint8(instr.Operand))
+		} else if IsOpcode(opcodeBytes, "BNE") {
+			code = append(code, uint8(cpu.OpBNE))
+			code = append(code, uint8(instr.Operand))
+		} else if IsOpcode(opcodeBytes, "BEQ") {
+			code = append(code, uint8(cpu.OpBEQ))
+			code = append(code, uint8(instr.Operand))
+
+		// Jump Instructions
 		} else if IsOpcode(opcodeBytes, "JMP") {
-			code = append(code, uint8(cpu.OpJMP))
-			code = append(code, uint8(instr.Operand&0xFF))
-			code = append(code, uint8((instr.Operand>>8)&0xFF))
+			if instr.Mode == ModeIndirect {
+				code = append(code, uint8(cpu.OpJMPInd))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else {
+				code = append(code, uint8(cpu.OpJMP))
+				code = append(code, uint8(instr.Operand&0xFF))
+				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			}
 		} else if IsOpcode(opcodeBytes, "JSR") {
 			code = append(code, uint8(cpu.OpJSR))
 			code = append(code, uint8(instr.Operand&0xFF))
 			code = append(code, uint8((instr.Operand>>8)&0xFF))
 		} else if IsOpcode(opcodeBytes, "RTS") {
 			code = append(code, uint8(cpu.OpRTS))
+		} else if IsOpcode(opcodeBytes, "RTI") {
+			code = append(code, uint8(cpu.OpRTI))
+
+		// Stack Instructions
+		} else if IsOpcode(opcodeBytes, "PHA") {
+			code = append(code, uint8(cpu.OpPHA))
+		} else if IsOpcode(opcodeBytes, "PHP") {
+			code = append(code, uint8(cpu.OpPHP))
+		} else if IsOpcode(opcodeBytes, "PLA") {
+			code = append(code, uint8(cpu.OpPLA))
+		} else if IsOpcode(opcodeBytes, "PLP") {
+			code = append(code, uint8(cpu.OpPLP))
+
+		// Transfer Instructions
+		} else if IsOpcode(opcodeBytes, "TAX") {
+			code = append(code, uint8(cpu.OpTAX))
+		} else if IsOpcode(opcodeBytes, "TXA") {
+			code = append(code, uint8(cpu.OpTXA))
+		} else if IsOpcode(opcodeBytes, "TAY") {
+			code = append(code, uint8(cpu.OpTAY))
+		} else if IsOpcode(opcodeBytes, "TYA") {
+			code = append(code, uint8(cpu.OpTYA))
+		} else if IsOpcode(opcodeBytes, "TSX") {
+			code = append(code, uint8(cpu.OpTSX))
+		} else if IsOpcode(opcodeBytes, "TXS") {
+			code = append(code, uint8(cpu.OpTXS))
+
+		// Flag Instructions
+		} else if IsOpcode(opcodeBytes, "CLC") {
+			code = append(code, uint8(cpu.OpCLC))
+		} else if IsOpcode(opcodeBytes, "SEC") {
+			code = append(code, uint8(cpu.OpSEC))
+		} else if IsOpcode(opcodeBytes, "CLI") {
+			code = append(code, uint8(cpu.OpCLI))
+		} else if IsOpcode(opcodeBytes, "SEI") {
+			code = append(code, uint8(cpu.OpSEI))
+		} else if IsOpcode(opcodeBytes, "CLV") {
+			code = append(code, uint8(cpu.OpCLV))
+		} else if IsOpcode(opcodeBytes, "CLD") {
+			code = append(code, uint8(cpu.OpCLD))
+		} else if IsOpcode(opcodeBytes, "SED") {
+			code = append(code, uint8(cpu.OpSED))
+
+		// Other
 		} else if IsOpcode(opcodeBytes, "NOP") {
 			code = append(code, uint8(cpu.OpNOP))
 		} else if IsOpcode(opcodeBytes, "BRK") {
