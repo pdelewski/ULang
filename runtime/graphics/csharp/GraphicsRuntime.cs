@@ -43,6 +43,9 @@ namespace graphics
 
     public static class Api
     {
+        // Global to store last key pressed
+        private static int lastKeyPressed = 0;
+
         // --- Color constructors ---
 
         public static Color NewColor(byte r, byte g, byte b, byte a)
@@ -127,6 +130,7 @@ namespace graphics
 
         public static (Window, bool) PollEvents(Window w)
         {
+            lastKeyPressed = 0;
             SDL.SDL_Event e;
             while (SDL.SDL_PollEvent(out e) != 0)
             {
@@ -135,8 +139,46 @@ namespace graphics
                     w.running = false;
                     return (w, false);
                 }
+                if (e.type == SDL.SDL_EventType.SDL_KEYDOWN)
+                {
+                    SDL.SDL_Keycode key = e.key.keysym.sym;
+                    // Convert SDL keycode to ASCII for printable characters
+                    if (key >= SDL.SDL_Keycode.SDLK_SPACE && key <= SDL.SDL_Keycode.SDLK_z)
+                    {
+                        // Check for shift modifier for uppercase
+                        SDL.SDL_Keymod mod = (SDL.SDL_Keymod)e.key.keysym.mod;
+                        if ((mod & (SDL.SDL_Keymod.KMOD_LSHIFT | SDL.SDL_Keymod.KMOD_RSHIFT)) != 0)
+                        {
+                            if (key >= SDL.SDL_Keycode.SDLK_a && key <= SDL.SDL_Keycode.SDLK_z)
+                            {
+                                lastKeyPressed = (int)key - 32; // Convert to uppercase
+                            }
+                            else
+                            {
+                                lastKeyPressed = (int)key;
+                            }
+                        }
+                        else
+                        {
+                            lastKeyPressed = (int)key;
+                        }
+                    }
+                    else if (key == SDL.SDL_Keycode.SDLK_RETURN)
+                    {
+                        lastKeyPressed = 13; // Enter
+                    }
+                    else if (key == SDL.SDL_Keycode.SDLK_BACKSPACE)
+                    {
+                        lastKeyPressed = 8; // Backspace
+                    }
+                }
             }
             return (w, true);
+        }
+
+        public static int GetLastKey()
+        {
+            return lastKeyPressed;
         }
 
         public static int GetWidth(Window w) { return w.width; }

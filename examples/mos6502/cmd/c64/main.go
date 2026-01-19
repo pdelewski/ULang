@@ -133,10 +133,10 @@ func createC64WelcomeScreen() []uint8 {
 	// Row 5: "READY."
 	lines = addStringToScreen(lines, "READY.", 5, 0)
 
-	// Row 6: Cursor - use underscore as cursor representation
-	// Row 6, col 0 = 0x0400 + (6 * 40) = 0x0400 + 240 = 0x04F0
+	// Row 7: Cursor - use underscore as cursor representation (blank line after READY.)
+	// Row 7, col 0 = 0x0400 + (7 * 40) = 0x0400 + 280 = 0x0518
 	lines = append(lines, "LDA #$5F") // underscore cursor (ASCII 95)
-	lines = append(lines, "STA $04F0")
+	lines = append(lines, "STA $0518")
 
 	lines = append(lines, "BRK")
 	return assembler.AssembleLines(lines)
@@ -144,7 +144,7 @@ func createC64WelcomeScreen() []uint8 {
 
 func main() {
 	// Create window (320x200 C64 resolution scaled up)
-	scale := int32(2)
+	scale := int32(4)
 	windowWidth := int32(TextCols*8) * scale
 	windowHeight := int32(TextRows*8) * scale
 	w := graphics.CreateWindow("Commodore 64", windowWidth, windowHeight)
@@ -167,12 +167,67 @@ func main() {
 	textColor := graphics.NewColor(134, 122, 222, 255) // C64 light blue
 	bgColor := graphics.NewColor(64, 50, 133, 255)     // C64 dark blue
 
+	// Cursor position (starts on row 7, after blank line below READY.)
+	cursorRow := 7
+	cursorCol := 0
+
 	// Main display loop
 	for {
 		var running bool
 		w, running = graphics.PollEvents(w)
 		if !running {
 			break
+		}
+
+		// Handle keyboard input
+		key := graphics.GetLastKey()
+		if key != 0 {
+			if key == 13 {
+				// Enter - move to next line
+				cursorCol = 0
+				cursorRow = cursorRow + 1
+				if cursorRow >= TextRows {
+					cursorRow = TextRows - 1
+				}
+			} else if key == 8 {
+				// Backspace - move back and clear
+				if cursorCol > 0 {
+					cursorCol = cursorCol - 1
+					// Clear the character at cursor position
+					addr := TextScreenBase + (cursorRow * TextCols) + cursorCol
+					c.Memory[addr] = 32 // space
+				}
+			} else if key >= 32 && key <= 126 {
+				// Printable character
+				addr := TextScreenBase + (cursorRow * TextCols) + cursorCol
+				c.Memory[addr] = uint8(key)
+				cursorCol = cursorCol + 1
+				if cursorCol >= TextCols {
+					cursorCol = 0
+					cursorRow = cursorRow + 1
+					if cursorRow >= TextRows {
+						cursorRow = TextRows - 1
+					}
+				}
+			}
+			// Update cursor position (underscore)
+			// First clear old cursor positions on current row
+			i := 0
+			for {
+				if i >= TextCols {
+					break
+				}
+				oldAddr := TextScreenBase + (cursorRow * TextCols) + i
+				if c.Memory[oldAddr] == 95 {
+					c.Memory[oldAddr] = 32 // clear old cursor
+				}
+				i = i + 1
+			}
+			// Draw cursor at new position
+			cursorAddr := TextScreenBase + (cursorRow * TextCols) + cursorCol
+			if c.Memory[cursorAddr] == 32 {
+				c.Memory[cursorAddr] = 95 // underscore cursor
+			}
 		}
 
 		// Clear screen with C64 dark blue background

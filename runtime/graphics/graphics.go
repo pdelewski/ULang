@@ -101,6 +101,12 @@ func PollEvents(w Window) (Window, bool) {
 	return w, true
 }
 
+// GetLastKey returns the ASCII code of the last key pressed (0 if none).
+// Must be called after PollEvents to get the key from the current frame.
+func GetLastKey() int {
+	return sdl.GetLastKey()
+}
+
 // GetWidth returns the window width.
 func GetWidth(w Window) int32 {
 	return w.width

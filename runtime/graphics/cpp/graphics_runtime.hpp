@@ -51,6 +51,9 @@ inline Rect NewRect(int32_t x, int32_t y, int32_t width, int32_t height) {
     return Rect{x, y, width, height};
 }
 
+// Global to store last key pressed
+static int lastKeyPressed = 0;
+
 // --- Window management ---
 
 inline Window CreateWindow(const std::string& title, int32_t width, int32_t height) {
@@ -106,13 +109,38 @@ inline bool IsRunning(Window w) {
 
 inline std::tuple<Window, bool> PollEvents(Window w) {
     SDL_Event event;
+    lastKeyPressed = 0;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
             w.running = false;
             return std::make_tuple(w, false);
         }
+        if (event.type == SDL_KEYDOWN) {
+            SDL_Keycode key = event.key.keysym.sym;
+            // Convert SDL keycode to ASCII for printable characters
+            if (key >= SDLK_SPACE && key <= SDLK_z) {
+                // Check for shift modifier for uppercase
+                if (event.key.keysym.mod & KMOD_SHIFT) {
+                    if (key >= SDLK_a && key <= SDLK_z) {
+                        lastKeyPressed = key - 32; // Convert to uppercase
+                    } else {
+                        lastKeyPressed = key;
+                    }
+                } else {
+                    lastKeyPressed = key;
+                }
+            } else if (key == SDLK_RETURN) {
+                lastKeyPressed = 13; // Enter
+            } else if (key == SDLK_BACKSPACE) {
+                lastKeyPressed = 8; // Backspace
+            }
+        }
     }
     return std::make_tuple(w, true);
+}
+
+inline int GetLastKey() {
+    return lastKeyPressed;
 }
 
 inline int32_t GetWidth(Window w) { return w.width; }
