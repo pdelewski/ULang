@@ -3100,6 +3100,11 @@ edition = "2021"
 
 [dependencies]
 sdl2 = "0.36"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
 `, re.OutputName)
 
 	_, err = file.WriteString(cargoToml)
