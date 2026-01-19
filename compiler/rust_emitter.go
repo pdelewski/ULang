@@ -71,6 +71,8 @@ type RustEmitter struct {
 	pkgHasInterfaceTypes         bool                    // Track if current package has any interface{} types
 	currentCompLitTypeNoDefault  bool                    // Track if current composite literal's type doesn't derive Default
 	compLitTypeNoDefaultStack    []bool                  // Stack to save/restore currentCompLitTypeNoDefault for nested composite literals
+	inFuncParam                  bool                    // Track if we're in function parameter type (for slice -> &[T])
+	currentCallIsAppend          bool                    // Track if current function call is to append (takes ownership)
 	currentCompLitType           types.Type              // Track the current composite literal's type for checking at post-visit
 	compLitTypeStack             []types.Type            // Stack of composite literal types
 	processedPkgsInterfaceTypes  map[string]bool         // Cache for package interface{} type checks
@@ -414,6 +416,7 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, i
 		return
 	}
 	re.shouldGenerate = true
+	re.inFuncParam = true // Track that we're in function parameters
 	re.emitToken("(", LeftParen, 0)
 }
 
@@ -422,6 +425,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 		return
 	}
 	re.shouldGenerate = false
+	re.inFuncParam = false // Done with function parameters
 	re.emitToken(")", RightParen, 0)
 
 	p1 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResults", re.gir.pointerAndIndexVec)
@@ -484,6 +488,7 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 	re.gir.emitToFileBuffer("", "@PreVisitCallExprArgs")
 	re.emitToken("(", LeftParen, 0)
 	// Use stack indices for function name extraction (top of stacks = current call)
+	re.currentCallIsAppend = false // Reset for each call
 	if len(re.callExprFunMarkerStack) > 0 && len(re.callExprFunEndMarkerStack) > 0 {
 		p1Index := re.callExprFunMarkerStack[len(re.callExprFunMarkerStack)-1]
 		p2Index := re.callExprFunEndMarkerStack[len(re.callExprFunEndMarkerStack)-1]
@@ -494,6 +499,10 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 			return
 		}
 		funNameStr := strings.Join(tokensToStrings(funName), "")
+		// Track if this is an append call (takes ownership, not reference)
+		if strings.Contains(funNameStr, "append") {
+			re.currentCallIsAppend = true
+		}
 		// Skip adding & for type conversions
 		if isConversion, _ := re.isTypeConversion(funNameStr); !isConversion {
 			if strings.Contains(funNameStr, "len") {
@@ -2081,9 +2090,11 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 	if tv.Type != nil {
 		typeStr := tv.Type.String()
 
-		// Clone Vec/slice types
+		// Clone Vec/slice types (but not for append which takes ownership)
 		if strings.HasPrefix(typeStr, "[]") {
-			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			if !re.currentCallIsAppend {
+				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			}
 			return
 		}
 
