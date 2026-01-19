@@ -141,16 +141,16 @@ void printf(const T& val) { std::cout << val;}
 
 // Function to mimic Go's append behavior for std::vector
 template <typename T>
-std::vector<T> append(const std::vector<T> &vec,
+std::vector<T>& append(std::vector<T> &vec,
                       const std::initializer_list<T> &elements) {
-  std::vector<T> result = vec;           // Create a copy of the original vector
+  std::vector<T>& result = vec;           // Create a copy of the original vector
   result.insert(result.end(), elements); // Append the elements
   return result;                         // Return the new vector
 }
 
 // Overload to allow appending another vector
 template <typename T>
-std::vector<T> append(const std::vector<T> &vec,
+std::vector<T>& append( std::vector<T> &vec,
                       const std::vector<T> &elements) {
   std::vector<T> result = vec; // Create a copy of the original vector
   result.insert(result.end(), elements.begin(),
@@ -159,15 +159,15 @@ std::vector<T> append(const std::vector<T> &vec,
 }
 
 template <typename T>
-std::vector<T> append(const std::vector<T> &vec, const T &element) {
-  std::vector<T> result = vec; // Create a copy of the original vector
+std::vector<T>& append(std::vector<T> &vec, const T &element) {
+  std::vector<T>& result = vec; // Create a copy of the original vector
   result.push_back(element);   // Append the single element
   return result;               // Return the new vector
 }
 
 // Specialization for appending const char* to vector of strings
-std::vector<std::string> append(const std::vector<std::string> &vec, const char *element) {
-  std::vector<std::string> result = vec;
+std::vector<std::string>& append(std::vector<std::string> &vec, const char *element) {
+  std::vector<std::string>& result = vec;
   result.push_back(std::string(element));
   return result;
 }

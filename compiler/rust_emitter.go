@@ -71,6 +71,8 @@ type RustEmitter struct {
 	pkgHasInterfaceTypes         bool                    // Track if current package has any interface{} types
 	currentCompLitTypeNoDefault  bool                    // Track if current composite literal's type doesn't derive Default
 	compLitTypeNoDefaultStack    []bool                  // Stack to save/restore currentCompLitTypeNoDefault for nested composite literals
+	inFuncParam                  bool                    // Track if we're in function parameter type (for slice -> &[T])
+	currentCallIsAppend          bool                    // Track if current function call is to append (takes ownership)
 	currentCompLitType           types.Type              // Track the current composite literal's type for checking at post-visit
 	compLitTypeStack             []types.Type            // Stack of composite literal types
 	processedPkgsInterfaceTypes  map[string]bool         // Cache for package interface{} type checks
@@ -307,17 +309,15 @@ pub fn byte_to_char(b: i8) -> String {
     (b as u8 as char).to_string()
 }
 
-// Go-style append (returns a new Vec)
-pub fn append<T: Clone>(vec: &Vec<T>, value: T) -> Vec<T> {
-    let mut new_vec = vec.clone();
-    new_vec.push(value);
-    new_vec
+// Go-style append - takes ownership to avoid cloning
+pub fn append<T>(mut vec: Vec<T>, value: T) -> Vec<T> {
+    vec.push(value);
+    vec
 }
 
-pub fn append_many<T: Clone>(vec: &Vec<T>, values: &[T]) -> Vec<T> {
-    let mut new_vec = vec.clone();
-    new_vec.extend_from_slice(values);
-    new_vec
+pub fn append_many<T: Clone>(mut vec: Vec<T>, values: &[T]) -> Vec<T> {
+    vec.extend_from_slice(values);
+    vec
 }
 
 // Simple string_format using format!
@@ -416,6 +416,7 @@ func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, i
 		return
 	}
 	re.shouldGenerate = true
+	re.inFuncParam = true // Track that we're in function parameters
 	re.emitToken("(", LeftParen, 0)
 }
 
@@ -424,6 +425,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, 
 		return
 	}
 	re.shouldGenerate = false
+	re.inFuncParam = false // Done with function parameters
 	re.emitToken(")", RightParen, 0)
 
 	p1 := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResults", re.gir.pointerAndIndexVec)
@@ -486,6 +488,7 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 	re.gir.emitToFileBuffer("", "@PreVisitCallExprArgs")
 	re.emitToken("(", LeftParen, 0)
 	// Use stack indices for function name extraction (top of stacks = current call)
+	re.currentCallIsAppend = false // Reset for each call
 	if len(re.callExprFunMarkerStack) > 0 && len(re.callExprFunEndMarkerStack) > 0 {
 		p1Index := re.callExprFunMarkerStack[len(re.callExprFunMarkerStack)-1]
 		p2Index := re.callExprFunEndMarkerStack[len(re.callExprFunEndMarkerStack)-1]
@@ -496,10 +499,14 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 			return
 		}
 		funNameStr := strings.Join(tokensToStrings(funName), "")
+		// Track if this is an append call (takes ownership, not reference)
+		if strings.Contains(funNameStr, "append") {
+			re.currentCallIsAppend = true
+		}
 		// Skip adding & for type conversions
 		if isConversion, _ := re.isTypeConversion(funNameStr); !isConversion {
-			if strings.Contains(funNameStr, "len") || strings.Contains(funNameStr, "append") {
-				// add & before the first argument for len and append
+			if strings.Contains(funNameStr, "len") {
+				// add & before the first argument for len (but not append - it takes ownership)
 				str := re.emitAsString("&", 0)
 				re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 			}
@@ -2083,9 +2090,11 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 	if tv.Type != nil {
 		typeStr := tv.Type.String()
 
-		// Clone Vec/slice types
+		// Clone Vec/slice types (but not for append which takes ownership)
 		if strings.HasPrefix(typeStr, "[]") {
-			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			if !re.currentCallIsAppend {
+				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			}
 			return
 		}
 

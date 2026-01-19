@@ -205,18 +205,24 @@ func main() {
 						if pixelY >= 8 {
 							break
 						}
-						pixelX := 0
-						for {
-							if pixelX >= 8 {
-								break
+						// Get entire row byte once (reduces function calls from 64 to 8)
+						rowByte := font.GetRow(fontData, charCode, pixelY)
+						if rowByte != 0 {
+							// Only iterate if row has any pixels
+							mask := uint8(0x80)
+							pixelX := 0
+							for {
+								if pixelX >= 8 {
+									break
+								}
+								if (rowByte & mask) != 0 {
+									screenX := (baseScreenX + int32(pixelX)) * scale
+									screenY := (baseScreenY + int32(pixelY)) * scale
+									graphics.FillRect(w, graphics.NewRect(screenX, screenY, scale, scale), textColor)
+								}
+								mask = mask >> 1
+								pixelX = pixelX + 1
 							}
-							// Check if this pixel is set in the font
-							if font.GetPixel(fontData, charCode, pixelX, pixelY) {
-								screenX := (baseScreenX + int32(pixelX)) * scale
-								screenY := (baseScreenY + int32(pixelY)) * scale
-								graphics.FillRect(w, graphics.NewRect(screenX, screenY, scale, scale), textColor)
-							}
-							pixelX = pixelX + 1
 						}
 						pixelY = pixelY + 1
 					}
