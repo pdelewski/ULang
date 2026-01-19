@@ -216,7 +216,7 @@ func (cppe *CPPEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 func (cppe *CPPEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
-		if e.Value[0] == '`' {
+		if len(e.Value) > 0 && e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
 			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("R\"(%s)\"", e.Value), 0))
 		} else {

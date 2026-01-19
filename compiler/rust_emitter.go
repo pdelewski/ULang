@@ -714,7 +714,7 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	var str string
 	if e.Kind == token.STRING {
 		e.Value = strings.Replace(e.Value, "\"", "", -1)
-		if e.Value[0] == '`' {
+		if len(e.Value) > 0 && e.Value[0] == '`' {
 			e.Value = strings.Replace(e.Value, "`", "", -1)
 			str = (re.emitAsString(fmt.Sprintf("r#\"%s\"#", e.Value), 0))
 		} else {
@@ -2573,6 +2573,19 @@ func (re *RustEmitter) PostVisitSliceExprLow(node ast.Expr, indent int) {
 	re.shouldGenerate = false
 }
 
+func (re *RustEmitter) PreVisitSliceExprHigh(node ast.Expr, indent int) {
+	// Re-enable generation for the high index expression
+	re.shouldGenerate = true
+}
+
+func (re *RustEmitter) PostVisitSliceExprHigh(node ast.Expr, indent int) {
+	// Cast to usize for slice indexing (Rust requires usize for slice indices)
+	if node != nil {
+		re.gir.emitToFileBuffer(" as usize", EmptyVisitMethod)
+	}
+	re.shouldGenerate = false
+}
+
 func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 	// For local closure inlining, skip wrapper emission
 	if re.localClosureAssign && re.currentClosureName != "" {
@@ -2873,7 +2886,7 @@ func (re *RustEmitter) PostVisitKeyValueExpr(node *ast.KeyValueExpr, indent int)
 		if keyIdent, ok := node.Key.(*ast.Ident); ok {
 			fieldName := keyIdent.Name
 			// Use heuristic based on field name for common i8 fields
-			if fieldName == "Type" {
+			if fieldName == "Type" || fieldName == "Mode" {
 				// Check if this is an identifier (likely a constant) being assigned
 				if valueIdent, ok := node.Value.(*ast.Ident); ok {
 					// Check if the identifier refers to an object with int type
