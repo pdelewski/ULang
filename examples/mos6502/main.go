@@ -6,9 +6,69 @@ import (
 	"runtime/graphics"
 )
 
+// hexDigit converts a value 0-15 to a hex character string
+func hexDigit(n int) string {
+	if n == 0 {
+		return "0"
+	} else if n == 1 {
+		return "1"
+	} else if n == 2 {
+		return "2"
+	} else if n == 3 {
+		return "3"
+	} else if n == 4 {
+		return "4"
+	} else if n == 5 {
+		return "5"
+	} else if n == 6 {
+		return "6"
+	} else if n == 7 {
+		return "7"
+	} else if n == 8 {
+		return "8"
+	} else if n == 9 {
+		return "9"
+	} else if n == 10 {
+		return "A"
+	} else if n == 11 {
+		return "B"
+	} else if n == 12 {
+		return "C"
+	} else if n == 13 {
+		return "D"
+	} else if n == 14 {
+		return "E"
+	} else if n == 15 {
+		return "F"
+	}
+	return "0"
+}
+
+// toHex2 converts a byte to 2-digit hex string (e.g., "0A")
+func toHex2(n int) string {
+	high := (n >> 4) & 0x0F
+	low := n & 0x0F
+	return hexDigit(high) + hexDigit(low)
+}
+
+// toHex4 converts a 16-bit value to 4-digit hex string (e.g., "0200")
+func toHex4(n int) string {
+	return toHex2((n>>8)&0xFF) + toHex2(n&0xFF)
+}
+
+// makeLdaImm creates "LDA #$XX" instruction
+func makeLdaImm(value int) string {
+	return "LDA #$" + toHex2(value)
+}
+
+// makeStaAbs creates "STA $XXXX" instruction
+func makeStaAbs(addr int) string {
+	return "STA $" + toHex4(addr)
+}
+
 // createDrawRectProgram creates a 6502 program that draws a filled rectangle
 func createDrawRectProgram(startX int, startY int, endX int, endY int, color uint8) []uint8 {
-	program := []uint8{}
+	lines := []string{}
 
 	row := startY
 	for {
@@ -21,19 +81,14 @@ func createDrawRectProgram(startX int, startY int, endX int, endY int, color uin
 				break
 			}
 			addr := 0x0200 + (row * 32) + col
-			addrLow := uint8(addr & 0xFF)
-			addrHigh := uint8((addr >> 8) & 0xFF)
-			program = append(program, uint8(cpu.OpLDAImm))
-			program = append(program, color)
-			program = append(program, uint8(cpu.OpSTAAbs))
-			program = append(program, addrLow)
-			program = append(program, addrHigh)
+			lines = append(lines, makeLdaImm(int(color)))
+			lines = append(lines, makeStaAbs(addr))
 			col = col + 1
 		}
 		row = row + 1
 	}
 
-	return program
+	return assembler.AssembleLines(lines)
 }
 
 // createSimpleDemo creates a simple demo using text assembly
@@ -60,7 +115,7 @@ func createSimpleDemo() []uint8 {
 
 // createDiagonalLineProgram creates a program that draws a diagonal line
 func createDiagonalLineProgram(x1 int, y1 int, x2 int, y2 int, color uint8) []uint8 {
-	program := []uint8{}
+	lines := []string{}
 
 	steps := x2 - x1
 	if steps < 0 {
@@ -91,13 +146,8 @@ func createDiagonalLineProgram(x1 int, y1 int, x2 int, y2 int, color uint8) []ui
 				if y >= 0 {
 					if y < 32 {
 						addr := 0x0200 + (y * 32) + x
-						addrLow := uint8(addr & 0xFF)
-						addrHigh := uint8((addr >> 8) & 0xFF)
-						program = append(program, uint8(cpu.OpLDAImm))
-						program = append(program, color)
-						program = append(program, uint8(cpu.OpSTAAbs))
-						program = append(program, addrLow)
-						program = append(program, addrHigh)
+						lines = append(lines, makeLdaImm(int(color)))
+						lines = append(lines, makeStaAbs(addr))
 					}
 				}
 			}
@@ -105,7 +155,7 @@ func createDiagonalLineProgram(x1 int, y1 int, x2 int, y2 int, color uint8) []ui
 		i = i + 1
 	}
 
-	return program
+	return assembler.AssembleLines(lines)
 }
 
 func main() {
