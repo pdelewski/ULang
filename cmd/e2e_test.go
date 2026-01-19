@@ -24,6 +24,7 @@ var e2eTestCases = []TestCase{
 	{"uql", "../examples/uql", true, true, true},
 	{"graphics-minimal", "../examples/graphics-minimal", true, true, true},
 	{"graphics-demo", "../examples/graphics-demo", true, true, true},
+	{"mos6502", "../examples/mos6502", true, true, true},
 }
 
 func TestE2E(t *testing.T) {

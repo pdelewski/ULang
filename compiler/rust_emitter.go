@@ -48,50 +48,54 @@ type RustEmitter struct {
 	LinkRuntime string // Path to runtime directory (empty = disabled)
 	file        *os.File
 	BaseEmitter
-	pkg                  *packages.Package
-	insideForPostCond    bool
-	assignmentToken      string
-	forwardDecls         bool
-	shouldGenerate       bool
-	numFuncResults       int
-	aliases              map[string]Alias
-	currentPackage       string
-	isArray              bool
-	arrayType            string
-	isTuple              bool
-	sawIncrement         bool   // Track if we saw ++ in for loop post statement
-	isInfiniteLoop       bool   // Track if current for loop is infinite (no init, cond, post)
-	declType             string // Store the type for multi-name declarations
-	declNameCount        int    // Count of names in current declaration
-	declNameIndex        int    // Current name index
-	inAssignRhs                       bool   // Track if we're in assignment RHS
-	inAssignLhs                       bool   // Track if we're in assignment LHS
-	inFieldAssign                     bool   // Track if we're assigning to a struct field
-	isArrayStack                      []bool // Stack to save/restore isArray for nested composite literals
-	pkgHasInterfaceTypes              bool   // Track if current package has any interface{} types
-	currentCompLitTypeNoDefault       bool         // Track if current composite literal's type doesn't derive Default
-	compLitTypeNoDefaultStack         []bool       // Stack to save/restore currentCompLitTypeNoDefault for nested composite literals
-	currentCompLitType                types.Type   // Track the current composite literal's type for checking at post-visit
-	compLitTypeStack                  []types.Type // Stack of composite literal types
-	processedPkgsInterfaceTypes       map[string]bool // Cache for package interface{} type checks
-	inKeyValueExpr                    bool   // Track if we're inside a KeyValueExpr (struct field init)
-	inMultiValueReturn                bool   // Track if we're in a multi-value return statement
-	multiValueReturnResultIndex       int    // Current result index in multi-value return
-	inReturnStmt                      bool   // Track if we're inside a return statement
-	inMultiValueDecl                  bool   // Track if we're in a multi-value := declaration
-	currentFuncReturnsAny             bool   // Track if current function returns any/interface{}
-	callExprFunMarkerStack            []int  // Stack of indices for nested call markers
-	callExprFunEndMarkerStack         []int  // Stack of end indices for nested call markers
-	callExprArgsMarkerStack           []int  // Stack of indices for nested call arg markers
-	localClosureAssign                bool   // Track if current assignment has a function literal RHS
-	localClosures                     map[string]*ast.FuncLit // Map of local closure names to their AST
-	localClosureBodyTokens            map[string][]Token // Map of local closure names to their body tokens
-	currentClosureName                string // Name of the variable being assigned a closure
-	inLocalClosureInline              bool   // Track if we're inlining a local closure
-	inLocalClosureBody                bool   // Track if we're inside a local closure body being processed
-	localClosureBodyStartIndex        int    // Token index where closure body starts (after opening brace)
-	localClosureAssignStartIndex      int    // Token index where the assignment statement starts
-	currentCompLitIsSlice             bool   // Track if current composite literal is a slice type alias
+	pkg                          *packages.Package
+	insideForPostCond            bool
+	assignmentToken              string
+	forwardDecls                 bool
+	shouldGenerate               bool
+	numFuncResults               int
+	aliases                      map[string]Alias
+	currentPackage               string
+	isArray                      bool
+	arrayType                    string
+	isTuple                      bool
+	sawIncrement                 bool                    // Track if we saw ++ in for loop post statement
+	isInfiniteLoop               bool                    // Track if current for loop is infinite (no init, cond, post)
+	declType                     string                  // Store the type for multi-name declarations
+	declNameCount                int                     // Count of names in current declaration
+	declNameIndex                int                     // Current name index
+	inAssignRhs                  bool                    // Track if we're in assignment RHS
+	inAssignLhs                  bool                    // Track if we're in assignment LHS
+	inFieldAssign                bool                    // Track if we're assigning to a struct field
+	isArrayStack                 []bool                  // Stack to save/restore isArray for nested composite literals
+	pkgHasInterfaceTypes         bool                    // Track if current package has any interface{} types
+	currentCompLitTypeNoDefault  bool                    // Track if current composite literal's type doesn't derive Default
+	compLitTypeNoDefaultStack    []bool                  // Stack to save/restore currentCompLitTypeNoDefault for nested composite literals
+	currentCompLitType           types.Type              // Track the current composite literal's type for checking at post-visit
+	compLitTypeStack             []types.Type            // Stack of composite literal types
+	processedPkgsInterfaceTypes  map[string]bool         // Cache for package interface{} type checks
+	inKeyValueExpr               bool                    // Track if we're inside a KeyValueExpr (struct field init)
+	inMultiValueReturn           bool                    // Track if we're in a multi-value return statement
+	multiValueReturnResultIndex  int                     // Current result index in multi-value return
+	inReturnStmt                 bool                    // Track if we're inside a return statement
+	inMultiValueDecl             bool                    // Track if we're in a multi-value := declaration
+	currentFuncReturnsAny        bool                    // Track if current function returns any/interface{}
+	callExprFunMarkerStack       []int                   // Stack of indices for nested call markers
+	callExprFunEndMarkerStack    []int                   // Stack of end indices for nested call markers
+	callExprArgsMarkerStack      []int                   // Stack of indices for nested call arg markers
+	localClosureAssign           bool                    // Track if current assignment has a function literal RHS
+	localClosures                map[string]*ast.FuncLit // Map of local closure names to their AST
+	localClosureBodyTokens       map[string][]Token      // Map of local closure names to their body tokens
+	currentClosureName           string                  // Name of the variable being assigned a closure
+	inLocalClosureInline         bool                    // Track if we're inlining a local closure
+	inLocalClosureBody           bool                    // Track if we're inside a local closure body being processed
+	localClosureBodyStartIndex   int                     // Token index where closure body starts (after opening brace)
+	localClosureAssignStartIndex int                     // Token index where the assignment statement starts
+	currentCompLitIsSlice        bool                    // Track if current composite literal is a slice type alias
+	binaryNeedsLeftCast          bool                    // Track if left operand of binary expr needs cast to i32
+	binaryNeedsLeftCastStack     []bool                  // Stack for nested binary expressions
+	binaryNeedsRightCast         string                  // Type to cast right operand of binary expr (e.g., "u8")
+	binaryNeedsRightCastStack    []string                // Stack for nested binary expressions
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -386,7 +390,7 @@ func (re *RustEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 		return
 	}
 	var str string
-	str = re.emitAsString(fmt.Sprintf("fn %s", node.Name), 0)
+	str = re.emitAsString(fmt.Sprintf("pub fn %s", node.Name), 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 
@@ -502,6 +506,7 @@ func (re *RustEmitter) PreVisitCallExprArgs(node []ast.Expr, indent int) {
 		}
 	}
 }
+
 // isTypeConversion checks if a function name represents a type conversion
 func (re *RustEmitter) isTypeConversion(funName string) (bool, string) {
 	// Map Go type names and Rust type names to Rust cast targets
@@ -751,8 +756,8 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 				return
 			}
 			// Don't add i8 suffix - let Rust infer the type from context
-		// This allows character literals to work in match expressions cast to i32
-		str = re.emitAsString(fmt.Sprintf("%d", numVal), 0)
+			// This allows character literals to work in match expressions cast to i32
+			str = re.emitAsString(fmt.Sprintf("%d", numVal), 0)
 		} else {
 			str = re.emitAsString(charVal, 0)
 		}
@@ -800,9 +805,18 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index
 	}
 	pointerAndPosition := SearchPointerIndexReverse("@PreVisitDeclStmtValueSpecType", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
-		for aliasName, alias := range re.aliases {
-			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+		typeInfo := re.pkg.TypesInfo.Types[node.Type]
+		// Only do alias replacement if the type is NOT already a named type (alias)
+		// If it's a named type like types.ExprKind, don't replace it with another alias
+		if typeInfo.Type != nil {
+			if _, isNamed := typeInfo.Type.(*types.Named); !isNamed {
+				// Type is a basic/primitive type - check for alias replacement
+				for aliasName, alias := range re.aliases {
+					if alias.UnderlyingType == typeInfo.Type.Underlying().String() {
+						re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+						break
+					}
+				}
 			}
 		}
 	}
@@ -872,11 +886,18 @@ func (re *RustEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index in
 			str += " = " + defaultVal
 		} else if typeName == "String" {
 			str += " = String::new()"
-		} else if len(typeName) > 0 && typeName[0] >= 'A' && typeName[0] <= 'Z' &&
-			!strings.Contains(typeName, "Box<dyn") {
+		} else if len(typeName) > 0 && !strings.Contains(typeName, "Box<dyn") {
 			// For struct types declared without value (var x StructType), initialize with default
 			// Skip Box<dyn Any> - can't call default() on trait objects
-			str += " = " + typeName + "::default()"
+			// Handle module-qualified types like types::Plan by checking the type name part
+			typeNamePart := typeName
+			if idx := strings.LastIndex(typeName, "::"); idx >= 0 {
+				typeNamePart = typeName[idx+2:]
+			}
+			// Check if type name starts with uppercase (struct type)
+			if len(typeNamePart) > 0 && typeNamePart[0] >= 'A' && typeNamePart[0] <= 'Z' {
+				str += " = " + typeName + "::default()"
+			}
 		}
 	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -951,6 +972,7 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 		return
 	}
 	re.pkg = pkg
+	re.currentPackage = pkg.Name
 	// Initialize the caches if not already done
 	if re.processedPkgsInterfaceTypes == nil {
 		re.processedPkgsInterfaceTypes = make(map[string]bool)
@@ -965,6 +987,15 @@ func (re *RustEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	re.pkgHasInterfaceTypes = re.packageHasInterfaceTypes(pkg)
 	// Cache this package's result
 	re.processedPkgsInterfaceTypes[pkg.PkgPath] = re.pkgHasInterfaceTypes
+
+	// Generate module declaration for non-main packages
+	if pkg.Name != "main" {
+		str := re.emitAsString(fmt.Sprintf("pub mod %s {\n", pkg.Name), indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Import crate-root items (helper functions like append, len, println, etc.)
+		str = re.emitAsString("use crate::*;\n\n", indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
 }
 
 // packageHasInterfaceTypes scans all structs in the package for interface{} fields
@@ -1022,6 +1053,11 @@ func (re *RustEmitter) typeHasInterfaceFields(t types.Type) bool {
 func (re *RustEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	if re.forwardDecls {
 		return
+	}
+	// Close the module declaration for non-main packages
+	if pkg.Name != "main" {
+		str := re.emitAsString(fmt.Sprintf("} // pub mod %s\n\n", pkg.Name), indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
 }
 
@@ -1317,14 +1353,19 @@ func (re *RustEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, indent 
 }
 
 func (re *RustEmitter) PreVisitSelectorExprX(node ast.Expr, indent int) {
-	// For package names, suppress generation since we're generating single-file output
+	// For builtin package names (like fmt), suppress generation
+	// For user-defined module names (like types, ast), generate them
 	if ident, ok := node.(*ast.Ident); ok {
 		obj := re.pkg.TypesInfo.Uses[ident]
 		if obj != nil {
 			if _, ok := obj.(*types.PkgName); ok {
-				// Don't generate the package name
-				re.shouldGenerate = false
-				return
+				// Check if this is a builtin package that gets lowered
+				if re.lowerToBuiltins(ident.Name) == "" {
+					// Builtin package (fmt) - suppress generation
+					re.shouldGenerate = false
+					return
+				}
+				// User-defined module - let it be generated
 			}
 		}
 	}
@@ -1336,27 +1377,36 @@ func (re *RustEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	}
 	var str string
 	scopeOperator := "." // Default to dot for field access
+	isBuiltinPackage := false
 	if ident, ok := node.(*ast.Ident); ok {
+		// Check if this is a builtin package (like fmt) that we lower to crate-level functions
 		if re.lowerToBuiltins(ident.Name) == "" {
-			// Re-enable generation for the selector part (e.g., Printf after fmt)
-			re.shouldGenerate = true
-			return
+			// This is a builtin package like "fmt"
+			isBuiltinPackage = true
 		}
-		// Check if this is a package name - skip operator for single-file output
+
+		// Check if this is a package name - use :: for module-qualified access
 		obj := re.pkg.TypesInfo.Uses[ident]
 		if obj != nil {
 			if _, ok := obj.(*types.PkgName); ok {
-				// For single-file output, don't emit any scope operator for package references
-				// The type/function will be referenced directly
-				re.shouldGenerate = true // Re-enable for the selector part
-				return
+				// For builtin packages (fmt), don't emit any operator
+				// The selector will be lowered to a crate-level function
+				if isBuiltinPackage {
+					re.shouldGenerate = true
+					return
+				}
+				// Use :: for module-qualified access in Rust
+				scopeOperator = "::"
 			}
+		}
+		// Also check if the identifier is a known namespace/module
+		if _, found := namespaces[ident.Name]; found {
+			scopeOperator = "::"
 		}
 	}
 
 	str = re.emitAsString(scopeOperator, 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-
 }
 
 func (re *RustEmitter) PreVisitFuncTypeResults(node *ast.FieldList, indent int) {
@@ -1403,9 +1453,18 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field
 	}
 	pointerAndPosition := SearchPointerIndexReverse("@PreVisitFuncDeclSignatureTypeResultsList", re.gir.pointerAndIndexVec)
 	if pointerAndPosition != nil {
-		for aliasName, alias := range re.aliases {
-			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node.Type].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+		typeInfo := re.pkg.TypesInfo.Types[node.Type]
+		// Only do alias replacement if the type is NOT already a named type (alias)
+		// If it's a named type like ast.AST, don't replace it with another alias
+		if typeInfo.Type != nil {
+			if _, isNamed := typeInfo.Type.(*types.Named); !isNamed {
+				// Type is a basic/primitive type - check for alias replacement
+				for aliasName, alias := range re.aliases {
+					if alias.UnderlyingType == typeInfo.Type.Underlying().String() {
+						re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+						break
+					}
+				}
 			}
 		}
 	}
@@ -1446,7 +1505,7 @@ func (re *RustEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
 		return
 	}
 	re.gir.emitToFileBuffer("", "@@PreVisitTypeAliasName")
-	str := re.emitAsString("type ", indent+2)
+	str := re.emitAsString("pub type ", indent+2)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = true
 }
@@ -1578,7 +1637,9 @@ func (re *RustEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
 }
 
 func (re *RustEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
-	re.shouldGenerate = false
+	// Note: Do NOT set shouldGenerate = false here!
+	// This would prevent subsequent operands in expressions from being generated.
+	// For example, in (a + b) + c where b is a call, setting false would suppress 'c'.
 }
 
 func (re *RustEmitter) PreVisitDeclStmt(node *ast.DeclStmt, indent int) {
@@ -1741,7 +1802,7 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	if assignmentToken == ":=" && len(node.Rhs) == 1 {
 		if funcLit, ok := node.Rhs[0].(*ast.FuncLit); ok {
 			if ident, ok := node.Lhs[0].(*ast.Ident); ok {
-					re.localClosureAssign = true
+				re.localClosureAssign = true
 				re.currentClosureName = ident.Name
 				re.localClosures[ident.Name] = funcLit
 				// Record assignment start index for later removal
@@ -1855,10 +1916,121 @@ func (re *RustEmitter) PostVisitIndexExprIndex(node *ast.IndexExpr, indent int) 
 func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	re.shouldGenerate = true
 	re.emitToken("(", LeftParen, 1)
+
+	// Save current state for nested expressions
+	re.binaryNeedsLeftCastStack = append(re.binaryNeedsLeftCastStack, re.binaryNeedsLeftCast)
+	re.binaryNeedsRightCastStack = append(re.binaryNeedsRightCastStack, re.binaryNeedsRightCast)
+	re.binaryNeedsLeftCast = false
+	re.binaryNeedsRightCast = ""
+
+	// Check if left operand is u8/i8/u16/i16 and right is a constant
+	// Go's type checker sees both as same type after implicit conversion, but
+	// we generate constants as i32, so we need to handle type mismatches
+	isComparisonOp := node.Op == token.EQL || node.Op == token.NEQ ||
+		node.Op == token.LSS || node.Op == token.GTR ||
+		node.Op == token.LEQ || node.Op == token.GEQ
+	isBitwiseOp := node.Op == token.AND || node.Op == token.OR || node.Op == token.XOR
+
+	leftType := re.pkg.TypesInfo.Types[node.X]
+	if leftType.Type != nil {
+		leftStr := leftType.Type.String()
+		// Check if left is a small integer type
+		if leftStr == "uint8" || leftStr == "int8" || leftStr == "uint16" || leftStr == "int16" {
+			// Helper function to check if right side is a constant
+			rightIsConst := false
+			if ident, ok := node.Y.(*ast.Ident); ok {
+				if obj := re.pkg.TypesInfo.Uses[ident]; obj != nil {
+					if _, isConst := obj.(*types.Const); isConst {
+						rightIsConst = true
+					}
+				}
+			}
+			if sel, ok := node.Y.(*ast.SelectorExpr); ok {
+				if obj := re.pkg.TypesInfo.Uses[sel.Sel]; obj != nil {
+					if _, isConst := obj.(*types.Const); isConst {
+						rightIsConst = true
+					}
+				}
+			}
+
+			if rightIsConst {
+				if isComparisonOp {
+					// For comparisons, cast left to i32 (result is bool)
+					re.binaryNeedsLeftCast = true
+				} else if isBitwiseOp {
+					// For bitwise ops, cast right constant to match left type
+					// so the result has the correct type
+					rustType := re.mapGoTypeToRust(leftStr)
+					re.binaryNeedsRightCast = rustType
+				}
+			}
+
+			// Also check if right side is a binary expression or paren expr containing one
+			// (e.g., 0xFF - FlagZ or (0xFF - FlagZ)) that will evaluate to i32 in Rust
+			if isBitwiseOp {
+				// Get the actual expression, unwrapping ParenExpr if needed
+				rightExpr := node.Y
+				if parenExpr, ok := rightExpr.(*ast.ParenExpr); ok {
+					rightExpr = parenExpr.X
+				}
+
+				if _, ok := rightExpr.(*ast.BinaryExpr); ok {
+					// Check if the expression contains constants or literals
+					// that will result in i32
+					hasIntLiteral := false
+					ast.Inspect(rightExpr, func(n ast.Node) bool {
+						if lit, ok := n.(*ast.BasicLit); ok {
+							if lit.Kind == token.INT {
+								hasIntLiteral = true
+							}
+						}
+						if ident, ok := n.(*ast.Ident); ok {
+							if obj := re.pkg.TypesInfo.Uses[ident]; obj != nil {
+								if _, isConst := obj.(*types.Const); isConst {
+									hasIntLiteral = true
+								}
+							}
+						}
+						return true
+					})
+					if hasIntLiteral {
+						rustType := re.mapGoTypeToRust(leftStr)
+						re.binaryNeedsRightCast = rustType
+					}
+				}
+			}
+		}
+	}
 }
+
+func (re *RustEmitter) PostVisitBinaryExprLeft(node ast.Expr, indent int) {
+	// Add cast to i32 if needed for type compatibility with constants
+	if re.binaryNeedsLeftCast {
+		re.gir.emitToFileBuffer(" as i32", EmptyVisitMethod)
+	}
+}
+
+func (re *RustEmitter) PostVisitBinaryExprRight(node ast.Expr, indent int) {
+	// Add cast for right operand (constant) if needed for bitwise operations
+	if re.binaryNeedsRightCast != "" && !re.forwardDecls {
+		re.gir.emitToFileBuffer(fmt.Sprintf(" as %s", re.binaryNeedsRightCast), EmptyVisitMethod)
+	}
+}
+
 func (re *RustEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	re.emitToken(")", RightParen, 1)
-	re.shouldGenerate = false
+	// Restore previous state for nested expressions
+	if len(re.binaryNeedsLeftCastStack) > 0 {
+		re.binaryNeedsLeftCast = re.binaryNeedsLeftCastStack[len(re.binaryNeedsLeftCastStack)-1]
+		re.binaryNeedsLeftCastStack = re.binaryNeedsLeftCastStack[:len(re.binaryNeedsLeftCastStack)-1]
+	}
+	if len(re.binaryNeedsRightCastStack) > 0 {
+		re.binaryNeedsRightCast = re.binaryNeedsRightCastStack[len(re.binaryNeedsRightCastStack)-1]
+		re.binaryNeedsRightCastStack = re.binaryNeedsRightCastStack[:len(re.binaryNeedsRightCastStack)-1]
+	}
+	// Note: Do NOT set shouldGenerate = false here!
+	// This would prevent the right operand of nested binary expressions from being generated.
+	// For example, in (a + b) + c, setting false after (a + b) would suppress 'c'.
 }
 
 func (re *RustEmitter) PreVisitBinaryExprOperator(op token.Token, indent int) {
@@ -2271,9 +2443,17 @@ func (re *RustEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 		}
 		// TODO not very effective
 		// go through all aliases and check if the underlying type matches
-		for aliasName, alias := range re.aliases {
-			if alias.UnderlyingType == re.pkg.TypesInfo.Types[node].Type.Underlying().String() {
-				re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+		// Only do alias replacement if the type is NOT already a named type (alias)
+		typeInfo := re.pkg.TypesInfo.Types[node]
+		if typeInfo.Type != nil {
+			if _, isNamed := typeInfo.Type.(*types.Named); !isNamed {
+				// Type is a basic/primitive type - check for alias replacement
+				for aliasName, alias := range re.aliases {
+					if alias.UnderlyingType == typeInfo.Type.Underlying().String() {
+						re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pointerAndPosition.Index, len(re.gir.tokenSlice), []string{aliasName})
+						break
+					}
+				}
 			}
 		}
 		if re.isArray {
@@ -2538,7 +2718,10 @@ func (re *RustEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 			if constType == re.pkg.TypesInfo.Defs[node].Type().String() {
 				constType = trimBeforeChar(constType, '.')
 			}
+
 			// Map Go types to Rust types for constants
+			// Keep untyped int as i32 since Go's implicit type conversion at usage
+			// sites will be handled by explicit casts in binary expressions
 			rustType := re.mapGoTypeToRust(constType)
 			str := re.emitAsString(fmt.Sprintf("pub const %s: %s = ", node.Name, rustType), 0)
 

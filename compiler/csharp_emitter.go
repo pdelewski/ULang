@@ -814,12 +814,14 @@ func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
 			tv := cse.pkg.TypesInfo.Types[node.Results[0]]
 			//pos := cse.pkg.Fset.Position(node.Pos())
 			//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-			if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
-				if !cse.isTuple && tv.Type.String() != "func()" {
-					cse.emitToken("(", LeftParen, 0)
-					str := cse.emitAsString(typeVal, 0)
-					cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
-					cse.emitToken(")", RightParen, 0)
+			if tv.Type != nil {
+				if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
+					if !cse.isTuple && tv.Type.String() != "func()" {
+						cse.emitToken("(", LeftParen, 0)
+						str := cse.emitAsString(typeVal, 0)
+						cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+						cse.emitToken(")", RightParen, 0)
+					}
 				}
 			}
 		}
@@ -907,9 +909,11 @@ func (cse *CSharpEmitter) PostVisitAssignStmtRhsExpr(node ast.Expr, index int, i
 			tv := cse.pkg.TypesInfo.Types[node]
 			//pos := cse.pkg.Fset.Position(node.Pos())
 			//fmt.Printf("@@Type: %s %s:%d:%d\n", tv.Type, pos.Filename, pos.Line, pos.Column)
-			if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
-				if !cse.isTuple && tv.Type.String() != "func()" {
-					cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{}, []string{"(", typeVal, ")"})
+			if tv.Type != nil {
+				if typeVal, ok := csTypesMap[tv.Type.String()]; ok {
+					if !cse.isTuple && tv.Type.String() != "func()" {
+						cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{}, []string{"(", typeVal, ")"})
+					}
 				}
 			}
 		}
