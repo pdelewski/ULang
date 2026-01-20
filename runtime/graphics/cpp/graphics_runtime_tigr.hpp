@@ -96,42 +96,22 @@ inline std::tuple<Window, bool> PollEvents(Window w) {
     // Reset last key
     lastKeyPressed = 0;
 
-    // Check for key presses (ASCII letters and numbers)
-    for (int key = 'A'; key <= 'Z'; key++) {
-        if (tigrKeyDown(win, key)) {
-            // Check shift for case
-            if (tigrKeyHeld(win, TK_SHIFT)) {
-                lastKeyPressed = key;
-            } else {
-                lastKeyPressed = key + 32; // lowercase
-            }
-            break;
-        }
+    // Use tigrReadChar for character input (letters, numbers, space, etc.)
+    // This is the primary method and avoids double-detection issues
+    int ch = tigrReadChar(win);
+    if (ch > 0 && ch < 128) {
+        lastKeyPressed = ch;
     }
 
-    if (lastKeyPressed == 0) {
-        for (int key = '0'; key <= '9'; key++) {
-            if (tigrKeyDown(win, key)) {
-                lastKeyPressed = key;
-                break;
-            }
-        }
-    }
-
-    // Check special keys
+    // Check special keys that don't produce characters (only if no char was read)
     if (lastKeyPressed == 0) {
         if (tigrKeyDown(win, TK_RETURN)) lastKeyPressed = 13;
         else if (tigrKeyDown(win, TK_BACKSPACE)) lastKeyPressed = 8;
-        else if (tigrKeyDown(win, TK_SPACE)) lastKeyPressed = ' ';
         else if (tigrKeyDown(win, TK_ESCAPE)) lastKeyPressed = 27;
-    }
-
-    // Also check tigrReadChar for typed characters
-    if (lastKeyPressed == 0) {
-        int ch = tigrReadChar(win);
-        if (ch > 0 && ch < 128) {
-            lastKeyPressed = ch;
-        }
+        else if (tigrKeyDown(win, TK_LEFT)) lastKeyPressed = 256;  // Extended key codes
+        else if (tigrKeyDown(win, TK_RIGHT)) lastKeyPressed = 257;
+        else if (tigrKeyDown(win, TK_UP)) lastKeyPressed = 258;
+        else if (tigrKeyDown(win, TK_DOWN)) lastKeyPressed = 259;
     }
 
     // Check if window should close
