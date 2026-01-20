@@ -86,6 +86,7 @@ func testLoopConstructs() {
 	var a []int
 
 	// C-style for loop
+	// @test cpp="for (auto x = 0; x < 10; x++)" cs="for (var x = 0; (x < 10 ); x++)" rust="for x in 0..10"
 	for x := 0; x < 10; x++ {
 		if !(len(a) == 0) {
 		} else if len(a) == 0 {
@@ -99,6 +100,7 @@ func testLoopConstructs() {
 	}
 
 	// While-style loop
+	// @test cpp="for (; counter < 5;)" cs="for (; (counter < 5 );)" rust="while (counter < 5)"
 	counter := 0
 	for counter < 5 {
 		counter++
@@ -106,6 +108,7 @@ func testLoopConstructs() {
 	fmt.Println(counter)
 
 	// Infinite loop with break
+	// @test cpp="for (;;)" cs="for (;;)" rust="loop"
 	counter2 := 0
 	for {
 		counter2++
@@ -132,6 +135,7 @@ func testLoopConstructs() {
 	}
 
 	// Step by 2: i += 2
+	// @test cpp="for (auto i = 0; i < 10; i += 2)" cs="for (var i = 0; (i < 10 ); i += 2)" rust="for i in (0..10).step_by(2)"
 	sumStep := 0
 	for i := 0; i < 10; i += 2 {
 		sumStep += i // 0 + 2 + 4 + 6 + 8 = 20
@@ -139,6 +143,7 @@ func testLoopConstructs() {
 	fmt.Println(sumStep)
 
 	// Decrement loop: i--
+	// @test cpp="for (auto i = 5; i > 0; i--)" cs="for (var i = 5; (i > 0 ); i--)" rust="for i in ((0 + 1)..=5).rev()"
 	sumDecr := 0
 	for i := 5; i > 0; i-- {
 		sumDecr += i // 5 + 4 + 3 + 2 + 1 = 15
@@ -146,6 +151,7 @@ func testLoopConstructs() {
 	fmt.Println(sumDecr)
 
 	// Inclusive range: i <= n
+	// @test cpp="for (auto i = 1; i <= 5; i++)" cs="for (var i = 1; (i <= 5 ); i++)" rust="for i in 1..=5"
 	sumIncl := 0
 	for i := 1; i <= 5; i++ {
 		sumIncl += i // 1 + 2 + 3 + 4 + 5 = 15
@@ -153,6 +159,7 @@ func testLoopConstructs() {
 	fmt.Println(sumIncl)
 
 	// Decrement with inclusive: i >= 0
+	// @test cpp="for (auto i = 3; i >= 0; i--)" cs="for (var i = 3; (i >= 0 ); i--)" rust="for i in (0..=3).rev()"
 	sumDecrIncl := 0
 	for i := 3; i >= 0; i-- {
 		sumDecrIncl += i // 3 + 2 + 1 + 0 = 6
@@ -160,6 +167,7 @@ func testLoopConstructs() {
 	fmt.Println(sumDecrIncl)
 
 	// Step by 3 decrement: i -= 3
+	// @test cpp="for (auto i = 9; i > 0; i -= 3)" cs="for (var i = 9; (i > 0 ); i -= 3)" rust="for i in ((0 + 1)..=9).rev().step_by(3)"
 	sumDecrStep := 0
 	for i := 9; i > 0; i -= 3 {
 		sumDecrStep += i // 9 + 6 + 3 = 18
