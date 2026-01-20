@@ -3303,14 +3303,14 @@ func (re *RustEmitter) GenerateCargoToml() error {
 	defer file.Close()
 
 	// Determine graphics backend
-	// Note: Rust only supports sdl2 and none (tigr has no Rust bindings, falls back to sdl2)
 	graphicsBackend := re.GraphicsRuntime
-	if graphicsBackend == "" || graphicsBackend == "tigr" {
-		graphicsBackend = "sdl2" // Default to sdl2 for Rust (tigr not supported)
+	if graphicsBackend == "" {
+		graphicsBackend = "tigr" // Default to tigr for Rust
 	}
 
 	var cargoToml string
-	if graphicsBackend == "none" {
+	switch graphicsBackend {
+	case "none":
 		// No graphics dependencies
 		cargoToml = fmt.Sprintf(`[package]
 name = "%s"
@@ -3324,7 +3324,24 @@ opt-level = 3
 lto = true
 codegen-units = 1
 `, re.OutputName)
-	} else {
+	case "tigr":
+		// tigr graphics - uses cc build dependency to compile tigr.c
+		cargoToml = fmt.Sprintf(`[package]
+name = "%s"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[build-dependencies]
+cc = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+`, re.OutputName)
+	default:
 		// SDL2 graphics
 		cargoToml = fmt.Sprintf(`[package]
 name = "%s"
@@ -3362,8 +3379,26 @@ func (re *RustEmitter) GenerateGraphicsMod() error {
 		return fmt.Errorf("failed to create src directory: %w", err)
 	}
 
+	// Determine graphics backend
+	graphicsBackend := re.GraphicsRuntime
+	if graphicsBackend == "" {
+		graphicsBackend = "tigr"
+	}
+
+	// Select the appropriate runtime file based on backend
+	var runtimeFileName string
+	switch graphicsBackend {
+	case "tigr":
+		runtimeFileName = "graphics_runtime_tigr.rs"
+	case "sdl2":
+		runtimeFileName = "graphics_runtime.rs"
+	default:
+		// For "none" or unknown, use SDL2 runtime as fallback
+		runtimeFileName = "graphics_runtime.rs"
+	}
+
 	// Source path: LinkRuntime points to runtime directory, graphics runtime is in graphics/rust/
-	runtimeSrcPath := filepath.Join(re.LinkRuntime, "graphics", "rust", "graphics_runtime.rs")
+	runtimeSrcPath := filepath.Join(re.LinkRuntime, "graphics", "rust", runtimeFileName)
 	graphicsRs, err := os.ReadFile(runtimeSrcPath)
 	if err != nil {
 		return fmt.Errorf("failed to read graphics runtime from %s: %w", runtimeSrcPath, err)
@@ -3376,10 +3411,38 @@ func (re *RustEmitter) GenerateGraphicsMod() error {
 	}
 
 	DebugLogPrintf("Copied graphics.rs from %s to %s", runtimeSrcPath, graphicsPath)
+
+	// For tigr backend, copy tigr.c and tigr.h (tigr.c includes tigr.h)
+	if graphicsBackend == "tigr" {
+		// Copy tigr.c
+		tigrCSrc := filepath.Join(re.LinkRuntime, "graphics", "cpp", "tigr.c")
+		tigrCDst := filepath.Join(srcDir, "tigr.c")
+		tigrCContent, err := os.ReadFile(tigrCSrc)
+		if err != nil {
+			return fmt.Errorf("failed to read tigr.c from %s: %w", tigrCSrc, err)
+		}
+		if err := os.WriteFile(tigrCDst, tigrCContent, 0644); err != nil {
+			return fmt.Errorf("failed to write tigr.c: %w", err)
+		}
+		DebugLogPrintf("Copied tigr.c to %s", tigrCDst)
+
+		// Copy tigr.h (required by tigr.c)
+		tigrHSrc := filepath.Join(re.LinkRuntime, "graphics", "cpp", "tigr.h")
+		tigrHDst := filepath.Join(srcDir, "tigr.h")
+		tigrHContent, err := os.ReadFile(tigrHSrc)
+		if err != nil {
+			return fmt.Errorf("failed to read tigr.h from %s: %w", tigrHSrc, err)
+		}
+		if err := os.WriteFile(tigrHDst, tigrHContent, 0644); err != nil {
+			return fmt.Errorf("failed to write tigr.h: %w", err)
+		}
+		DebugLogPrintf("Copied tigr.h to %s", tigrHDst)
+	}
+
 	return nil
 }
 
-// GenerateBuildRs creates a build.rs file that sets library search paths for SDL2
+// GenerateBuildRs creates a build.rs file for compiling native code
 func (re *RustEmitter) GenerateBuildRs() error {
 	if re.LinkRuntime == "" {
 		return nil
@@ -3392,7 +3455,44 @@ func (re *RustEmitter) GenerateBuildRs() error {
 	}
 	defer file.Close()
 
-	buildRs := `fn main() {
+	// Determine graphics backend
+	graphicsBackend := re.GraphicsRuntime
+	if graphicsBackend == "" {
+		graphicsBackend = "tigr"
+	}
+
+	var buildRs string
+	if graphicsBackend == "tigr" {
+		// tigr: compile tigr.c and link platform libraries
+		buildRs = `fn main() {
+    // Compile tigr.c
+    cc::Build::new()
+        .file("src/tigr.c")
+        .compile("tigr");
+
+    // Link platform-specific libraries
+    #[cfg(target_os = "macos")]
+    {
+        println!("cargo:rustc-link-lib=framework=OpenGL");
+        println!("cargo:rustc-link-lib=framework=Cocoa");
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        println!("cargo:rustc-link-lib=GL");
+        println!("cargo:rustc-link-lib=X11");
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        println!("cargo:rustc-link-lib=opengl32");
+        println!("cargo:rustc-link-lib=gdi32");
+    }
+}
+`
+	} else {
+		// SDL2: just add library search paths
+		buildRs = `fn main() {
     // Add Homebrew library path for macOS
     #[cfg(target_os = "macos")]
     {
@@ -3410,12 +3510,13 @@ func (re *RustEmitter) GenerateBuildRs() error {
     }
 }
 `
+	}
 
 	_, err = file.WriteString(buildRs)
 	if err != nil {
 		return fmt.Errorf("failed to write build.rs: %w", err)
 	}
 
-	DebugLogPrintf("Generated build.rs at %s", buildRsPath)
+	DebugLogPrintf("Generated build.rs at %s (graphics: %s)", buildRsPath, graphicsBackend)
 	return nil
 }
