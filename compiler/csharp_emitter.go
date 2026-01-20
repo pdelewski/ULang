@@ -881,8 +881,11 @@ func (cse *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 
 func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString(";", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Don't emit semicolon inside for loop post statement
+		if !cse.insideForPostCond {
+			str := cse.emitAsString(";", 0)
+			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		}
 	})
 }
 
@@ -951,7 +954,8 @@ func (cse *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int
 			cse.emitToken("(", LeftParen, indent)
 			cse.isTuple = true
 		}
-		if assignmentToken != "+=" {
+		// Preserve compound assignment operators, convert := to =
+		if assignmentToken != "+=" && assignmentToken != "-=" && assignmentToken != "*=" && assignmentToken != "/=" {
 			assignmentToken = "="
 		}
 		cse.assignmentToken = assignmentToken
@@ -1034,7 +1038,6 @@ func (cse *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 		str := cse.emitAsString("for ", indent)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		cse.emitToken("(", LeftParen, 0)
-		cse.insideForPostCond = true
 	})
 }
 
@@ -1043,6 +1046,14 @@ func (cse *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 		if node == nil {
 			str := cse.emitAsString(";", 0)
 			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		}
+	})
+}
+
+func (cse *CSharpEmitter) PreVisitForStmtPost(node ast.Stmt, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		if node != nil {
+			cse.insideForPostCond = true
 		}
 	})
 }

@@ -130,6 +130,41 @@ func testLoopConstructs() {
 	for i := range nums {
 		fmt.Println(i)
 	}
+
+	// Step by 2: i += 2
+	sumStep := 0
+	for i := 0; i < 10; i += 2 {
+		sumStep += i // 0 + 2 + 4 + 6 + 8 = 20
+	}
+	fmt.Println(sumStep)
+
+	// Decrement loop: i--
+	sumDecr := 0
+	for i := 5; i > 0; i-- {
+		sumDecr += i // 5 + 4 + 3 + 2 + 1 = 15
+	}
+	fmt.Println(sumDecr)
+
+	// Inclusive range: i <= n
+	sumIncl := 0
+	for i := 1; i <= 5; i++ {
+		sumIncl += i // 1 + 2 + 3 + 4 + 5 = 15
+	}
+	fmt.Println(sumIncl)
+
+	// Decrement with inclusive: i >= 0
+	sumDecrIncl := 0
+	for i := 3; i >= 0; i-- {
+		sumDecrIncl += i // 3 + 2 + 1 + 0 = 6
+	}
+	fmt.Println(sumDecrIncl)
+
+	// Step by 3 decrement: i -= 3
+	sumDecrStep := 0
+	for i := 9; i > 0; i -= 3 {
+		sumDecrStep += i // 9 + 6 + 3 = 18
+	}
+	fmt.Println(sumDecrStep)
 }
 
 // Boolean logic: not operator, boolean literals

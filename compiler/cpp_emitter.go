@@ -561,8 +561,11 @@ func (cppe *CPPEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 }
 
 func (cppe *CPPEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
-	str := cppe.emitAsString(";", 0)
-	cppe.emitToFile(str)
+	// Don't emit semicolon inside for loop post statement
+	if !cppe.insideForPostCond {
+		str := cppe.emitAsString(";", 0)
+		cppe.emitToFile(str)
+	}
 }
 
 func (cppe *CPPEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
@@ -577,7 +580,8 @@ func (cppe *CPPEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) 
 		str := cppe.emitAsString("std::tie(", indent)
 		cppe.emitToFile(str)
 	}
-	if assignmentToken != "+=" {
+	// Preserve compound assignment operators, convert := to =
+	if assignmentToken != "+=" && assignmentToken != "-=" && assignmentToken != "*=" && assignmentToken != "/=" {
 		assignmentToken = "="
 	}
 	cppe.assignmentToken = assignmentToken
