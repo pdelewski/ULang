@@ -24,28 +24,29 @@ var cppTypesMap = map[string]string{
 }
 
 type CPPEmitter struct {
-	Output      string
-	OutputDir   string
-	OutputName  string
-	LinkRuntime string // Path to runtime directory (empty = disabled)
-	file        *os.File
+	Output          string
+	OutputDir       string
+	OutputName      string
+	LinkRuntime     string // Path to runtime directory (empty = disabled)
+	GraphicsRuntime string // Graphics backend: tigr (default), sdl2, none
+	file            *os.File
 	Emitter
 	pkg               *packages.Package
 	insideForPostCond bool
 	assignmentToken   string
 	forwardDecl       bool
 	// Key-value range loop support
-	isKeyValueRange         bool
-	rangeKeyName            string
-	rangeValueName          string
-	rangeCollectionExpr     string
-	captureRangeExpr        bool
-	suppressRangeEmit       bool
-	rangeStmtIndent         int
-	pendingRangeValueDecl   bool   // True when we need to emit value decl at start of block
-	pendingValueName        string
-	pendingCollectionExpr   string
-	pendingKeyName          string
+	isKeyValueRange       bool
+	rangeKeyName          string
+	rangeValueName        string
+	rangeCollectionExpr   string
+	captureRangeExpr      bool
+	suppressRangeEmit     bool
+	rangeStmtIndent       int
+	pendingRangeValueDecl bool // True when we need to emit value decl at start of block
+	pendingValueName      string
+	pendingCollectionExpr string
+	pendingKeyName        string
 }
 
 func (*CPPEmitter) lowerToBuiltins(selector string) string {
@@ -112,7 +113,19 @@ func (cppe *CPPEmitter) PreVisitProgram(indent int) {
 `)
 	// Include runtime header if link-runtime is enabled
 	if cppe.LinkRuntime != "" {
-		cppe.file.WriteString("#include \"runtime.hpp\"\n")
+		// Include graphics runtime based on selected backend
+		graphicsBackend := cppe.GraphicsRuntime
+		if graphicsBackend == "" {
+			graphicsBackend = "tigr"
+		}
+		switch graphicsBackend {
+		case "sdl2":
+			cppe.file.WriteString("#include \"graphics/cpp/graphics_runtime_sdl2.hpp\"\n")
+		case "tigr":
+			cppe.file.WriteString("#include \"graphics/cpp/graphics_runtime_tigr.hpp\"\n")
+		case "none":
+			// No graphics runtime
+		}
 	}
 	cppe.file.WriteString(`
 using int8 = int8_t;
@@ -981,7 +994,7 @@ func (cppe *CPPEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
 	cppe.emitToFile(";\n\n")
 }
 
-// GenerateMakefile creates a Makefile for building the C++ project with SDL2
+// GenerateMakefile creates a Makefile for building the C++ project
 func (cppe *CPPEmitter) GenerateMakefile() error {
 	if cppe.LinkRuntime == "" {
 		return nil
@@ -1000,7 +1013,17 @@ func (cppe *CPPEmitter) GenerateMakefile() error {
 		absRuntimePath = cppe.LinkRuntime // Fall back to original if Abs fails
 	}
 
-	makefile := fmt.Sprintf(`CXX = g++
+	var makefile string
+
+	// Determine graphics backend (default to tigr)
+	graphicsBackend := cppe.GraphicsRuntime
+	if graphicsBackend == "" {
+		graphicsBackend = "tigr"
+	}
+
+	switch graphicsBackend {
+	case "sdl2":
+		makefile = fmt.Sprintf(`CXX = g++
 CXXFLAGS = -O3 -std=c++17 -I%s $(shell sdl2-config --cflags)
 LDFLAGS = $(shell sdl2-config --libs)
 
@@ -1018,11 +1041,68 @@ clean:
 .PHONY: all clean
 `, absRuntimePath, cppe.OutputName, cppe.OutputName)
 
+	case "none":
+		makefile = fmt.Sprintf(`CXX = g++
+CXXFLAGS = -O3 -std=c++17 -I%s
+LDFLAGS =
+
+TARGET = %s
+SRCS = %s.cpp
+
+all: $(TARGET)
+
+$(TARGET): $(SRCS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+clean:
+	rm -f $(TARGET)
+
+.PHONY: all clean
+`, absRuntimePath, cppe.OutputName, cppe.OutputName)
+
+	default: // tigr (default)
+		makefile = fmt.Sprintf(`CXX = g++
+CC = gcc
+CXXFLAGS = -O3 -std=c++17 -I%s
+CFLAGS = -O3
+
+TARGET = %s
+SRCS = %s.cpp
+TIGR_SRC = %s/graphics/cpp/tigr.c
+
+# Platform-specific flags
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    LDFLAGS = -framework OpenGL -framework Cocoa
+endif
+ifeq ($(UNAME_S),Linux)
+    LDFLAGS = -lGL -lX11
+endif
+# Windows (MinGW)
+ifeq ($(OS),Windows_NT)
+    LDFLAGS = -lopengl32 -lgdi32
+endif
+
+all: $(TARGET)
+
+tigr.o: $(TIGR_SRC)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(TARGET): $(SRCS) tigr.o
+	$(CXX) $(CXXFLAGS) -o $@ $(SRCS) tigr.o $(LDFLAGS)
+
+clean:
+	rm -f $(TARGET) tigr.o
+
+.PHONY: all clean
+`, absRuntimePath, cppe.OutputName, cppe.OutputName, absRuntimePath)
+	}
+
 	_, err = file.WriteString(makefile)
 	if err != nil {
 		return fmt.Errorf("failed to write Makefile: %w", err)
 	}
 
-	DebugLogPrintf("Generated Makefile at %s", makefilePath)
+	DebugLogPrintf("Generated Makefile at %s (graphics: %s)", makefilePath, graphicsBackend)
 	return nil
 }
