@@ -83,6 +83,19 @@ func main() {
 	},
 	// Note: empty_interface and slice_of_empty_interface tests removed
 	// interface{} is now supported (maps to std::any/Box<dyn Any>/object)
+	{
+		Name: "string_variable_reuse_after_concat",
+		Code: `package main
+
+func main() {
+	indent := "  "
+	result := indent + "hello"
+	result = result + indent
+	_ = result
+}
+`,
+		ExpectedError: "string variable 'indent' was consumed by concatenation",
+	},
 }
 
 func TestSemaUnsupportedConstructs(t *testing.T) {
