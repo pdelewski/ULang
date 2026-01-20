@@ -62,6 +62,10 @@ namespace detail {
 // Global to store last key pressed
 static int lastKeyPressed = 0;
 
+// Our own key state tracking for reliable single-press detection
+static bool prevKeyState[8] = {false, false, false, false, false, false, false, false};
+// Index: 0=RETURN, 1=BACKSPACE, 2=ESCAPE, 3=LEFT, 4=RIGHT, 5=UP, 6=DOWN, 7=reserved
+
 // --- Window management ---
 
 inline Window CreateWindow(const std::string& title, int32_t width, int32_t height) {
@@ -93,6 +97,16 @@ inline bool IsRunning(Window w) {
 inline std::tuple<Window, bool> PollEvents(Window w) {
     Tigr* win = reinterpret_cast<Tigr*>(w.handle);
 
+    // Check if window should close BEFORE update (in case it was closed last frame)
+    if (tigrClosed(win)) {
+        w.running = false;
+        return std::make_tuple(w, false);
+    }
+
+    // Call tigrUpdate to process events and present previous frame
+    // This must happen BEFORE checking keys, as events are processed in tigrUpdate
+    tigrUpdate(win);
+
     // Reset last key
     lastKeyPressed = 0;
 
@@ -104,17 +118,33 @@ inline std::tuple<Window, bool> PollEvents(Window w) {
     }
 
     // Check special keys that don't produce characters (only if no char was read)
+    // Use our own state tracking for reliable single-press detection
     if (lastKeyPressed == 0) {
-        if (tigrKeyDown(win, TK_RETURN)) lastKeyPressed = 13;
-        else if (tigrKeyDown(win, TK_BACKSPACE)) lastKeyPressed = 8;
-        else if (tigrKeyDown(win, TK_ESCAPE)) lastKeyPressed = 27;
-        else if (tigrKeyDown(win, TK_LEFT)) lastKeyPressed = 256;  // Extended key codes
-        else if (tigrKeyDown(win, TK_RIGHT)) lastKeyPressed = 257;
-        else if (tigrKeyDown(win, TK_UP)) lastKeyPressed = 258;
-        else if (tigrKeyDown(win, TK_DOWN)) lastKeyPressed = 259;
+        bool currKeyState[7];
+        currKeyState[0] = tigrKeyHeld(win, TK_RETURN) != 0;
+        currKeyState[1] = tigrKeyHeld(win, TK_BACKSPACE) != 0;
+        currKeyState[2] = tigrKeyHeld(win, TK_ESCAPE) != 0;
+        currKeyState[3] = tigrKeyHeld(win, TK_LEFT) != 0;
+        currKeyState[4] = tigrKeyHeld(win, TK_RIGHT) != 0;
+        currKeyState[5] = tigrKeyHeld(win, TK_UP) != 0;
+        currKeyState[6] = tigrKeyHeld(win, TK_DOWN) != 0;
+
+        // Detect key press (transition from not pressed to pressed)
+        if (currKeyState[0] && !prevKeyState[0]) lastKeyPressed = 13;
+        else if (currKeyState[1] && !prevKeyState[1]) lastKeyPressed = 8;
+        else if (currKeyState[2] && !prevKeyState[2]) lastKeyPressed = 27;
+        else if (currKeyState[3] && !prevKeyState[3]) lastKeyPressed = 256;
+        else if (currKeyState[4] && !prevKeyState[4]) lastKeyPressed = 257;
+        else if (currKeyState[5] && !prevKeyState[5]) lastKeyPressed = 258;
+        else if (currKeyState[6] && !prevKeyState[6]) lastKeyPressed = 259;
+
+        // Update previous state
+        for (int i = 0; i < 7; i++) {
+            prevKeyState[i] = currKeyState[i];
+        }
     }
 
-    // Check if window should close
+    // Check if window was closed during event processing
     if (tigrClosed(win)) {
         w.running = false;
         return std::make_tuple(w, false);
@@ -138,8 +168,9 @@ inline void Clear(Window w, Color c) {
 }
 
 inline void Present(Window w) {
-    Tigr* win = reinterpret_cast<Tigr*>(w.handle);
-    tigrUpdate(win);
+    // tigrUpdate is called in PollEvents to ensure events are processed before key checks.
+    // The actual rendering/present happens there. This function exists for API compatibility.
+    (void)w;
 }
 
 // --- Drawing primitives ---

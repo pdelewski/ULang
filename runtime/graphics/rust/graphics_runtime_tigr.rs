@@ -40,16 +40,17 @@ pub struct Tigr {
     pub blitMode: c_int,
 }
 
-// tigr key constants
-pub const TK_RETURN: c_int = 162;
-pub const TK_BACKSPACE: c_int = 161;
-pub const TK_ESCAPE: c_int = 175;
-pub const TK_SPACE: c_int = 173;
-pub const TK_LEFT: c_int = 182;
-pub const TK_UP: c_int = 183;
-pub const TK_RIGHT: c_int = 184;
-pub const TK_DOWN: c_int = 185;
-pub const TK_SHIFT: c_int = 163;
+// tigr key constants (from tigr.h TKey enum starting at TK_PAD0=128)
+pub const TK_BACKSPACE: c_int = 156;
+pub const TK_TAB: c_int = 157;
+pub const TK_RETURN: c_int = 158;
+pub const TK_SHIFT: c_int = 159;
+pub const TK_ESCAPE: c_int = 164;
+pub const TK_SPACE: c_int = 165;
+pub const TK_LEFT: c_int = 170;
+pub const TK_UP: c_int = 171;
+pub const TK_RIGHT: c_int = 172;
+pub const TK_DOWN: c_int = 173;
 
 extern "C" {
     fn tigrWindow(w: c_int, h: c_int, title: *const c_char, flags: c_int) -> *mut Tigr;
@@ -72,6 +73,9 @@ extern "C" {
 
 thread_local! {
     static LAST_KEY: RefCell<i32> = RefCell::new(0);
+    // Our own key state tracking for reliable single-press detection
+    // Index: 0=RETURN, 1=BACKSPACE, 2=ESCAPE, 3=LEFT, 4=RIGHT, 5=UP, 6=DOWN
+    static PREV_KEY_STATE: RefCell<[bool; 7]> = RefCell::new([false; 7]);
 }
 
 // --- Public API types ---
@@ -172,6 +176,17 @@ pub fn PollEvents(mut w: Window) -> (Window, bool) {
 
     let win = w.handle as *mut Tigr;
 
+    // Check if window should close BEFORE update (in case it was closed last frame)
+    let closed = unsafe { tigrClosed(win) };
+    if closed != 0 {
+        w.running = false;
+        return (w, false);
+    }
+
+    // Call tigrUpdate to process events and present previous frame
+    // This must happen BEFORE checking keys, as events are processed in tigrUpdate
+    unsafe { tigrUpdate(win); }
+
     // Reset last key
     LAST_KEY.with(|k| *k.borrow_mut() = 0);
 
@@ -182,29 +197,45 @@ pub fn PollEvents(mut w: Window) -> (Window, bool) {
     }
 
     // Check special keys that don't produce characters
+    // Use our own state tracking for reliable single-press detection
     LAST_KEY.with(|k| {
         if *k.borrow() == 0 {
-            unsafe {
-                if tigrKeyDown(win, TK_RETURN) != 0 {
+            PREV_KEY_STATE.with(|prev| {
+                let mut prev_state = prev.borrow_mut();
+                let curr_state: [bool; 7] = unsafe {[
+                    tigrKeyHeld(win, TK_RETURN) != 0,
+                    tigrKeyHeld(win, TK_BACKSPACE) != 0,
+                    tigrKeyHeld(win, TK_ESCAPE) != 0,
+                    tigrKeyHeld(win, TK_LEFT) != 0,
+                    tigrKeyHeld(win, TK_RIGHT) != 0,
+                    tigrKeyHeld(win, TK_UP) != 0,
+                    tigrKeyHeld(win, TK_DOWN) != 0,
+                ]};
+
+                // Detect key press (transition from not pressed to pressed)
+                if curr_state[0] && !prev_state[0] {
                     *k.borrow_mut() = 13;
-                } else if tigrKeyDown(win, TK_BACKSPACE) != 0 {
+                } else if curr_state[1] && !prev_state[1] {
                     *k.borrow_mut() = 8;
-                } else if tigrKeyDown(win, TK_ESCAPE) != 0 {
+                } else if curr_state[2] && !prev_state[2] {
                     *k.borrow_mut() = 27;
-                } else if tigrKeyDown(win, TK_LEFT) != 0 {
+                } else if curr_state[3] && !prev_state[3] {
                     *k.borrow_mut() = 256;
-                } else if tigrKeyDown(win, TK_RIGHT) != 0 {
+                } else if curr_state[4] && !prev_state[4] {
                     *k.borrow_mut() = 257;
-                } else if tigrKeyDown(win, TK_UP) != 0 {
+                } else if curr_state[5] && !prev_state[5] {
                     *k.borrow_mut() = 258;
-                } else if tigrKeyDown(win, TK_DOWN) != 0 {
+                } else if curr_state[6] && !prev_state[6] {
                     *k.borrow_mut() = 259;
                 }
-            }
+
+                // Update previous state
+                *prev_state = curr_state;
+            });
         }
     });
 
-    // Check if window should close
+    // Check if window was closed during event processing
     let closed = unsafe { tigrClosed(win) };
     if closed != 0 {
         w.running = false;
@@ -231,12 +262,9 @@ pub fn Clear(w: Window, c: Color) {
     }
 }
 
-pub fn Present(w: Window) {
-    if w.handle != 0 {
-        unsafe {
-            tigrUpdate(w.handle as *mut Tigr);
-        }
-    }
+pub fn Present(_w: Window) {
+    // tigrUpdate is called in PollEvents to ensure events are processed before key checks.
+    // The actual rendering/present happens there. This function exists for API compatibility.
 }
 
 // --- Drawing primitives ---
