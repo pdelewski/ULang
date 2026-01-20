@@ -63,10 +63,12 @@ func main() {
 	var output string
 	var backend string
 	var linkRuntime string
+	var graphicsRuntime string
 	flag.StringVar(&sourceDir, "source", "", "Source directory")
 	flag.StringVar(&output, "output", "", "Output program name (can include path, e.g., ./build/project)")
 	flag.StringVar(&backend, "backend", "all", "Backend to use: all, cpp, cs, rust (comma-separated for multiple)")
 	flag.StringVar(&linkRuntime, "link-runtime", "", "Path to runtime for linking (generates Makefile with -I flag)")
+	flag.StringVar(&graphicsRuntime, "graphics-runtime", "tigr", "Graphics runtime: tigr (default), sdl2, none")
 	flag.BoolVar(&compiler.DebugMode, "debug", false, "Enable debug output")
 	flag.Parse()
 	if sourceDir == "" {
@@ -125,33 +127,36 @@ func main() {
 
 	if useCpp {
 		cppBackend := &compiler.BasePass{PassName: "CppGen", Emitter: &compiler.CPPEmitter{
-			Emitter:     &compiler.BaseEmitter{},
-			Output:      output + ".cpp",
-			LinkRuntime: linkRuntime,
-			OutputDir:   outputDir,
-			OutputName:  outputName,
+			Emitter:         &compiler.BaseEmitter{},
+			Output:          output + ".cpp",
+			LinkRuntime:     linkRuntime,
+			GraphicsRuntime: graphicsRuntime,
+			OutputDir:       outputDir,
+			OutputName:      outputName,
 		}}
 		passes = append(passes, cppBackend)
 		programFiles = append(programFiles, "cpp")
 	}
 	if useCs {
 		csBackend := &compiler.BasePass{PassName: "CsGen", Emitter: &compiler.CSharpEmitter{
-			BaseEmitter: compiler.BaseEmitter{},
-			Output:      output + ".cs",
-			LinkRuntime: linkRuntime,
-			OutputDir:   outputDir,
-			OutputName:  outputName,
+			BaseEmitter:     compiler.BaseEmitter{},
+			Output:          output + ".cs",
+			LinkRuntime:     linkRuntime,
+			GraphicsRuntime: graphicsRuntime,
+			OutputDir:       outputDir,
+			OutputName:      outputName,
 		}}
 		passes = append(passes, csBackend)
 		programFiles = append(programFiles, "cs")
 	}
 	if useRust {
 		rustBackend := &compiler.BasePass{PassName: "RustGen", Emitter: &compiler.RustEmitter{
-			BaseEmitter: compiler.BaseEmitter{},
-			Output:      output + ".rs",
-			LinkRuntime: linkRuntime,
-			OutputDir:   outputDir,
-			OutputName:  outputName,
+			BaseEmitter:     compiler.BaseEmitter{},
+			Output:          output + ".rs",
+			LinkRuntime:     linkRuntime,
+			GraphicsRuntime: graphicsRuntime,
+			OutputDir:       outputDir,
+			OutputName:      outputName,
 		}}
 		passes = append(passes, rustBackend)
 		programFiles = append(programFiles, "rs")

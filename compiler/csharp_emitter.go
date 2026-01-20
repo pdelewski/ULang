@@ -38,11 +38,12 @@ type Alias struct {
 }
 
 type CSharpEmitter struct {
-	Output      string
-	OutputDir   string
-	OutputName  string
-	LinkRuntime string // Path to runtime directory (empty = disabled)
-	file        *os.File
+	Output          string
+	OutputDir       string
+	OutputName      string
+	LinkRuntime     string // Path to runtime directory (empty = disabled)
+	GraphicsRuntime string // Graphics backend: tigr (default), sdl2, none
+	file            *os.File
 	BaseEmitter
 	pkg               *packages.Package
 	insideForPostCond bool
@@ -1515,7 +1516,7 @@ func (cse *CSharpEmitter) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
 	})
 }
 
-// GenerateCsproj creates a .csproj file for building the C# project with SDL2-CS
+// GenerateCsproj creates a .csproj file for building the C# project
 func (cse *CSharpEmitter) GenerateCsproj() error {
 	if cse.LinkRuntime == "" {
 		return nil
@@ -1528,7 +1529,31 @@ func (cse *CSharpEmitter) GenerateCsproj() error {
 	}
 	defer file.Close()
 
-	csproj := `<Project Sdk="Microsoft.NET.Sdk">
+	// Determine graphics backend
+	// Note: C# only supports sdl2 and none (tigr has no C# bindings, falls back to sdl2)
+	graphicsBackend := cse.GraphicsRuntime
+	if graphicsBackend == "" || graphicsBackend == "tigr" {
+		graphicsBackend = "sdl2" // Default to sdl2 for C# (tigr not supported)
+	}
+
+	var csproj string
+	if graphicsBackend == "none" {
+		// No graphics dependencies
+		csproj = `<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+</Project>
+`
+	} else {
+		// SDL2 graphics
+		csproj = `<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -1554,13 +1579,14 @@ func (cse *CSharpEmitter) GenerateCsproj() error {
 
 </Project>
 `
+	}
 
 	_, err = file.WriteString(csproj)
 	if err != nil {
 		return fmt.Errorf("failed to write .csproj: %w", err)
 	}
 
-	DebugLogPrintf("Generated .csproj at %s", csprojPath)
+	DebugLogPrintf("Generated .csproj at %s (graphics: %s)", csprojPath, graphicsBackend)
 	return nil
 }
 

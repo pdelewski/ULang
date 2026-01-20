@@ -1,8 +1,9 @@
-// graphics_runtime.hpp - SDL2 runtime for goany graphics package
-// This file provides the native implementations for the graphics package.
+// graphics_runtime_sdl2.hpp - SDL2 runtime for goany graphics package
+// This file provides the native implementations for the graphics package using SDL2.
+// Requires: SDL2 library installed on the system
 
-#ifndef GRAPHICS_RUNTIME_HPP
-#define GRAPHICS_RUNTIME_HPP
+#ifndef GRAPHICS_RUNTIME_SDL2_HPP
+#define GRAPHICS_RUNTIME_SDL2_HPP
 
 #include <SDL.h>
 #include <string>
@@ -230,4 +231,4 @@ inline void FillCircle(Window w, int32_t centerX, int32_t centerY, int32_t radiu
 
 } // namespace graphics
 
-#endif // GRAPHICS_RUNTIME_HPP
+#endif // GRAPHICS_RUNTIME_SDL2_HPP
