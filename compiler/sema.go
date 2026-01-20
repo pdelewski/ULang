@@ -123,6 +123,20 @@ func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	}
 }
 
+// PostVisitAssignStmt clears consumed state for variables that are reassigned
+// This handles patterns like: x = x + a; y = x + b (which should be valid)
+func (sema *SemaChecker) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	if sema.consumedStringVars == nil {
+		return
+	}
+	// Clear consumed state for any string variables on the LHS
+	for _, lhs := range node.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			delete(sema.consumedStringVars, ident.Name)
+		}
+	}
+}
+
 // PreVisitInterfaceType checks for interface{} / any type usage
 func (sema *SemaChecker) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
 	// Empty interface (interface{} / any) is now supported
