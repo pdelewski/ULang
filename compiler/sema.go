@@ -11,11 +11,10 @@ import (
 // SemaChecker performs semantic analysis to detect unsupported Go constructs.
 // Unsupported constructs (checked at compile time):
 // 1. iota - constant enumeration
-// 2. for key, value := range - range with both index and value (only for _, value allowed)
-// 3. for _, x := range []T{...} - range over inline composite literal
-// 4. if slice == nil / if slice != nil - nil comparison for slices
-// 5. type switch statements
-// 6. string variable reuse after concatenation (Rust move semantics)
+// 2. for _, x := range []T{...} - range over inline composite literal
+// 3. if slice == nil / if slice != nil - nil comparison for slices
+// 4. type switch statements
+// 5. string variable reuse after concatenation (Rust move semantics)
 //
 // Supported (with limitations):
 // - interface{} / any - maps to std::any (C++), Box<dyn Any> (Rust), object (C#)
@@ -73,17 +72,15 @@ func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) 
 }
 
 func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
-	// Check for for key, value := range (both key and value)
-	// Allowed: for _, v := range slice (value-only)
-	// Allowed: for i := range slice (index-only, Value is nil)
-	// Not allowed: for i, v := range slice (both key and value)
+	// Handle for _, v := range (value-only): set Key to nil so emitters work correctly
+	// for i, v := range (key-value) is now allowed and handled by emitters
+	// for i := range (index-only) is allowed (Value is nil)
 	if node.Key != nil && node.Value != nil {
-		if node.Key.(*ast.Ident).Name != "_" {
-			fmt.Println("\033[31m\033[1mCompilation error : for key, value := range is not allowed for now\033[0m")
-			os.Exit(-1)
+		if node.Key.(*ast.Ident).Name == "_" {
+			// For value-only range (for _, v := range), set Key to nil so emitters work correctly
+			node.Key = nil
 		}
-		// For value-only range (for _, v := range), set Key to nil so emitters work correctly
-		node.Key = nil
+		// Otherwise, keep both Key and Value for key-value range loops
 	}
 
 	// Check for range over inline composite literal (e.g., for _, x := range []int{1,2,3})

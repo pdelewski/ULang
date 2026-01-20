@@ -102,6 +102,14 @@ type RustEmitter struct {
 	binaryNeedsLeftCastStack     []bool                  // Stack for nested binary expressions
 	binaryNeedsRightCast         string                  // Type to cast right operand of binary expr (e.g., "u8")
 	binaryNeedsRightCastStack    []string                // Stack for nested binary expressions
+	// Key-value range loop support
+	isKeyValueRange              bool
+	rangeKeyName                 string
+	rangeValueName               string
+	rangeCollectionExpr          string
+	captureRangeExpr             bool
+	suppressRangeEmit            bool
+	rangeStmtIndent              int
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -458,6 +466,15 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		return
 	}
 	if !re.shouldGenerate {
+		return
+	}
+	// Skip emission during key-value range key/value visits
+	if re.suppressRangeEmit {
+		return
+	}
+	// Capture to buffer during range collection expression visit
+	if re.captureRangeExpr {
+		re.rangeCollectionExpr += e.Name
 		return
 	}
 	re.gir.emitToFileBuffer("", "@PreVisitIdent")
@@ -2469,33 +2486,98 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 
 func (re *RustEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString("for ", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	// Check if this is a key-value range (both Key and Value present)
+	if node.Key != nil && node.Value != nil {
+		re.isKeyValueRange = true
+		re.rangeKeyName = node.Key.(*ast.Ident).Name
+		re.rangeValueName = node.Value.(*ast.Ident).Name
+		re.rangeCollectionExpr = ""
+		re.suppressRangeEmit = true
+		re.rangeStmtIndent = indent
+		// Don't emit anything yet - we'll emit in PostVisitRangeStmtX
+	} else {
+		re.isKeyValueRange = false
+		str := re.emitAsString("for ", indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
+}
+
+func (re *RustEmitter) PreVisitRangeStmtKey(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the key name
+}
+
+func (re *RustEmitter) PostVisitRangeStmtKey(node ast.Expr, indent int) {
+	// Nothing special needed here
+}
+
+func (re *RustEmitter) PreVisitRangeStmtValue(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the value name
 }
 
 func (re *RustEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
-	str := re.emitAsString(" in ", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	if re.isKeyValueRange {
+		// Stop suppressing, start capturing collection expression
+		re.suppressRangeEmit = false
+		re.captureRangeExpr = true
+	} else {
+		str := re.emitAsString(" in ", 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
+}
+
+func (re *RustEmitter) PreVisitRangeStmtX(node ast.Expr, indent int) {
+	// For key-value range, we're already in capture mode
 }
 
 func (re *RustEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
-	// Check the type of the expression being ranged over
-	tv := re.pkg.TypesInfo.Types[node]
-	if tv.Type != nil {
-		typeStr := tv.Type.String()
-		if typeStr == "string" {
-			// String needs .bytes() to iterate and get i8 values
-			re.gir.emitToFileBuffer(".bytes()", EmptyVisitMethod)
+	if re.isKeyValueRange {
+		// Stop capturing and emit the complete for loop
+		re.captureRangeExpr = false
+		collection := re.rangeCollectionExpr
+		key := re.rangeKeyName
+		value := re.rangeValueName
+		indent := re.rangeStmtIndent
+
+		// Check if collection is a string
+		tv := re.pkg.TypesInfo.Types[node]
+		iterMethod := ".clone().iter().enumerate()"
+		if tv.Type != nil && tv.Type.String() == "string" {
+			iterMethod = ".bytes().enumerate()"
+		}
+
+		// Emit: for (key, value) in collection.clone().iter().enumerate()
+		str := re.emitAsString(fmt.Sprintf("for (%s, %s) in %s%s\n", key, value, collection, iterMethod), indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+
+		// Reset range state
+		re.isKeyValueRange = false
+		re.rangeKeyName = ""
+		re.rangeValueName = ""
+		re.rangeCollectionExpr = ""
+		re.shouldGenerate = false
+	} else {
+		// Check the type of the expression being ranged over
+		tv := re.pkg.TypesInfo.Types[node]
+		if tv.Type != nil {
+			typeStr := tv.Type.String()
+			if typeStr == "string" {
+				// String needs .bytes() to iterate and get i8 values
+				re.gir.emitToFileBuffer(".bytes()", EmptyVisitMethod)
+			} else {
+				// Add .clone() to the collection to avoid ownership transfer
+				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			}
 		} else {
-			// Add .clone() to the collection to avoid ownership transfer
 			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 		}
-	} else {
-		re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+		str := re.emitAsString("\n", 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.shouldGenerate = false
 	}
-	str := re.emitAsString("\n", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	re.shouldGenerate = false
+}
+
+func (re *RustEmitter) PostVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	// Reset any range-related state
 }
 
 func (re *RustEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {

@@ -34,6 +34,18 @@ type CPPEmitter struct {
 	insideForPostCond bool
 	assignmentToken   string
 	forwardDecl       bool
+	// Key-value range loop support
+	isKeyValueRange         bool
+	rangeKeyName            string
+	rangeValueName          string
+	rangeCollectionExpr     string
+	captureRangeExpr        bool
+	suppressRangeEmit       bool
+	rangeStmtIndent         int
+	pendingRangeValueDecl   bool   // True when we need to emit value decl at start of block
+	pendingValueName        string
+	pendingCollectionExpr   string
+	pendingKeyName          string
 }
 
 func (*CPPEmitter) lowerToBuiltins(selector string) string {
@@ -55,6 +67,15 @@ func (*CPPEmitter) lowerToBuiltins(selector string) string {
 }
 
 func (cppe *CPPEmitter) emitToFile(s string) error {
+	// When capturing range expression, append to buffer instead of file
+	if cppe.captureRangeExpr {
+		cppe.rangeCollectionExpr += s
+		return nil
+	}
+	// When suppressing range emit (key/value identifiers), skip
+	if cppe.suppressRangeEmit {
+		return nil
+	}
 	return emitToFile(cppe.file, s)
 }
 
@@ -667,18 +688,87 @@ func (cppe *CPPEmitter) PostVisitForStmtCond(node ast.Expr, indent int) {
 }
 
 func (cppe *CPPEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
-	str := cppe.emitAsString("for (auto ", indent)
-	cppe.emitToFile(str)
+	// Check if this is a key-value range (both Key and Value present)
+	if node.Key != nil && node.Value != nil {
+		cppe.isKeyValueRange = true
+		cppe.rangeKeyName = node.Key.(*ast.Ident).Name
+		cppe.rangeValueName = node.Value.(*ast.Ident).Name
+		cppe.rangeCollectionExpr = ""
+		cppe.suppressRangeEmit = true
+		cppe.rangeStmtIndent = indent
+		// Don't emit anything yet - we'll emit the complete for loop in PostVisitRangeStmtX
+	} else {
+		cppe.isKeyValueRange = false
+		str := cppe.emitAsString("for (auto ", indent)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitRangeStmtKey(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the key name
+	// For index-only range (for i := range), let it emit normally
+}
+
+func (cppe *CPPEmitter) PostVisitRangeStmtKey(node ast.Expr, indent int) {
+	// Nothing special needed here
+}
+
+func (cppe *CPPEmitter) PreVisitRangeStmtValue(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the value name, keep suppressing
 }
 
 func (cppe *CPPEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
-	str := cppe.emitAsString(" : ", 0)
-	cppe.emitToFile(str)
+	if cppe.isKeyValueRange {
+		// Stop suppressing, start capturing collection expression
+		cppe.suppressRangeEmit = false
+		cppe.captureRangeExpr = true
+	} else {
+		str := cppe.emitAsString(" : ", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitRangeStmtX(node ast.Expr, indent int) {
+	// For key-value range, we're already in capture mode
 }
 
 func (cppe *CPPEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
-	str := cppe.emitAsString(")\n", 0)
-	cppe.emitToFile(str)
+	if cppe.isKeyValueRange {
+		// Stop capturing and emit the complete for loop
+		cppe.captureRangeExpr = false
+		collection := cppe.rangeCollectionExpr
+		key := cppe.rangeKeyName
+		value := cppe.rangeValueName
+		indent := cppe.rangeStmtIndent
+
+		// Emit: for (size_t key = 0; key < collection.size(); key++)
+		str := cppe.emitAsString(fmt.Sprintf("for (size_t %s = 0; %s < %s.size(); %s++)\n", key, key, collection, key), indent)
+		cppe.emitToFile(str)
+
+		// Set pending value declaration to be emitted at start of body block
+		cppe.pendingRangeValueDecl = true
+		cppe.pendingValueName = value
+		cppe.pendingCollectionExpr = collection
+		cppe.pendingKeyName = key
+
+		// Reset range state
+		cppe.isKeyValueRange = false
+		cppe.rangeKeyName = ""
+		cppe.rangeValueName = ""
+		cppe.rangeCollectionExpr = ""
+	} else {
+		str := cppe.emitAsString(")\n", 0)
+		cppe.emitToFile(str)
+	}
+}
+
+func (cppe *CPPEmitter) PreVisitRangeStmtBody(node *ast.BlockStmt, indent int) {
+	// For key-value range, emit the value declaration at the start of the body
+	// This is called from the base_pass when visiting the body
+}
+
+func (cppe *CPPEmitter) PostVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	// Reset any range-related state
 }
 func (cppe *CPPEmitter) PreVisitSwitchStmt(node *ast.SwitchStmt, indent int) {
 	str := cppe.emitAsString("switch (", indent)
@@ -720,6 +810,17 @@ func (cppe *CPPEmitter) PostVisitCaseClauseListExpr(node ast.Expr, index int, in
 func (cppe *CPPEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	str := cppe.emitAsString("{\n", indent)
 	cppe.emitToFile(str)
+
+	// If we have a pending value declaration from key-value range, emit it now
+	if cppe.pendingRangeValueDecl {
+		valueDecl := cppe.emitAsString(fmt.Sprintf("auto %s = %s[%s];\n",
+			cppe.pendingValueName, cppe.pendingCollectionExpr, cppe.pendingKeyName), indent+2)
+		cppe.emitToFile(valueDecl)
+		cppe.pendingRangeValueDecl = false
+		cppe.pendingValueName = ""
+		cppe.pendingCollectionExpr = ""
+		cppe.pendingKeyName = ""
+	}
 }
 
 func (cppe *CPPEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {

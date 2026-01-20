@@ -32,20 +32,6 @@ func main() {
 		ExpectedError: "iota is not allowed",
 	},
 	{
-		Name: "for_key_value_range",
-		Code: `package main
-
-func main() {
-	a := []int{1, 2, 3}
-	for i, x := range a {
-		_ = i
-		_ = x
-	}
-}
-`,
-		ExpectedError: "for key, value := range is not allowed",
-	},
-	{
 		Name: "range_over_inline_literal",
 		Code: `package main
 

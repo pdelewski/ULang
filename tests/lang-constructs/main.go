@@ -5,28 +5,25 @@ package main
 //
 // UNSUPPORTED CONSTRUCTS (not included in this file):
 //
-// 1. for i, x := range slice - Range loop with both index and value
-//    Only "for _, x := range" (value only) is supported
-//
-// 2. if slice == nil - Nil comparison for slices
+// 1. if slice == nil - Nil comparison for slices
 //    C++ std::vector cannot be compared to nullptr
 //
-// 3. len(string) - String length
+// 2. len(string) - String length
 //    C++ backend uses std::size() which doesn't work on C-style strings
 //
-// 4. for condition { } - While-style loops
+// 3. for condition { } - While-style loops
 //    C# backend has a bug with semicolons in loop body
 //
-// 5. iota - Constant enumeration
+// 4. iota - Constant enumeration
 //    Not yet implemented
 //
-// 6. fmt.Sprintf - String formatting
+// 5. fmt.Sprintf - String formatting
 //    Rust backend has type mismatch issues with string_format2
 //
-// 7. for _, x := range []int{1,2,3} - Range over inline slice literal
+// 6. for _, x := range []int{1,2,3} - Range over inline slice literal
 //    Rust backend generates malformed code
 //
-// 8. []interface{} - Slice of empty interface (any type)
+// 7. []interface{} - Slice of empty interface (any type)
 //    Not supported across backends
 //
 // SUPPORTED WITH LIMITATIONS:
@@ -97,6 +94,14 @@ func testLoopConstructs() {
 	for _, x := range a {
 		if x == 0 {
 		}
+	}
+
+	// Range-based for loop with index and value
+	// @test cpp="for (size_t i = 0; i < nums2.size(); i++)" cs="for (int i = 0; i < nums2.Count; i++)" rust="for (i, v) in nums2.clone().iter().enumerate()"
+	nums2 := []int{10, 20, 30}
+	for i, v := range nums2 {
+		fmt.Println(i)
+		fmt.Println(v)
 	}
 
 	// While-style loop
