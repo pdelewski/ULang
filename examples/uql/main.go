@@ -77,25 +77,6 @@ func main() {
 			newState.depth--
 			return newState
 		},
-		PreVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
-			newState := state.(State)
-			newState.depth++
-
-			var result string
-			var indent string
-			for i := 0; i < int(newState.depth); i++ {
-				indent += "  "
-			}
-			result += indent
-			result += lexer.DumpTokensString([]lexer.Token{expr.Value})
-			fmt.Print(result)
-			return newState
-		},
-		PostVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
-			newState := state.(State)
-			newState.depth--
-			return newState
-		},
 		PreVisitJoin: func(state any, join ast.Join) any {
 			newState := state.(State)
 			newState.depth++
@@ -198,6 +179,25 @@ func main() {
 			return newState
 		},
 		PostVisitGroupBy: func(state any, expr ast.GroupBy) any {
+			newState := state.(State)
+			newState.depth--
+			return newState
+		},
+		PreVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
+			newState := state.(State)
+			newState.depth++
+
+			var result string
+			var indent string
+			for i := 0; i < int(newState.depth); i++ {
+				indent += "  "
+			}
+			result += indent
+			result += lexer.DumpTokensString([]lexer.Token{expr.Value})
+			fmt.Print(result)
+			return newState
+		},
+		PostVisitLogicalExpr: func(state any, expr ast.LogicalExpr) any {
 			newState := state.(State)
 			newState.depth--
 			return newState
