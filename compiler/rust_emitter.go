@@ -42,11 +42,12 @@ func (re *RustEmitter) mapGoTypeToRust(goType string) string {
 }
 
 type RustEmitter struct {
-	Output      string
-	OutputDir   string
-	OutputName  string
-	LinkRuntime string // Path to runtime directory (empty = disabled)
-	file        *os.File
+	Output          string
+	OutputDir       string
+	OutputName      string
+	LinkRuntime     string // Path to runtime directory (empty = disabled)
+	GraphicsRuntime string // Graphics backend: tigr (default), sdl2, none
+	file            *os.File
 	BaseEmitter
 	pkg                          *packages.Package
 	insideForPostCond            bool
@@ -3288,7 +3289,7 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 	}
 }
 
-// GenerateCargoToml creates a Cargo.toml for building the Rust project with SDL2
+// GenerateCargoToml creates a Cargo.toml for building the Rust project
 func (re *RustEmitter) GenerateCargoToml() error {
 	if re.LinkRuntime == "" {
 		return nil
@@ -3301,7 +3302,31 @@ func (re *RustEmitter) GenerateCargoToml() error {
 	}
 	defer file.Close()
 
-	cargoToml := fmt.Sprintf(`[package]
+	// Determine graphics backend
+	// Note: Rust only supports sdl2 and none (tigr has no Rust bindings, falls back to sdl2)
+	graphicsBackend := re.GraphicsRuntime
+	if graphicsBackend == "" || graphicsBackend == "tigr" {
+		graphicsBackend = "sdl2" // Default to sdl2 for Rust (tigr not supported)
+	}
+
+	var cargoToml string
+	if graphicsBackend == "none" {
+		// No graphics dependencies
+		cargoToml = fmt.Sprintf(`[package]
+name = "%s"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+`, re.OutputName)
+	} else {
+		// SDL2 graphics
+		cargoToml = fmt.Sprintf(`[package]
 name = "%s"
 version = "0.1.0"
 edition = "2021"
@@ -3314,13 +3339,14 @@ opt-level = 3
 lto = true
 codegen-units = 1
 `, re.OutputName)
+	}
 
 	_, err = file.WriteString(cargoToml)
 	if err != nil {
 		return fmt.Errorf("failed to write Cargo.toml: %w", err)
 	}
 
-	DebugLogPrintf("Generated Cargo.toml at %s", cargoPath)
+	DebugLogPrintf("Generated Cargo.toml at %s (graphics: %s)", cargoPath, graphicsBackend)
 	return nil
 }
 

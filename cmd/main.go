@@ -139,22 +139,24 @@ func main() {
 	}
 	if useCs {
 		csBackend := &compiler.BasePass{PassName: "CsGen", Emitter: &compiler.CSharpEmitter{
-			BaseEmitter: compiler.BaseEmitter{},
-			Output:      output + ".cs",
-			LinkRuntime: linkRuntime,
-			OutputDir:   outputDir,
-			OutputName:  outputName,
+			BaseEmitter:     compiler.BaseEmitter{},
+			Output:          output + ".cs",
+			LinkRuntime:     linkRuntime,
+			GraphicsRuntime: graphicsRuntime,
+			OutputDir:       outputDir,
+			OutputName:      outputName,
 		}}
 		passes = append(passes, csBackend)
 		programFiles = append(programFiles, "cs")
 	}
 	if useRust {
 		rustBackend := &compiler.BasePass{PassName: "RustGen", Emitter: &compiler.RustEmitter{
-			BaseEmitter: compiler.BaseEmitter{},
-			Output:      output + ".rs",
-			LinkRuntime: linkRuntime,
-			OutputDir:   outputDir,
-			OutputName:  outputName,
+			BaseEmitter:     compiler.BaseEmitter{},
+			Output:          output + ".rs",
+			LinkRuntime:     linkRuntime,
+			GraphicsRuntime: graphicsRuntime,
+			OutputDir:       outputDir,
+			OutputName:      outputName,
 		}}
 		passes = append(passes, rustBackend)
 		programFiles = append(programFiles, "rs")
