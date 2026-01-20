@@ -123,6 +123,49 @@ func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	}
 }
 
+// PreVisitAssignStmt checks for problematic patterns like: x += x + a
+// where x is both borrowed (for +=) and moved (in x + a) in the same statement
+func (sema *SemaChecker) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Check for += with string concatenation on RHS that uses the same variable
+	if node.Tok == token.ADD_ASSIGN {
+		for _, lhs := range node.Lhs {
+			if lhsIdent, ok := lhs.(*ast.Ident); ok {
+				// Check if this is a string type
+				if sema.pkg != nil && sema.pkg.TypesInfo != nil {
+					if tv, exists := sema.pkg.TypesInfo.Types[lhs]; exists {
+						if tv.Type != nil && tv.Type.String() == "string" {
+							// Check if RHS contains a binary + with this variable on the left
+							if sema.rhsContainsStringConcatWithVar(node.Rhs[0], lhsIdent.Name) {
+								fmt.Printf("\033[31m\033[1mCompilation error : cannot use '%s += %s + ...' pattern (Rust compatibility). Variable '%s' is both borrowed and moved. Use separate statements: '%s += %s; %s += ...' instead.\033[0m\n", lhsIdent.Name, lhsIdent.Name, lhsIdent.Name, lhsIdent.Name, lhsIdent.Name, lhsIdent.Name)
+								os.Exit(-1)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// rhsContainsStringConcatWithVar checks if an expression contains a binary + with varName on the left
+func (sema *SemaChecker) rhsContainsStringConcatWithVar(expr ast.Expr, varName string) bool {
+	switch e := expr.(type) {
+	case *ast.BinaryExpr:
+		if e.Op == token.ADD {
+			if ident, ok := e.X.(*ast.Ident); ok {
+				if ident.Name == varName {
+					return true
+				}
+			}
+		}
+		// Recursively check both sides
+		return sema.rhsContainsStringConcatWithVar(e.X, varName) || sema.rhsContainsStringConcatWithVar(e.Y, varName)
+	case *ast.ParenExpr:
+		return sema.rhsContainsStringConcatWithVar(e.X, varName)
+	}
+	return false
+}
+
 // PostVisitAssignStmt clears consumed state for variables that are reassigned
 // This handles patterns like: x = x + a; y = x + b (which should be valid)
 func (sema *SemaChecker) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {

@@ -96,6 +96,19 @@ func main() {
 `,
 		ExpectedError: "string variable 'indent' was consumed by concatenation",
 	},
+	{
+		Name: "string_plusequal_self_concat",
+		Code: `package main
+
+func main() {
+	result := "hello"
+	indent := "  "
+	result += result + indent
+	_ = result
+}
+`,
+		ExpectedError: "cannot use 'result += result + ...' pattern",
+	},
 }
 
 // SemaValidTestCase represents code that SHOULD compile successfully
