@@ -1,10 +1,35 @@
 # goany Graphics Runtime
 
-Cross-platform 2D graphics library for goany transpiled applications using SDL2.
+Cross-platform 2D graphics library for goany transpiled applications.
+
+## Graphics Backends
+
+Two backends are available, selected via `--graphics-runtime` flag:
+
+| Backend | Flag | C++ | C# | Rust | Dependencies |
+|---------|------|-----|-----|------|--------------|
+| **tigr** | `--graphics-runtime=tigr` | ✅ | ❌ | ❌ | None (bundled) |
+| **SDL2** | `--graphics-runtime=sdl2` | ✅ | ✅ | ✅ | SDL2 library |
+
+**tigr** is the default for C++ - it's bundled with the transpiler and requires no external dependencies.
+
+**SDL2** is required for C# and Rust backends, and is also available for C++ when hardware acceleration is needed.
 
 ## Quick Start
 
-### 1. Install SDL2 Dependencies
+### Option A: Using tigr (C++ only, no dependencies)
+
+```bash
+# Transpile with tigr (default)
+./goany -source=./myapp -output=./build/myapp -backend=cpp -link-runtime=../runtime
+
+# Build
+cd build && make
+```
+
+### Option B: Using SDL2 (all backends)
+
+#### 1. Install SDL2 Dependencies
 
 Run the setup script:
 ```bash
@@ -20,6 +45,12 @@ Or install manually:
 | Fedora | `sudo dnf install SDL2-devel` |
 | Arch | `sudo pacman -S sdl2` |
 | Windows (MSYS2) | `pacman -S mingw-w64-x86_64-SDL2` |
+
+#### 2. Transpile with SDL2
+
+```bash
+./goany -source=./myapp -output=./build/myapp -link-runtime=../runtime -graphics-runtime=sdl2
+```
 
 ### 2. Write Your Code
 
@@ -136,12 +167,15 @@ sdl2 = "0.36"
 ```
 runtime/graphics/
 ├── go.mod
-├── graphics.go              # Go API definition
+├── graphics.go                    # Go API definition
 ├── README.md
 ├── cpp/
-│   └── graphics_runtime.hpp # C++ SDL2 implementation
+│   ├── tigr.h                     # tigr library header (bundled)
+│   ├── tigr.c                     # tigr library implementation (bundled)
+│   ├── graphics_runtime_tigr.hpp  # C++ tigr backend
+│   └── graphics_runtime_sdl2.hpp  # C++ SDL2 backend
 ├── csharp/
-│   └── GraphicsRuntime.cs   # C# SDL2 implementation
+│   └── GraphicsRuntime.cs         # C# SDL2 implementation
 └── rust/
-    └── graphics_runtime.rs  # Rust SDL2 implementation
+    └── graphics_runtime.rs        # Rust SDL2 implementation
 ```

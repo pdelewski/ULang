@@ -48,9 +48,15 @@ make
 | `-output` | Output file name (without extension) | (required) |
 | `-backend` | Backend(s) to use: `all`, `cpp`, `cs`, `rust` | `all` |
 | `-link-runtime` | Path to runtime for linking (generates build files with include paths) | (none) |
+| `-graphics-runtime` | Graphics backend: `tigr`, `sdl2`, `none` | `tigr` |
 | `-debug` | Enable debug output | `false` |
 
 The `-backend` flag accepts comma-separated values for multiple backends.
+
+The `-graphics-runtime` flag selects the graphics library:
+- `tigr` - Bundled, header-only library (C++ only, no external dependencies)
+- `sdl2` - SDL2 library (requires SDL2 installed, supports all backends)
+- `none` - No graphics support (for CLI applications)
 
 ### Examples
 
@@ -69,9 +75,19 @@ Transpile to C# and Rust:
 ./goany -source=../examples/uql -output=uql -backend=cs,rust
 ```
 
-Transpile graphics demo with runtime linking:
+Transpile graphics demo with tigr (default, C++ only):
 ```bash
-./goany -source=../examples/graphics-demo -output=./build/graphics-demo -backend=rust -link-runtime=../runtime
+./goany -source=../examples/graphics-demo -output=./build/graphics-demo -backend=cpp -link-runtime=../runtime
+```
+
+Transpile graphics demo with SDL2 (all backends):
+```bash
+./goany -source=../examples/graphics-demo -output=./build/graphics-demo -backend=rust -link-runtime=../runtime -graphics-runtime=sdl2
+```
+
+Transpile CLI app without graphics:
+```bash
+./goany -source=../examples/uql -output=./build/uql -link-runtime=../runtime -graphics-runtime=none
 ```
 
 ## Supported Features
@@ -97,11 +113,16 @@ Some Go features may not be fully supported due to differences in target platfor
 
 ## Runtime Libraries
 
-### Graphics Runtime (SDL2)
+### Graphics Runtime
 
-A cross-platform 2D graphics library for window creation and drawing shapes.
+A cross-platform 2D graphics library for window creation and drawing shapes. Two backends are available:
 
-**Setup dependencies:**
+| Backend | Platforms | Dependencies | Notes |
+|---------|-----------|--------------|-------|
+| `tigr` | C++ only | None (bundled) | Default, header-only, lightweight |
+| `sdl2` | C++, C#, Rust | SDL2 library | Hardware accelerated, full-featured |
+
+**Setup SDL2 dependencies (only needed for `--graphics-runtime=sdl2`):**
 ```bash
 ./scripts/setup-deps.sh
 ```
