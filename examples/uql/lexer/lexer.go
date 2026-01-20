@@ -61,6 +61,125 @@ func IsWhere(token Token) bool {
 		token.Representation[4] == 'e'
 }
 
+func IsJoin(token Token) bool {
+	return len(token.Representation) == 4 &&
+		token.Representation[0] == 'j' &&
+		token.Representation[1] == 'o' &&
+		token.Representation[2] == 'i' &&
+		token.Representation[3] == 'n'
+}
+
+func IsOn(token Token) bool {
+	return len(token.Representation) == 2 &&
+		token.Representation[0] == 'o' &&
+		token.Representation[1] == 'n'
+}
+
+func IsOrderBy(token Token) bool {
+	return len(token.Representation) == 7 &&
+		token.Representation[0] == 'o' &&
+		token.Representation[1] == 'r' &&
+		token.Representation[2] == 'd' &&
+		token.Representation[3] == 'e' &&
+		token.Representation[4] == 'r' &&
+		token.Representation[5] == 'b' &&
+		token.Representation[6] == 'y'
+}
+
+func IsAsc(token Token) bool {
+	return len(token.Representation) == 3 &&
+		token.Representation[0] == 'a' &&
+		token.Representation[1] == 's' &&
+		token.Representation[2] == 'c'
+}
+
+func IsDesc(token Token) bool {
+	return len(token.Representation) == 4 &&
+		token.Representation[0] == 'd' &&
+		token.Representation[1] == 'e' &&
+		token.Representation[2] == 's' &&
+		token.Representation[3] == 'c'
+}
+
+func IsLimit(token Token) bool {
+	return len(token.Representation) == 5 &&
+		token.Representation[0] == 'l' &&
+		token.Representation[1] == 'i' &&
+		token.Representation[2] == 'm' &&
+		token.Representation[3] == 'i' &&
+		token.Representation[4] == 't'
+}
+
+func IsGroupBy(token Token) bool {
+	return len(token.Representation) == 7 &&
+		token.Representation[0] == 'g' &&
+		token.Representation[1] == 'r' &&
+		token.Representation[2] == 'o' &&
+		token.Representation[3] == 'u' &&
+		token.Representation[4] == 'p' &&
+		token.Representation[5] == 'b' &&
+		token.Representation[6] == 'y'
+}
+
+func IsHaving(token Token) bool {
+	return len(token.Representation) == 6 &&
+		token.Representation[0] == 'h' &&
+		token.Representation[1] == 'a' &&
+		token.Representation[2] == 'v' &&
+		token.Representation[3] == 'i' &&
+		token.Representation[4] == 'n' &&
+		token.Representation[5] == 'g'
+}
+
+func IsCount(token Token) bool {
+	return len(token.Representation) == 5 &&
+		token.Representation[0] == 'c' &&
+		token.Representation[1] == 'o' &&
+		token.Representation[2] == 'u' &&
+		token.Representation[3] == 'n' &&
+		token.Representation[4] == 't'
+}
+
+func IsSum(token Token) bool {
+	return len(token.Representation) == 3 &&
+		token.Representation[0] == 's' &&
+		token.Representation[1] == 'u' &&
+		token.Representation[2] == 'm'
+}
+
+func IsAvg(token Token) bool {
+	return len(token.Representation) == 3 &&
+		token.Representation[0] == 'a' &&
+		token.Representation[1] == 'v' &&
+		token.Representation[2] == 'g'
+}
+
+func IsMin(token Token) bool {
+	return len(token.Representation) == 3 &&
+		token.Representation[0] == 'm' &&
+		token.Representation[1] == 'i' &&
+		token.Representation[2] == 'n'
+}
+
+func IsMax(token Token) bool {
+	return len(token.Representation) == 3 &&
+		token.Representation[0] == 'm' &&
+		token.Representation[1] == 'a' &&
+		token.Representation[2] == 'x'
+}
+
+func IsComma(b int8) bool {
+	return b == ','
+}
+
+func TokenToString(token Token) string {
+	var result string
+	for _, b := range token.Representation {
+		result += fmt.Sprintf("%c", b)
+	}
+	return result
+}
+
 func DumpToken(token Token) {
 	fmt.Printf("Token type: %d ", token.Type)
 	for _, b := range token.Representation {
@@ -116,25 +235,9 @@ func DumpTokensString(tokens []Token) string {
 	var result string
 	for _, token := range tokens {
 		result += fmt.Sprintf("Token type: %d ", token.Type)
-		// Append representation to the string
-		for _, b := range token.Representation {
-			switch b {
-			case ' ':
-				result += " "
-			case '\t':
-				result += "\t"
-			case '\n':
-				result += "\n"
-			case '.':
-				result += "."
-			default:
-				result += fmt.Sprintf("%c", b)
-			}
-		}
-
+		result += TokenToString(token)
 		result += "\n"
 	}
-
 	return result
 }
 
