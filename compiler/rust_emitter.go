@@ -60,6 +60,10 @@ type RustEmitter struct {
 	arrayType                    string
 	isTuple                      bool
 	sawIncrement                 bool                    // Track if we saw ++ in for loop post statement
+	sawDecrement                 bool                    // Track if we saw -- in for loop post statement
+	forLoopStep                  int                     // Step value for += n or -= n (0 means not set)
+	forLoopInclusive             bool                    // Track if condition uses <= or >= (inclusive range)
+	forLoopReverse               bool                    // Track if loop should be reversed (decrement or >)
 	isInfiniteLoop               bool                    // Track if current for loop is infinite (no init, cond, post)
 	declType                     string                  // Store the type for multi-name declarations
 	declNameCount                int                     // Count of names in current declaration
@@ -98,6 +102,14 @@ type RustEmitter struct {
 	binaryNeedsLeftCastStack     []bool                  // Stack for nested binary expressions
 	binaryNeedsRightCast         string                  // Type to cast right operand of binary expr (e.g., "u8")
 	binaryNeedsRightCastStack    []string                // Stack for nested binary expressions
+	// Key-value range loop support
+	isKeyValueRange              bool
+	rangeKeyName                 string
+	rangeValueName               string
+	rangeCollectionExpr          string
+	captureRangeExpr             bool
+	suppressRangeEmit            bool
+	rangeStmtIndent              int
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -454,6 +466,15 @@ func (re *RustEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		return
 	}
 	if !re.shouldGenerate {
+		return
+	}
+	// Skip emission during key-value range key/value visits
+	if re.suppressRangeEmit {
+		return
+	}
+	// Capture to buffer during range collection expression visit
+	if re.captureRangeExpr {
+		re.rangeCollectionExpr += e.Name
 		return
 	}
 	re.gir.emitToFileBuffer("", "@PreVisitIdent")
@@ -1683,7 +1704,10 @@ func (re *RustEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
-	re.emitToken(";", Semicolon, 0)
+	// Don't emit semicolon inside for loop post statement
+	if !re.insideForPostCond {
+		re.emitToken(";", Semicolon, 0)
+	}
 	re.shouldGenerate = false
 }
 
@@ -1793,6 +1817,32 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	re.shouldGenerate = true
 	re.inAssignLhs = true // Track that we're in LHS
 	assignmentToken := node.Tok.String()
+
+	// Track += and -= in for loop post statement for step detection
+	if re.insideForPostCond {
+		if assignmentToken == "+=" {
+			// Check if RHS is a numeric literal for step value
+			if len(node.Rhs) == 1 {
+				if lit, ok := node.Rhs[0].(*ast.BasicLit); ok && lit.Kind == token.INT {
+					step := 1 // default
+					fmt.Sscanf(lit.Value, "%d", &step)
+					re.forLoopStep = step
+					re.sawIncrement = true
+				}
+			}
+		} else if assignmentToken == "-=" {
+			// Decrement step
+			if len(node.Rhs) == 1 {
+				if lit, ok := node.Rhs[0].(*ast.BasicLit); ok && lit.Kind == token.INT {
+					step := 1 // default
+					fmt.Sscanf(lit.Value, "%d", &step)
+					re.forLoopStep = step
+					re.sawDecrement = true
+					re.forLoopReverse = true
+				}
+			}
+		}
+	}
 	// Check if LHS is a field access (SelectorExpr)
 	re.inFieldAssign = false
 	if len(node.Lhs) == 1 {
@@ -1838,7 +1888,8 @@ func (re *RustEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 		re.emitToken("(", LeftParen, indent)
 		re.isTuple = true
 	}
-	if assignmentToken != "+=" {
+	// Preserve compound assignment operators, convert := to =
+	if assignmentToken != "+=" && assignmentToken != "-=" && assignmentToken != "*=" && assignmentToken != "/=" {
 		assignmentToken = "="
 	}
 	re.assignmentToken = assignmentToken
@@ -2164,7 +2215,12 @@ func (re *RustEmitter) PostVisitIfStmtCond(node *ast.IfStmt, indent int) {
 
 func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	re.insideForPostCond = true
-	re.sawIncrement = false // Reset for this for loop
+	// Reset all for loop tracking flags
+	re.sawIncrement = false
+	re.sawDecrement = false
+	re.forLoopStep = 0
+	re.forLoopInclusive = false
+	re.forLoopReverse = false
 
 	// Detect loop type upfront to emit correct Rust keyword
 	var str string
@@ -2266,43 +2322,60 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 		// Check if there's actual condition content
 		hasCond = len(condTokens) > 0 && !(len(condTokens) == 1 && condTokens[0].Content == ";")
 
+		// Look for comparison operators: <, <=, >, >=
 		for i, tok := range condTokens {
-			if tok.Type == ComparisonOperator && tok.Content == "<" {
-				// Extract ALL tokens after < until end (excluding final semicolon)
-				// This handles complex expressions like (newState.depth as i32)
-				upperBound := condTokens[i+1:]
-				// Remove trailing semicolons and whitespace (but not parens yet)
-				for len(upperBound) > 0 {
-					lastTok := upperBound[len(upperBound)-1]
+			if tok.Type == ComparisonOperator {
+				var boundTokens []Token
+				isLessThan := tok.Content == "<" || tok.Content == "<="
+
+				if isLessThan {
+					// i < n or i <= n: extract tokens after operator
+					boundTokens = condTokens[i+1:]
+					if tok.Content == "<=" {
+						re.forLoopInclusive = true
+					}
+				} else if tok.Content == ">" || tok.Content == ">=" {
+					// i > n or i >= n: reversed loop, extract tokens after operator
+					boundTokens = condTokens[i+1:]
+					re.forLoopReverse = true
+					if tok.Content == ">=" {
+						re.forLoopInclusive = true
+					}
+				} else {
+					continue // Not a comparison we handle
+				}
+
+				// Remove trailing semicolons and whitespace
+				for len(boundTokens) > 0 {
+					lastTok := boundTokens[len(boundTokens)-1]
 					trimmed := strings.TrimSpace(lastTok.Content)
 					if trimmed == ";" || trimmed == "" {
-						upperBound = upperBound[:len(upperBound)-1]
+						boundTokens = boundTokens[:len(boundTokens)-1]
 					} else {
 						break
 					}
 				}
-				// Combine all upper bound tokens into a single token for simplicity
-				upperBoundStr := ""
-				for _, t := range upperBound {
-					upperBoundStr += t.Content
+				// Combine all bound tokens into a single token for simplicity
+				boundStr := ""
+				for _, t := range boundTokens {
+					boundStr += t.Content
 				}
-				upperBoundStr = strings.TrimSpace(upperBoundStr)
+				boundStr = strings.TrimSpace(boundStr)
 				// Count parens and strip only UNMATCHED trailing )
-				// The BinaryExpr wrapper adds one extra ) that we need to remove
-				for strings.HasSuffix(upperBoundStr, ")") {
-					openCount := strings.Count(upperBoundStr, "(")
-					closeCount := strings.Count(upperBoundStr, ")")
+				for strings.HasSuffix(boundStr, ")") {
+					openCount := strings.Count(boundStr, "(")
+					closeCount := strings.Count(boundStr, ")")
 					if closeCount > openCount {
-						upperBoundStr = strings.TrimSuffix(upperBoundStr, ")")
-						upperBoundStr = strings.TrimSpace(upperBoundStr)
+						boundStr = strings.TrimSuffix(boundStr, ")")
+						boundStr = strings.TrimSpace(boundStr)
 					} else {
 						break
 					}
 				}
-				if upperBoundStr != "" {
-					rangeTokens = append(rangeTokens, CreateToken(Identifier, upperBoundStr))
+				if boundStr != "" {
+					rangeTokens = append(rangeTokens, CreateToken(Identifier, boundStr))
 				}
-				break // Only process first < operator
+				break // Only process first comparison operator
 			}
 		}
 	}
@@ -2338,16 +2411,72 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 		return
 	}
 
-	// Case 2: Traditional for loop with init, cond, post and increment → for in range
-	if pFor != nil && p6 != nil && len(forVars) > 0 && len(rangeTokens) >= 2 && re.sawIncrement {
-		// Build new tokens for Rust for loop: "for var in start..end\n"
+	// Case 2: Traditional for loop with init, cond, post and increment/decrement → for in range
+	if pFor != nil && p6 != nil && len(forVars) > 0 && len(rangeTokens) >= 2 && (re.sawIncrement || re.sawDecrement) {
+		// Build new tokens for Rust for loop
 		newTokens := []string{}
 		newTokens = append(newTokens, "for ")
 		newTokens = append(newTokens, forVars[0].Content)
 		newTokens = append(newTokens, " in ")
-		newTokens = append(newTokens, rangeTokens[0].Content)
-		newTokens = append(newTokens, "..")
-		newTokens = append(newTokens, rangeTokens[1].Content)
+
+		// Determine range operator: .. or ..=
+		rangeOp := ".."
+		if re.forLoopInclusive {
+			rangeOp = "..="
+		}
+
+		// Build the range expression
+		startVal := rangeTokens[0].Content
+		endVal := rangeTokens[1].Content
+
+		// Check if we need modifiers (.rev(), .step_by())
+		needsRev := re.forLoopReverse
+		needsStep := re.forLoopStep > 1
+
+		if needsRev || needsStep {
+			// Complex range: need parentheses
+			newTokens = append(newTokens, "(")
+			if needsRev {
+				// For reverse: swap start and end, and adjust for inclusive
+				// i > 0 means: (0..start+1).rev() or for i >= 0: (0..=start).rev()
+				// Actually for i := n; i > 0; i-- we want (1..=n).rev() to get n, n-1, ..., 1
+				// For i := n; i >= 0; i-- we want (0..=n).rev() to get n, n-1, ..., 0
+				if re.forLoopInclusive {
+					// i >= end: range is (end..=start).rev()
+					newTokens = append(newTokens, endVal)
+					newTokens = append(newTokens, rangeOp)
+					newTokens = append(newTokens, startVal)
+				} else {
+					// i > end: range is (end+1..=start).rev()
+					// We need to add 1 to end for exclusive lower bound
+					newTokens = append(newTokens, "(")
+					newTokens = append(newTokens, endVal)
+					newTokens = append(newTokens, "+1)")
+					newTokens = append(newTokens, "..=")
+					newTokens = append(newTokens, startVal)
+				}
+			} else {
+				// Forward range
+				newTokens = append(newTokens, startVal)
+				newTokens = append(newTokens, rangeOp)
+				newTokens = append(newTokens, endVal)
+			}
+			newTokens = append(newTokens, ")")
+
+			// Add modifiers
+			if needsRev {
+				newTokens = append(newTokens, ".rev()")
+			}
+			if needsStep {
+				newTokens = append(newTokens, fmt.Sprintf(".step_by(%d)", re.forLoopStep))
+			}
+		} else {
+			// Simple range: start..end or start..=end
+			newTokens = append(newTokens, startVal)
+			newTokens = append(newTokens, rangeOp)
+			newTokens = append(newTokens, endVal)
+		}
+
 		newTokens = append(newTokens, "\n")
 
 		// Rewrite the tokens from PreVisitForStmt to PostVisitForStmtPost
@@ -2357,40 +2486,110 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 
 func (re *RustEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	re.shouldGenerate = true
-	str := re.emitAsString("for ", indent)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	// Check if this is a key-value range (both Key and Value present)
+	if node.Key != nil && node.Value != nil {
+		re.isKeyValueRange = true
+		re.rangeKeyName = node.Key.(*ast.Ident).Name
+		re.rangeValueName = node.Value.(*ast.Ident).Name
+		re.rangeCollectionExpr = ""
+		re.suppressRangeEmit = true
+		re.rangeStmtIndent = indent
+		// Don't emit anything yet - we'll emit in PostVisitRangeStmtX
+	} else {
+		re.isKeyValueRange = false
+		str := re.emitAsString("for ", indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
+}
+
+func (re *RustEmitter) PreVisitRangeStmtKey(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the key name
+}
+
+func (re *RustEmitter) PostVisitRangeStmtKey(node ast.Expr, indent int) {
+	// Nothing special needed here
+}
+
+func (re *RustEmitter) PreVisitRangeStmtValue(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the value name
 }
 
 func (re *RustEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
-	str := re.emitAsString(" in ", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	if re.isKeyValueRange {
+		// Stop suppressing, start capturing collection expression
+		re.suppressRangeEmit = false
+		re.captureRangeExpr = true
+	} else {
+		str := re.emitAsString(" in ", 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	}
+}
+
+func (re *RustEmitter) PreVisitRangeStmtX(node ast.Expr, indent int) {
+	// For key-value range, we're already in capture mode
 }
 
 func (re *RustEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
-	// Check the type of the expression being ranged over
-	tv := re.pkg.TypesInfo.Types[node]
-	if tv.Type != nil {
-		typeStr := tv.Type.String()
-		if typeStr == "string" {
-			// String needs .bytes() to iterate and get i8 values
-			re.gir.emitToFileBuffer(".bytes()", EmptyVisitMethod)
+	if re.isKeyValueRange {
+		// Stop capturing and emit the complete for loop
+		re.captureRangeExpr = false
+		collection := re.rangeCollectionExpr
+		key := re.rangeKeyName
+		value := re.rangeValueName
+		indent := re.rangeStmtIndent
+
+		// Check if collection is a string
+		tv := re.pkg.TypesInfo.Types[node]
+		iterMethod := ".clone().iter().enumerate()"
+		if tv.Type != nil && tv.Type.String() == "string" {
+			iterMethod = ".bytes().enumerate()"
+		}
+
+		// Emit: for (key, value) in collection.clone().iter().enumerate()
+		str := re.emitAsString(fmt.Sprintf("for (%s, %s) in %s%s\n", key, value, collection, iterMethod), indent)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+
+		// Reset range state
+		re.isKeyValueRange = false
+		re.rangeKeyName = ""
+		re.rangeValueName = ""
+		re.rangeCollectionExpr = ""
+		re.shouldGenerate = false
+	} else {
+		// Check the type of the expression being ranged over
+		tv := re.pkg.TypesInfo.Types[node]
+		if tv.Type != nil {
+			typeStr := tv.Type.String()
+			if typeStr == "string" {
+				// String needs .bytes() to iterate and get i8 values
+				re.gir.emitToFileBuffer(".bytes()", EmptyVisitMethod)
+			} else {
+				// Add .clone() to the collection to avoid ownership transfer
+				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			}
 		} else {
-			// Add .clone() to the collection to avoid ownership transfer
 			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 		}
-	} else {
-		re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+		str := re.emitAsString("\n", 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.shouldGenerate = false
 	}
-	str := re.emitAsString("\n", 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	re.shouldGenerate = false
+}
+
+func (re *RustEmitter) PostVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	// Reset any range-related state
 }
 
 func (re *RustEmitter) PreVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
 	re.shouldGenerate = true
-	// Track if we see ++ for for loop rewriting
+	// Track if we see ++ or -- for for loop rewriting
 	if node.Tok.String() == "++" {
 		re.sawIncrement = true
+		re.forLoopStep = 1
+	} else if node.Tok.String() == "--" {
+		re.sawDecrement = true
+		re.forLoopReverse = true
+		re.forLoopStep = 1
 	}
 }
 

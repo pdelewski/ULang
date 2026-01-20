@@ -146,6 +146,117 @@ func parseSelect(tokens []lexer.Token, lhs lexer.Token) (ast.Select, []lexer.Tok
 	return project, tokens
 }
 
+func parseJoin(tokens []lexer.Token, lhs lexer.Token) (ast.Join, []lexer.Token) {
+	join := ast.Join{ResultTableExpr: lhs}
+	var token lexer.Token
+
+	// Get left table
+	token, tokens = lexer.GetNextToken(tokens)
+	join.LeftTable = token
+
+	// Get right table
+	token, tokens = lexer.GetNextToken(tokens)
+	join.RightTable = token
+
+	// Expect 'on' keyword
+	token, tokens = lexer.GetNextToken(tokens)
+	if !lexer.IsOn(token) {
+		return join, tokens
+	}
+
+	// Parse the ON condition
+	expr, i := ParseExpression(tokens)
+	join.OnCondition = expr
+	tokens = tokens[i:]
+
+	// Skip to semicolon
+	for {
+		token, tokens = lexer.GetNextToken(tokens)
+		if lexer.IsSemicolon(token.Representation[0]) {
+			break
+		}
+	}
+	return join, tokens
+}
+
+func parseOrderBy(tokens []lexer.Token, lhs lexer.Token) (ast.OrderBy, []lexer.Token) {
+	orderBy := ast.OrderBy{ResultTableExpr: lhs}
+	var token lexer.Token
+
+	// Get source table
+	token, tokens = lexer.GetNextToken(tokens)
+	orderBy.SourceTable = token
+
+	// Parse fields (skip asc/desc keywords for now)
+	for {
+		token, tokens = lexer.GetNextToken(tokens)
+		if lexer.IsSemicolon(token.Representation[0]) {
+			break
+		}
+
+		// Skip asc/desc keywords
+		if lexer.IsAsc(token) || lexer.IsDesc(token) {
+			continue
+		}
+
+		orderBy.Fields = append(orderBy.Fields, token)
+	}
+	return orderBy, tokens
+}
+
+func parseLimit(tokens []lexer.Token, lhs lexer.Token) (ast.Limit, []lexer.Token) {
+	limit := ast.Limit{ResultTableExpr: lhs}
+	var token lexer.Token
+
+	// Get source table
+	token, tokens = lexer.GetNextToken(tokens)
+	limit.SourceTable = token
+
+	// Get limit count
+	token, tokens = lexer.GetNextToken(tokens)
+	limit.Count = token
+
+	// Skip to semicolon
+	for {
+		token, tokens = lexer.GetNextToken(tokens)
+		if lexer.IsSemicolon(token.Representation[0]) {
+			break
+		}
+	}
+	return limit, tokens
+}
+
+func parseGroupBy(tokens []lexer.Token, lhs lexer.Token) (ast.GroupBy, []lexer.Token) {
+	groupBy := ast.GroupBy{ResultTableExpr: lhs}
+	var token lexer.Token
+
+	// Get source table
+	token, tokens = lexer.GetNextToken(tokens)
+	groupBy.SourceTable = token
+
+	// Parse fields
+	for {
+		token, tokens = lexer.GetNextToken(tokens)
+		if lexer.IsSemicolon(token.Representation[0]) {
+			break
+		}
+
+		// Check for aggregate functions
+		if lexer.IsCount(token) || lexer.IsSum(token) || lexer.IsAvg(token) ||
+			lexer.IsMin(token) || lexer.IsMax(token) {
+			agg := ast.Aggregate{Function: token}
+			// Get field for aggregate
+			token, tokens = lexer.GetNextToken(tokens)
+			agg.Field = token
+			groupBy.Aggregates = append(groupBy.Aggregates, agg)
+			continue
+		}
+
+		groupBy.Fields = append(groupBy.Fields, token)
+	}
+	return groupBy, tokens
+}
+
 func Parse(text string) (ast.AST, int8) {
 	var resultAst ast.AST
 	tokens := lexer.GetTokens(lexer.StringToToken(text))
@@ -164,7 +275,9 @@ func Parse(text string) (ast.AST, int8) {
 		}
 
 		token, tokens = lexer.GetNextToken(tokens)
-		if !lexer.IsFrom(token) && !lexer.IsWhere(token) && !lexer.IsSelect(token) {
+		if !lexer.IsFrom(token) && !lexer.IsWhere(token) && !lexer.IsSelect(token) &&
+			!lexer.IsJoin(token) && !lexer.IsOrderBy(token) && !lexer.IsLimit(token) &&
+			!lexer.IsGroupBy(token) {
 			return ast.AST{}, -1
 		}
 
@@ -187,6 +300,34 @@ func Parse(text string) (ast.AST, int8) {
 			project, tokens = parseSelect(tokens, lhs)
 			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeSelect, SelectF: project})
 			token, tokens = lexer.GetNextToken(tokens)
+			continue
+		}
+
+		if lexer.IsJoin(token) {
+			var join ast.Join
+			join, tokens = parseJoin(tokens, lhs)
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeJoin, JoinF: join})
+			continue
+		}
+
+		if lexer.IsOrderBy(token) {
+			var orderBy ast.OrderBy
+			orderBy, tokens = parseOrderBy(tokens, lhs)
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeOrderBy, OrderByF: orderBy})
+			continue
+		}
+
+		if lexer.IsLimit(token) {
+			var limit ast.Limit
+			limit, tokens = parseLimit(tokens, lhs)
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeLimit, LimitF: limit})
+			continue
+		}
+
+		if lexer.IsGroupBy(token) {
+			var groupBy ast.GroupBy
+			groupBy, tokens = parseGroupBy(tokens, lhs)
+			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeGroupBy, GroupByF: groupBy})
 			continue
 		}
 	}

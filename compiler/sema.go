@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"golang.org/x/tools/go/packages"
 	"os"
 )
@@ -11,10 +12,11 @@ import (
 // SemaChecker performs semantic analysis to detect unsupported Go constructs.
 // Unsupported constructs (checked at compile time):
 // 1. iota - constant enumeration
-// 2. for key, value := range - range with both index and value (only for _, value allowed)
-// 3. for _, x := range []T{...} - range over inline composite literal
-// 4. if slice == nil / if slice != nil - nil comparison for slices
-// 5. type switch statements
+// 2. for _, x := range []T{...} - range over inline composite literal
+// 3. if slice == nil / if slice != nil - nil comparison for slices
+// 4. type switch statements
+// 5. string variable reuse after concatenation (Rust move semantics)
+// 6. struct field initialization out of declaration order (C++ designated initializers)
 //
 // Supported (with limitations):
 // - interface{} / any - maps to std::any (C++), Box<dyn Any> (Rust), object (C#)
@@ -23,6 +25,14 @@ type SemaChecker struct {
 	Emitter
 	pkg      *packages.Package
 	constCtx bool
+	// Track string variables consumed by concatenation (for Rust compatibility)
+	consumedStringVars map[string]token.Pos
+}
+
+func (sema *SemaChecker) PreVisitPackage(pkg *packages.Package, indent int) {
+	sema.pkg = pkg
+	// Reset consumed variables map for each package
+	sema.consumedStringVars = make(map[string]token.Pos)
 }
 
 func (sema *SemaChecker) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
@@ -36,6 +46,27 @@ func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
 			os.Exit(-1)
 		}
 	}
+
+	// Check if this identifier was consumed by string concatenation
+	if sema.consumedStringVars != nil {
+		if consumedPos, wasConsumed := sema.consumedStringVars[node.Name]; wasConsumed {
+			// Only error if this use is after the consumption point
+			if node.Pos() > consumedPos {
+				fmt.Println("\033[31m\033[1mCompilation error: string variable reuse after concatenation\033[0m")
+				fmt.Printf("  Variable '%s' was consumed by '+' and cannot be reused.\n", node.Name)
+				fmt.Println("  This pattern fails in Rust due to move semantics.")
+				fmt.Println()
+				fmt.Println("  \033[33mInstead of:\033[0m")
+				fmt.Printf("    y = %s + a\n", node.Name)
+				fmt.Printf("    z = %s + b  // error: %s was moved\n", node.Name, node.Name)
+				fmt.Println()
+				fmt.Println("  \033[32mUse separate += statements:\033[0m")
+				fmt.Println("    y += a")
+				fmt.Println("    y += b")
+				os.Exit(-1)
+			}
+		}
+	}
 }
 
 func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
@@ -43,17 +74,15 @@ func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) 
 }
 
 func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
-	// Check for for key, value := range (both key and value)
-	// Allowed: for _, v := range slice (value-only)
-	// Allowed: for i := range slice (index-only, Value is nil)
-	// Not allowed: for i, v := range slice (both key and value)
+	// Handle for _, v := range (value-only): set Key to nil so emitters work correctly
+	// for i, v := range (key-value) is now allowed and handled by emitters
+	// for i := range (index-only) is allowed (Value is nil)
 	if node.Key != nil && node.Value != nil {
-		if node.Key.(*ast.Ident).Name != "_" {
-			fmt.Println("\033[31m\033[1mCompilation error : for key, value := range is not allowed for now\033[0m")
-			os.Exit(-1)
+		if node.Key.(*ast.Ident).Name == "_" {
+			// For value-only range (for _, v := range), set Key to nil so emitters work correctly
+			node.Key = nil
 		}
-		// For value-only range (for _, v := range), set Key to nil so emitters work correctly
-		node.Key = nil
+		// Otherwise, keep both Key and Value for key-value range loops
 	}
 
 	// Check for range over inline composite literal (e.g., for _, x := range []int{1,2,3})
@@ -64,12 +93,116 @@ func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 }
 
 // PreVisitBinaryExpr checks for nil comparisons which are not supported for slices
+// and tracks string variable consumption for Rust compatibility
 func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	// Check for == nil or != nil comparisons
 	if node.Op == token.EQL || node.Op == token.NEQ {
 		if isNilIdent(node.Y) || isNilIdent(node.X) {
 			fmt.Println("\033[31m\033[1mCompilation error : nil comparison (== nil or != nil) is not allowed for now\033[0m")
 			os.Exit(-1)
+		}
+	}
+
+	// Check for string concatenation that consumes variables (Rust move semantics)
+	// Pattern: stringVar + "literal" or stringVar + otherVar
+	// This pattern causes issues in Rust because the left operand is moved
+	if node.Op == token.ADD {
+		// Check if left operand is a string type identifier
+		if ident, ok := node.X.(*ast.Ident); ok {
+			if sema.pkg != nil && sema.pkg.TypesInfo != nil {
+				if tv, exists := sema.pkg.TypesInfo.Types[node.X]; exists {
+					if tv.Type != nil && tv.Type.String() == "string" {
+						// Initialize map if needed
+						if sema.consumedStringVars == nil {
+							sema.consumedStringVars = make(map[string]token.Pos)
+						}
+						// Check if this variable was already consumed
+						if consumedPos, wasConsumed := sema.consumedStringVars[ident.Name]; wasConsumed {
+							if ident.Pos() > consumedPos {
+								fmt.Println("\033[31m\033[1mCompilation error: string variable reuse after concatenation\033[0m")
+								fmt.Printf("  Variable '%s' was consumed by '+' and cannot be reused.\n", ident.Name)
+								fmt.Println("  This pattern fails in Rust due to move semantics.")
+								fmt.Println()
+								fmt.Println("  \033[33mInstead of:\033[0m")
+								fmt.Printf("    y = %s + a\n", ident.Name)
+								fmt.Printf("    z = %s + b  // error: %s was moved\n", ident.Name, ident.Name)
+								fmt.Println()
+								fmt.Println("  \033[32mUse separate += statements:\033[0m")
+								fmt.Println("    y += a")
+								fmt.Println("    y += b")
+								os.Exit(-1)
+							}
+						}
+						// Mark this variable as consumed at this position
+						sema.consumedStringVars[ident.Name] = ident.Pos()
+					}
+				}
+			}
+		}
+	}
+}
+
+// PreVisitAssignStmt checks for problematic patterns like: x += x + a
+// where x is both borrowed (for +=) and moved (in x + a) in the same statement
+func (sema *SemaChecker) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Check for += with string concatenation on RHS that uses the same variable
+	if node.Tok == token.ADD_ASSIGN {
+		for _, lhs := range node.Lhs {
+			if lhsIdent, ok := lhs.(*ast.Ident); ok {
+				// Check if this is a string type
+				if sema.pkg != nil && sema.pkg.TypesInfo != nil {
+					if tv, exists := sema.pkg.TypesInfo.Types[lhs]; exists {
+						if tv.Type != nil && tv.Type.String() == "string" {
+							// Check if RHS contains a binary + with this variable on the left
+							if sema.rhsContainsStringConcatWithVar(node.Rhs[0], lhsIdent.Name) {
+								fmt.Println("\033[31m\033[1mCompilation error: self-referencing string concatenation\033[0m")
+								fmt.Printf("  Pattern '%s += %s + ...' is not allowed.\n", lhsIdent.Name, lhsIdent.Name)
+								fmt.Printf("  Variable '%s' is both borrowed (+=) and moved (+) in the same statement.\n", lhsIdent.Name)
+								fmt.Println()
+								fmt.Println("  \033[33mInstead of:\033[0m")
+								fmt.Printf("    %s += %s + other\n", lhsIdent.Name, lhsIdent.Name)
+								fmt.Println()
+								fmt.Println("  \033[32mUse separate statements:\033[0m")
+								fmt.Printf("    %s += other\n", lhsIdent.Name)
+								os.Exit(-1)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// rhsContainsStringConcatWithVar checks if an expression contains a binary + with varName on the left
+func (sema *SemaChecker) rhsContainsStringConcatWithVar(expr ast.Expr, varName string) bool {
+	switch e := expr.(type) {
+	case *ast.BinaryExpr:
+		if e.Op == token.ADD {
+			if ident, ok := e.X.(*ast.Ident); ok {
+				if ident.Name == varName {
+					return true
+				}
+			}
+		}
+		// Recursively check both sides
+		return sema.rhsContainsStringConcatWithVar(e.X, varName) || sema.rhsContainsStringConcatWithVar(e.Y, varName)
+	case *ast.ParenExpr:
+		return sema.rhsContainsStringConcatWithVar(e.X, varName)
+	}
+	return false
+}
+
+// PostVisitAssignStmt clears consumed state for variables that are reassigned
+// This handles patterns like: x = x + a; y = x + b (which should be valid)
+func (sema *SemaChecker) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	if sema.consumedStringVars == nil {
+		return
+	}
+	// Clear consumed state for any string variables on the LHS
+	for _, lhs := range node.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			delete(sema.consumedStringVars, ident.Name)
 		}
 	}
 }
@@ -92,4 +225,77 @@ func isNilIdent(expr ast.Expr) bool {
 		return ident.Name == "nil"
 	}
 	return false
+}
+
+// PreVisitCompositeLit checks for struct field initialization order
+// C++ designated initializers require fields to be in declaration order
+func (sema *SemaChecker) PreVisitCompositeLit(node *ast.CompositeLit, indent int) {
+	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
+		return
+	}
+
+	// Get the type of the composite literal
+	tv, ok := sema.pkg.TypesInfo.Types[node]
+	if !ok || tv.Type == nil {
+		return
+	}
+
+	// Check if it's a struct type
+	structType, ok := tv.Type.Underlying().(*types.Struct)
+	if !ok {
+		return
+	}
+
+	// Get field names from the struct declaration (in order)
+	declaredFields := make([]string, structType.NumFields())
+	fieldIndex := make(map[string]int)
+	for i := 0; i < structType.NumFields(); i++ {
+		field := structType.Field(i)
+		declaredFields[i] = field.Name()
+		fieldIndex[field.Name()] = i
+	}
+
+	// Get field names from the initialization (in order)
+	var initFields []string
+	for _, elt := range node.Elts {
+		if kv, ok := elt.(*ast.KeyValueExpr); ok {
+			if ident, ok := kv.Key.(*ast.Ident); ok {
+				initFields = append(initFields, ident.Name)
+			}
+		}
+	}
+
+	// If no keyed fields, skip the check (positional initialization)
+	if len(initFields) == 0 {
+		return
+	}
+
+	// Check if initialization order matches declaration order
+	lastIndex := -1
+	for _, fieldName := range initFields {
+		idx, exists := fieldIndex[fieldName]
+		if !exists {
+			continue // Unknown field, skip
+		}
+		if idx < lastIndex {
+			// Fields are out of order
+			fmt.Println("\033[33m\033[1mWarning: struct field initialization order does not match declaration order\033[0m")
+			fmt.Printf("  Field '%s' appears before a previously initialized field.\n", fieldName)
+			fmt.Println("  C++ designated initializers require fields in declaration order.")
+			fmt.Println()
+			fmt.Println("  \033[36mDeclared order:\033[0m")
+			for _, f := range declaredFields {
+				fmt.Printf("    - %s\n", f)
+			}
+			fmt.Println()
+			fmt.Println("  \033[36mInitialization order:\033[0m")
+			for _, f := range initFields {
+				fmt.Printf("    - %s\n", f)
+			}
+			fmt.Println()
+			fmt.Println("  \033[32mPlease reorder the initializers to match the struct declaration.\033[0m")
+			os.Exit(-1)
+		}
+		lastIndex = idx
+	}
 }

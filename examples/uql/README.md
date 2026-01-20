@@ -17,8 +17,13 @@ UQL uses a pipe-based syntax where intermediate results are assigned to variable
 
 ```sql
 t1 = from table1;
-t2 = where t1.field1 > 10 && t1.field2 < 20;
-t3 = select t2.field1;
+t2 = from table2;
+t3 = join t1 t2 on t1.id == t2.id;
+t4 = where t3.field1 > 10 && t3.field2 < 20;
+t5 = orderby t4 t4.field1 desc t4.field2 asc;
+t6 = limit t5 100;
+t7 = groupby t4 t4.category count t4.id sum t4.amount;
+t8 = select t6.field1;
 ```
 
 ### Supported Statements
@@ -26,11 +31,23 @@ t3 = select t2.field1;
 - `from <table>` - Select data from a table
 - `where <condition>` - Filter rows based on conditions
 - `select <fields>` - Project specific fields
+- `join <left> <right> on <condition>` - Join two tables
+- `orderby <source> <field> [asc|desc]` - Sort results
+- `limit <source> <count>` - Limit number of results
+- `groupby <source> <fields> [aggregates]` - Group and aggregate data
 
 ### Supported Operators
 
 - Comparison: `>`, `<`, `>=`, `<=`, `==`, `!=`
 - Logical: `&&`, `||`
+
+### Aggregate Functions
+
+- `count <field>` - Count rows
+- `sum <field>` - Sum values
+- `avg <field>` - Average values
+- `min <field>` - Minimum value
+- `max <field>` - Maximum value
 
 ## Building
 
@@ -89,7 +106,15 @@ visitor := ast.Visitor{
         // Called after visiting From node children
         return state
     },
-    // ... similar for Where, Select, LogicalExpr
+    PreVisitJoin: func(state any, join ast.Join) any {
+        // Called before visiting Join node children
+        return state
+    },
+    PostVisitJoin: func(state any, join ast.Join) any {
+        // Called after visiting Join node children
+        return state
+    },
+    // ... similar for Where, Select, OrderBy, Limit, GroupBy, LogicalExpr
 }
 ```
 
@@ -100,14 +125,40 @@ visitor := ast.Visitor{
 From:
   t1
   table1
+1
+From:
+  t2
+  table2
+4
+Join:
+  t3
+  Left: t1
+  Right: t2
+  on: t1.id == t2.id
 2
 Where:
-  t2
-  t2
-  t1.field1 > 10
-  t1.field2 < 20
+  t4
+  t3.field1 > 10 && t3.field2 < 20
+5
+OrderBy:
+  t5
+  Source: t4
+  Field: t4.field1 desc
+  Field: t4.field2 asc
+6
+Limit:
+  t6
+  Source: t5
+  Count: 100
+7
+GroupBy:
+  t7
+  Source: t4
+  Field: t4.category
+  Aggregate: count(t4.id)
+  Aggregate: sum(t4.amount)
 3
 Select:
-  t3
-  t2.field1
+  t8
+  t6.field1
 ```

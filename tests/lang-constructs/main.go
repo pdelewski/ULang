@@ -5,28 +5,25 @@ package main
 //
 // UNSUPPORTED CONSTRUCTS (not included in this file):
 //
-// 1. for i, x := range slice - Range loop with both index and value
-//    Only "for _, x := range" (value only) is supported
-//
-// 2. if slice == nil - Nil comparison for slices
+// 1. if slice == nil - Nil comparison for slices
 //    C++ std::vector cannot be compared to nullptr
 //
-// 3. len(string) - String length
+// 2. len(string) - String length
 //    C++ backend uses std::size() which doesn't work on C-style strings
 //
-// 4. for condition { } - While-style loops
+// 3. for condition { } - While-style loops
 //    C# backend has a bug with semicolons in loop body
 //
-// 5. iota - Constant enumeration
+// 4. iota - Constant enumeration
 //    Not yet implemented
 //
-// 6. fmt.Sprintf - String formatting
+// 5. fmt.Sprintf - String formatting
 //    Rust backend has type mismatch issues with string_format2
 //
-// 7. for _, x := range []int{1,2,3} - Range over inline slice literal
+// 6. for _, x := range []int{1,2,3} - Range over inline slice literal
 //    Rust backend generates malformed code
 //
-// 8. []interface{} - Slice of empty interface (any type)
+// 7. []interface{} - Slice of empty interface (any type)
 //    Not supported across backends
 //
 // SUPPORTED WITH LIMITATIONS:
@@ -86,6 +83,7 @@ func testLoopConstructs() {
 	var a []int
 
 	// C-style for loop
+	// @test cpp="for (auto x = 0; x < 10; x++)" cs="for (var x = 0; (x < 10 ); x++)" rust="for x in 0..10"
 	for x := 0; x < 10; x++ {
 		if !(len(a) == 0) {
 		} else if len(a) == 0 {
@@ -98,7 +96,16 @@ func testLoopConstructs() {
 		}
 	}
 
+	// Range-based for loop with index and value
+	// @test cpp="for (size_t i = 0; i < nums2.size(); i++)" cs="for (int i = 0; i < nums2.Count; i++)" rust="for (i, v) in nums2.clone().iter().enumerate()"
+	nums2 := []int{10, 20, 30}
+	for i, v := range nums2 {
+		fmt.Println(i)
+		fmt.Println(v)
+	}
+
 	// While-style loop
+	// @test cpp="for (; counter < 5;)" cs="for (; (counter < 5 );)" rust="while (counter < 5)"
 	counter := 0
 	for counter < 5 {
 		counter++
@@ -106,6 +113,7 @@ func testLoopConstructs() {
 	fmt.Println(counter)
 
 	// Infinite loop with break
+	// @test cpp="for (;;)" cs="for (;;)" rust="loop"
 	counter2 := 0
 	for {
 		counter2++
@@ -130,6 +138,46 @@ func testLoopConstructs() {
 	for i := range nums {
 		fmt.Println(i)
 	}
+
+	// Step by 2: i += 2
+	// @test cpp="for (auto i = 0; i < 10; i += 2)" cs="for (var i = 0; (i < 10 ); i += 2)" rust="for i in (0..10).step_by(2)"
+	sumStep := 0
+	for i := 0; i < 10; i += 2 {
+		sumStep += i // 0 + 2 + 4 + 6 + 8 = 20
+	}
+	fmt.Println(sumStep)
+
+	// Decrement loop: i--
+	// @test cpp="for (auto i = 5; i > 0; i--)" cs="for (var i = 5; (i > 0 ); i--)" rust="for i in ((0 + 1)..=5).rev()"
+	sumDecr := 0
+	for i := 5; i > 0; i-- {
+		sumDecr += i // 5 + 4 + 3 + 2 + 1 = 15
+	}
+	fmt.Println(sumDecr)
+
+	// Inclusive range: i <= n
+	// @test cpp="for (auto i = 1; i <= 5; i++)" cs="for (var i = 1; (i <= 5 ); i++)" rust="for i in 1..=5"
+	sumIncl := 0
+	for i := 1; i <= 5; i++ {
+		sumIncl += i // 1 + 2 + 3 + 4 + 5 = 15
+	}
+	fmt.Println(sumIncl)
+
+	// Decrement with inclusive: i >= 0
+	// @test cpp="for (auto i = 3; i >= 0; i--)" cs="for (var i = 3; (i >= 0 ); i--)" rust="for i in (0..=3).rev()"
+	sumDecrIncl := 0
+	for i := 3; i >= 0; i-- {
+		sumDecrIncl += i // 3 + 2 + 1 + 0 = 6
+	}
+	fmt.Println(sumDecrIncl)
+
+	// Step by 3 decrement: i -= 3
+	// @test cpp="for (auto i = 9; i > 0; i -= 3)" cs="for (var i = 9; (i > 0 ); i -= 3)" rust="for i in ((0 + 1)..=9).rev().step_by(3)"
+	sumDecrStep := 0
+	for i := 9; i > 0; i -= 3 {
+		sumDecrStep += i // 9 + 6 + 3 = 18
+	}
+	fmt.Println(sumDecrStep)
 }
 
 // Boolean logic: not operator, boolean literals

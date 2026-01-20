@@ -56,6 +56,18 @@ type CSharpEmitter struct {
 	arrayType         string
 	isTuple           bool
 	isInfiniteLoop    bool // Track if current for loop is infinite (no init, cond, post)
+	// Key-value range loop support
+	isKeyValueRange         bool
+	rangeKeyName            string
+	rangeValueName          string
+	rangeCollectionExpr     string
+	captureRangeExpr        bool
+	suppressRangeEmit       bool
+	rangeStmtIndent         int
+	pendingRangeValueDecl   bool
+	pendingValueName        string
+	pendingCollectionExpr   string
+	pendingKeyName          string
 }
 
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
@@ -351,6 +363,17 @@ func (cse *CSharpEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 		cse.emitToken("{", LeftBrace, 1)
 		str := cse.emitAsString("\n", 1)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+
+		// If we have a pending value declaration from key-value range, emit it now
+		if cse.pendingRangeValueDecl {
+			valueDecl := cse.emitAsString(fmt.Sprintf("var %s = %s[%s];\n",
+				cse.pendingValueName, cse.pendingCollectionExpr, cse.pendingKeyName), indent+2)
+			cse.gir.emitToFileBuffer(valueDecl, EmptyVisitMethod)
+			cse.pendingRangeValueDecl = false
+			cse.pendingValueName = ""
+			cse.pendingCollectionExpr = ""
+			cse.pendingKeyName = ""
+		}
 	})
 }
 
@@ -376,6 +399,15 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeParams(node *ast.FuncDec
 func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 	cse.executeIfNotForwardDecls(func() {
 		if !cse.shouldGenerate {
+			return
+		}
+		// Skip emission during key-value range key/value visits
+		if cse.suppressRangeEmit {
+			return
+		}
+		// Capture to buffer during range collection expression visit
+		if cse.captureRangeExpr {
+			cse.rangeCollectionExpr += e.Name
 			return
 		}
 		var str string
@@ -881,8 +913,11 @@ func (cse *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 
 func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString(";", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Don't emit semicolon inside for loop post statement
+		if !cse.insideForPostCond {
+			str := cse.emitAsString(";", 0)
+			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		}
 	})
 }
 
@@ -951,7 +986,8 @@ func (cse *CSharpEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int
 			cse.emitToken("(", LeftParen, indent)
 			cse.isTuple = true
 		}
-		if assignmentToken != "+=" {
+		// Preserve compound assignment operators, convert := to =
+		if assignmentToken != "+=" && assignmentToken != "-=" && assignmentToken != "*=" && assignmentToken != "/=" {
 			assignmentToken = "="
 		}
 		cse.assignmentToken = assignmentToken
@@ -1034,7 +1070,6 @@ func (cse *CSharpEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 		str := cse.emitAsString("for ", indent)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		cse.emitToken("(", LeftParen, 0)
-		cse.insideForPostCond = true
 	})
 }
 
@@ -1043,6 +1078,14 @@ func (cse *CSharpEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
 		if node == nil {
 			str := cse.emitAsString(";", 0)
 			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		}
+	})
+}
+
+func (cse *CSharpEmitter) PreVisitForStmtPost(node ast.Stmt, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		if node != nil {
+			cse.insideForPostCond = true
 		}
 	})
 }
@@ -1078,27 +1121,90 @@ func (cse *CSharpEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 
 func (cse *CSharpEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString("foreach ", indent)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
-		cse.emitToken("(", LeftParen, 0)
-		str = cse.emitAsString("var ", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Check if this is a key-value range (both Key and Value present)
+		if node.Key != nil && node.Value != nil {
+			cse.isKeyValueRange = true
+			cse.rangeKeyName = node.Key.(*ast.Ident).Name
+			cse.rangeValueName = node.Value.(*ast.Ident).Name
+			cse.rangeCollectionExpr = ""
+			cse.suppressRangeEmit = true
+			cse.rangeStmtIndent = indent
+			// Don't emit anything yet - we'll emit the complete for loop in PostVisitRangeStmtX
+		} else {
+			cse.isKeyValueRange = false
+			str := cse.emitAsString("foreach ", indent)
+			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+			cse.emitToken("(", LeftParen, 0)
+			str = cse.emitAsString("var ", 0)
+			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		}
 	})
+}
+
+func (cse *CSharpEmitter) PreVisitRangeStmtKey(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the key name
+}
+
+func (cse *CSharpEmitter) PostVisitRangeStmtKey(node ast.Expr, indent int) {
+	// Nothing special needed here
+}
+
+func (cse *CSharpEmitter) PreVisitRangeStmtValue(node ast.Expr, indent int) {
+	// For key-value range, we've already captured the value name
 }
 
 func (cse *CSharpEmitter) PostVisitRangeStmtValue(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString(" in ", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		if cse.isKeyValueRange {
+			// Stop suppressing, start capturing collection expression
+			cse.suppressRangeEmit = false
+			cse.captureRangeExpr = true
+		} else {
+			str := cse.emitAsString(" in ", 0)
+			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		}
 	})
+}
+
+func (cse *CSharpEmitter) PreVisitRangeStmtX(node ast.Expr, indent int) {
+	// For key-value range, we're already in capture mode
 }
 
 func (cse *CSharpEmitter) PostVisitRangeStmtX(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		cse.emitToken(")", RightParen, 0)
-		str := cse.emitAsString("\n", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		if cse.isKeyValueRange {
+			// Stop capturing and emit the complete for loop
+			cse.captureRangeExpr = false
+			collection := cse.rangeCollectionExpr
+			key := cse.rangeKeyName
+			value := cse.rangeValueName
+			indent := cse.rangeStmtIndent
+
+			// Emit: for (int key = 0; key < collection.Count; key++)
+			str := cse.emitAsString(fmt.Sprintf("for (int %s = 0; %s < %s.Count; %s++)\n", key, key, collection, key), indent)
+			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+
+			// Set pending value declaration to be emitted at start of body block
+			cse.pendingRangeValueDecl = true
+			cse.pendingValueName = value
+			cse.pendingCollectionExpr = collection
+			cse.pendingKeyName = key
+
+			// Reset range state
+			cse.isKeyValueRange = false
+			cse.rangeKeyName = ""
+			cse.rangeValueName = ""
+			cse.rangeCollectionExpr = ""
+		} else {
+			cse.emitToken(")", RightParen, 0)
+			str := cse.emitAsString("\n", 0)
+			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		}
 	})
+}
+
+func (cse *CSharpEmitter) PostVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	// Reset any range-related state
 }
 
 func (cse *CSharpEmitter) PostVisitIncDecStmt(node *ast.IncDecStmt, indent int) {
