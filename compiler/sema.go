@@ -51,7 +51,17 @@ func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
 		if consumedPos, wasConsumed := sema.consumedStringVars[node.Name]; wasConsumed {
 			// Only error if this use is after the consumption point
 			if node.Pos() > consumedPos {
-				fmt.Printf("\033[31m\033[1mCompilation error : string variable '%s' was consumed by concatenation and cannot be reused (Rust compatibility). Use separate += statements instead of 'a + b' patterns.\033[0m\n", node.Name)
+				fmt.Println("\033[31m\033[1mCompilation error: string variable reuse after concatenation\033[0m")
+				fmt.Printf("  Variable '%s' was consumed by '+' and cannot be reused.\n", node.Name)
+				fmt.Println("  This pattern fails in Rust due to move semantics.")
+				fmt.Println()
+				fmt.Println("  \033[33mInstead of:\033[0m")
+				fmt.Printf("    y = %s + a\n", node.Name)
+				fmt.Printf("    z = %s + b  // error: %s was moved\n", node.Name, node.Name)
+				fmt.Println()
+				fmt.Println("  \033[32mUse separate += statements:\033[0m")
+				fmt.Println("    y += a")
+				fmt.Println("    y += b")
 				os.Exit(-1)
 			}
 		}
@@ -110,7 +120,17 @@ func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 						// Check if this variable was already consumed
 						if consumedPos, wasConsumed := sema.consumedStringVars[ident.Name]; wasConsumed {
 							if ident.Pos() > consumedPos {
-								fmt.Printf("\033[31m\033[1mCompilation error : string variable '%s' was consumed by concatenation and cannot be reused (Rust compatibility). Use separate += statements instead of 'a + b' patterns.\033[0m\n", ident.Name)
+								fmt.Println("\033[31m\033[1mCompilation error: string variable reuse after concatenation\033[0m")
+								fmt.Printf("  Variable '%s' was consumed by '+' and cannot be reused.\n", ident.Name)
+								fmt.Println("  This pattern fails in Rust due to move semantics.")
+								fmt.Println()
+								fmt.Println("  \033[33mInstead of:\033[0m")
+								fmt.Printf("    y = %s + a\n", ident.Name)
+								fmt.Printf("    z = %s + b  // error: %s was moved\n", ident.Name, ident.Name)
+								fmt.Println()
+								fmt.Println("  \033[32mUse separate += statements:\033[0m")
+								fmt.Println("    y += a")
+								fmt.Println("    y += b")
 								os.Exit(-1)
 							}
 						}
@@ -136,7 +156,15 @@ func (sema *SemaChecker) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 						if tv.Type != nil && tv.Type.String() == "string" {
 							// Check if RHS contains a binary + with this variable on the left
 							if sema.rhsContainsStringConcatWithVar(node.Rhs[0], lhsIdent.Name) {
-								fmt.Printf("\033[31m\033[1mCompilation error : cannot use '%s += %s + ...' pattern (Rust compatibility). Variable '%s' is both borrowed and moved. Use separate statements: '%s += %s; %s += ...' instead.\033[0m\n", lhsIdent.Name, lhsIdent.Name, lhsIdent.Name, lhsIdent.Name, lhsIdent.Name, lhsIdent.Name)
+								fmt.Println("\033[31m\033[1mCompilation error: self-referencing string concatenation\033[0m")
+								fmt.Printf("  Pattern '%s += %s + ...' is not allowed.\n", lhsIdent.Name, lhsIdent.Name)
+								fmt.Printf("  Variable '%s' is both borrowed (+=) and moved (+) in the same statement.\n", lhsIdent.Name)
+								fmt.Println()
+								fmt.Println("  \033[33mInstead of:\033[0m")
+								fmt.Printf("    %s += %s + other\n", lhsIdent.Name, lhsIdent.Name)
+								fmt.Println()
+								fmt.Println("  \033[32mUse separate statements:\033[0m")
+								fmt.Printf("    %s += other\n", lhsIdent.Name)
 								os.Exit(-1)
 							}
 						}

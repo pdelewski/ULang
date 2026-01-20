@@ -94,7 +94,7 @@ func main() {
 	_ = result
 }
 `,
-		ExpectedError: "string variable 'indent' was consumed by concatenation",
+		ExpectedError: "string variable reuse after concatenation",
 	},
 	{
 		Name: "string_plusequal_self_concat",
@@ -107,7 +107,7 @@ func main() {
 	_ = result
 }
 `,
-		ExpectedError: "cannot use 'result += result + ...' pattern",
+		ExpectedError: "self-referencing string concatenation",
 	},
 }
 
