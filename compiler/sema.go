@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"golang.org/x/tools/go/packages"
 	"os"
 )
@@ -15,6 +16,7 @@ import (
 // 3. if slice == nil / if slice != nil - nil comparison for slices
 // 4. type switch statements
 // 5. string variable reuse after concatenation (Rust move semantics)
+// 6. struct field initialization out of declaration order (C++ designated initializers)
 //
 // Supported (with limitations):
 // - interface{} / any - maps to std::any (C++), Box<dyn Any> (Rust), object (C#)
@@ -223,4 +225,77 @@ func isNilIdent(expr ast.Expr) bool {
 		return ident.Name == "nil"
 	}
 	return false
+}
+
+// PreVisitCompositeLit checks for struct field initialization order
+// C++ designated initializers require fields to be in declaration order
+func (sema *SemaChecker) PreVisitCompositeLit(node *ast.CompositeLit, indent int) {
+	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
+		return
+	}
+
+	// Get the type of the composite literal
+	tv, ok := sema.pkg.TypesInfo.Types[node]
+	if !ok || tv.Type == nil {
+		return
+	}
+
+	// Check if it's a struct type
+	structType, ok := tv.Type.Underlying().(*types.Struct)
+	if !ok {
+		return
+	}
+
+	// Get field names from the struct declaration (in order)
+	declaredFields := make([]string, structType.NumFields())
+	fieldIndex := make(map[string]int)
+	for i := 0; i < structType.NumFields(); i++ {
+		field := structType.Field(i)
+		declaredFields[i] = field.Name()
+		fieldIndex[field.Name()] = i
+	}
+
+	// Get field names from the initialization (in order)
+	var initFields []string
+	for _, elt := range node.Elts {
+		if kv, ok := elt.(*ast.KeyValueExpr); ok {
+			if ident, ok := kv.Key.(*ast.Ident); ok {
+				initFields = append(initFields, ident.Name)
+			}
+		}
+	}
+
+	// If no keyed fields, skip the check (positional initialization)
+	if len(initFields) == 0 {
+		return
+	}
+
+	// Check if initialization order matches declaration order
+	lastIndex := -1
+	for _, fieldName := range initFields {
+		idx, exists := fieldIndex[fieldName]
+		if !exists {
+			continue // Unknown field, skip
+		}
+		if idx < lastIndex {
+			// Fields are out of order
+			fmt.Println("\033[33m\033[1mWarning: struct field initialization order does not match declaration order\033[0m")
+			fmt.Printf("  Field '%s' appears before a previously initialized field.\n", fieldName)
+			fmt.Println("  C++ designated initializers require fields in declaration order.")
+			fmt.Println()
+			fmt.Println("  \033[36mDeclared order:\033[0m")
+			for _, f := range declaredFields {
+				fmt.Printf("    - %s\n", f)
+			}
+			fmt.Println()
+			fmt.Println("  \033[36mInitialization order:\033[0m")
+			for _, f := range initFields {
+				fmt.Printf("    - %s\n", f)
+			}
+			fmt.Println()
+			fmt.Println("  \033[32mPlease reorder the initializers to match the struct declaration.\033[0m")
+			os.Exit(-1)
+		}
+		lastIndex = idx
+	}
 }

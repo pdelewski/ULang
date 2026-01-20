@@ -95,6 +95,27 @@ func main() {
 `,
 		ExpectedError: "self-referencing string concatenation",
 	},
+	{
+		Name: "struct_field_init_order",
+		Code: `package main
+
+type Person struct {
+	Name string
+	Age  int
+	City string
+}
+
+func main() {
+	p := Person{
+		Age:  30,
+		Name: "Alice",
+		City: "NYC",
+	}
+	_ = p
+}
+`,
+		ExpectedError: "struct field initialization order does not match declaration order",
+	},
 }
 
 // SemaValidTestCase represents code that SHOULD compile successfully
@@ -125,6 +146,26 @@ func main() {
 	x += " world"
 	y := x + "!"
 	_ = y
+}
+`,
+	},
+	{
+		Name: "struct_field_init_correct_order",
+		Code: `package main
+
+type Person struct {
+	Name string
+	Age  int
+	City string
+}
+
+func main() {
+	p := Person{
+		Name: "Alice",
+		Age:  30,
+		City: "NYC",
+	}
+	_ = p
 }
 `,
 	},
