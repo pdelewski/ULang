@@ -15,6 +15,7 @@ import (
 // 3. for _, x := range []T{...} - range over inline composite literal
 // 4. if slice == nil / if slice != nil - nil comparison for slices
 // 5. type switch statements
+// 6. string variable reuse after concatenation (Rust move semantics)
 //
 // Supported (with limitations):
 // - interface{} / any - maps to std::any (C++), Box<dyn Any> (Rust), object (C#)
@@ -23,6 +24,14 @@ type SemaChecker struct {
 	Emitter
 	pkg      *packages.Package
 	constCtx bool
+	// Track string variables consumed by concatenation (for Rust compatibility)
+	consumedStringVars map[string]token.Pos
+}
+
+func (sema *SemaChecker) PreVisitPackage(pkg *packages.Package, indent int) {
+	sema.pkg = pkg
+	// Reset consumed variables map for each package
+	sema.consumedStringVars = make(map[string]token.Pos)
 }
 
 func (sema *SemaChecker) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
@@ -34,6 +43,17 @@ func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
 		if node.String() == "iota" {
 			fmt.Println("\033[31m\033[1mCompilation error : iota is not allowed for now\033[0m")
 			os.Exit(-1)
+		}
+	}
+
+	// Check if this identifier was consumed by string concatenation
+	if sema.consumedStringVars != nil {
+		if consumedPos, wasConsumed := sema.consumedStringVars[node.Name]; wasConsumed {
+			// Only error if this use is after the consumption point
+			if node.Pos() > consumedPos {
+				fmt.Printf("\033[31m\033[1mCompilation error : string variable '%s' was consumed by concatenation and cannot be reused (Rust compatibility). Use separate += statements instead of 'a + b' patterns.\033[0m\n", node.Name)
+				os.Exit(-1)
+			}
 		}
 	}
 }
@@ -64,12 +84,41 @@ func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 }
 
 // PreVisitBinaryExpr checks for nil comparisons which are not supported for slices
+// and tracks string variable consumption for Rust compatibility
 func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	// Check for == nil or != nil comparisons
 	if node.Op == token.EQL || node.Op == token.NEQ {
 		if isNilIdent(node.Y) || isNilIdent(node.X) {
 			fmt.Println("\033[31m\033[1mCompilation error : nil comparison (== nil or != nil) is not allowed for now\033[0m")
 			os.Exit(-1)
+		}
+	}
+
+	// Check for string concatenation that consumes variables (Rust move semantics)
+	// Pattern: stringVar + "literal" or stringVar + otherVar
+	// This pattern causes issues in Rust because the left operand is moved
+	if node.Op == token.ADD {
+		// Check if left operand is a string type identifier
+		if ident, ok := node.X.(*ast.Ident); ok {
+			if sema.pkg != nil && sema.pkg.TypesInfo != nil {
+				if tv, exists := sema.pkg.TypesInfo.Types[node.X]; exists {
+					if tv.Type != nil && tv.Type.String() == "string" {
+						// Initialize map if needed
+						if sema.consumedStringVars == nil {
+							sema.consumedStringVars = make(map[string]token.Pos)
+						}
+						// Check if this variable was already consumed
+						if consumedPos, wasConsumed := sema.consumedStringVars[ident.Name]; wasConsumed {
+							if ident.Pos() > consumedPos {
+								fmt.Printf("\033[31m\033[1mCompilation error : string variable '%s' was consumed by concatenation and cannot be reused (Rust compatibility). Use separate += statements instead of 'a + b' patterns.\033[0m\n", ident.Name)
+								os.Exit(-1)
+							}
+						}
+						// Mark this variable as consumed at this position
+						sema.consumedStringVars[ident.Name] = ident.Pos()
+					}
+				}
+			}
 		}
 	}
 }
