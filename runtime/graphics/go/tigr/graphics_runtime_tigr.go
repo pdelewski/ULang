@@ -43,6 +43,11 @@ static int pollTigrEvents(Tigr* win) {
         lastKeyPressed = ch;
     }
 
+    // Also check for DEL (127) which macOS uses for backspace
+    if (ch == 127) {
+        lastKeyPressed = 8;  // Normalize to backspace
+    }
+
     // Check special keys using our own state tracking
     int currKeyState[7];
     currKeyState[0] = tigrKeyHeld(win, TK_RETURN) != 0;
