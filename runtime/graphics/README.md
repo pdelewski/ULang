@@ -8,12 +8,12 @@ Two backends are available, selected via `--graphics-runtime` flag:
 
 | Backend | Flag | C++ | C# | Rust | Dependencies |
 |---------|------|-----|-----|------|--------------|
-| **tigr** | `--graphics-runtime=tigr` | ✅ | ❌ | ✅ | None (bundled) |
+| **tigr** | `--graphics-runtime=tigr` | ✅ | ✅ | ✅ | C compiler (bundled source) |
 | **SDL2** | `--graphics-runtime=sdl2` | ✅ | ✅ | ✅ | SDL2 library |
 
-**tigr** is the default for C++ and Rust - it's bundled with the transpiler and requires no external dependencies.
+**tigr** is the default for all backends - source is bundled with the transpiler and compiled at build time. Requires a C compiler (gcc/clang on macOS/Linux, MSVC on Windows).
 
-**SDL2** is required for C# backend, and is also available for C++ and Rust when hardware acceleration is needed.
+**SDL2** is available for all backends when hardware acceleration or additional features are needed.
 
 ## Quick Start
 
@@ -175,7 +175,8 @@ runtime/graphics/
 │   ├── graphics_runtime_tigr.hpp  # C++ tigr backend
 │   └── graphics_runtime_sdl2.hpp  # C++ SDL2 backend
 ├── csharp/
-│   └── GraphicsRuntime.cs         # C# SDL2 implementation
+│   ├── GraphicsRuntime.cs         # C# SDL2 implementation
+│   └── GraphicsRuntimeTigr.cs     # C# tigr implementation
 └── rust/
     ├── graphics_runtime.rs        # Rust SDL2 implementation
     └── graphics_runtime_tigr.rs   # Rust tigr implementation
