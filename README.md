@@ -138,16 +138,39 @@ Some Go features may not be fully supported due to differences in target platfor
 
 ### Graphics Runtime
 
-A cross-platform 2D graphics library for window creation and drawing shapes. Two backends are available:
+A cross-platform 2D graphics library for window creation and drawing shapes.
+
+#### Transpiled Code (C++, C#, Rust)
+
+Two backends are available for transpiled code, selected via `-graphics-runtime` flag:
 
 | Backend | Platforms | Dependencies | Notes |
 |---------|-----------|--------------|-------|
-| `tigr` | C++ only | None (bundled) | Default, header-only, lightweight |
+| `tigr` | C++, C#, Rust | C compiler (bundled source) | Default, lightweight |
 | `sdl2` | C++, C#, Rust | SDL2 library | Hardware accelerated, full-featured |
 
-**Setup SDL2 dependencies (only needed for `--graphics-runtime=sdl2`):**
+**Setup SDL2 dependencies (only needed for `-graphics-runtime=sdl2`):**
 ```bash
 ./scripts/setup-deps.sh
+```
+
+#### Go Execution
+
+When running Go code directly (before transpilation), two backends are available:
+
+| Backend | Build Command | Dependencies | Notes |
+|---------|---------------|--------------|-------|
+| `tigr` | `go build` | C compiler | Default, no external libs |
+| `sdl2` | `go build -tags sdl2` | SDL2 library | Hardware accelerated |
+
+```bash
+# Default: tigr backend (no SDL2 dependency)
+cd examples/mos6502/cmd/c64
+go run .
+
+# SDL2 backend (requires SDL2 installed)
+go build -tags sdl2
+./c64
 ```
 
 **Example usage:**

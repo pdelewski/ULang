@@ -162,22 +162,42 @@ dotnet build
 sdl2 = "0.36"
 ```
 
+## Go Backend Selection
+
+For Go execution, two backends are available:
+
+```bash
+# Default: tigr backend (no external dependencies)
+go run .
+
+# SDL2 backend (requires SDL2 installed)
+go build -tags sdl2
+```
+
 ## Directory Structure
 
 ```
 runtime/graphics/
 ├── go.mod
-├── graphics.go                    # Go API definition
+├── graphics_tigr.go               # Go API wrapper, forwards to go/tigr/ (default)
+├── graphics_sdl2.go               # Go API wrapper, forwards to go/sdl2/ (build tag: sdl2)
 ├── README.md
+├── go/
+│   ├── tigr/
+│   │   ├── graphics_runtime_tigr.go  # Go CGO tigr bindings
+│   │   ├── tigr.c                    # tigr library (bundled)
+│   │   └── tigr.h                    # tigr header (bundled)
+│   └── sdl2/
+│       └── graphics_runtime_sdl2.go  # Go CGO SDL2 bindings
 ├── cpp/
 │   ├── tigr.h                     # tigr library header (bundled)
 │   ├── tigr.c                     # tigr library implementation (bundled)
 │   ├── graphics_runtime_tigr.hpp  # C++ tigr backend
 │   └── graphics_runtime_sdl2.hpp  # C++ SDL2 backend
 ├── csharp/
-│   ├── GraphicsRuntime.cs         # C# SDL2 implementation
+│   ├── GraphicsRuntimeSDL2.cs     # C# SDL2 implementation
 │   └── GraphicsRuntimeTigr.cs     # C# tigr implementation
 └── rust/
-    ├── graphics_runtime.rs        # Rust SDL2 implementation
+    ├── graphics_runtime_sdl2.rs   # Rust SDL2 implementation
     └── graphics_runtime_tigr.rs   # Rust tigr implementation
 ```

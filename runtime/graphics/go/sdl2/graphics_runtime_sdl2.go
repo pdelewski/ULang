@@ -154,7 +154,8 @@ func CloseWindow(handle int64, renderer int64) {
 }
 
 // PollEvents processes pending events and returns true if quit requested.
-func PollEvents() bool {
+// The handle parameter is ignored for SDL2 (uses global event queue).
+func PollEvents(handle int64) bool {
 	return C.pollEvents() != 0
 }
 
