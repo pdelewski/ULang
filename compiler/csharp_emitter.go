@@ -1530,14 +1530,14 @@ func (cse *CSharpEmitter) GenerateCsproj() error {
 	defer file.Close()
 
 	// Determine graphics backend
-	// Note: C# only supports sdl2 and none (tigr has no C# bindings, falls back to sdl2)
 	graphicsBackend := cse.GraphicsRuntime
-	if graphicsBackend == "" || graphicsBackend == "tigr" {
-		graphicsBackend = "sdl2" // Default to sdl2 for C# (tigr not supported)
+	if graphicsBackend == "" {
+		graphicsBackend = "tigr" // Default to tigr for C#
 	}
 
 	var csproj string
-	if graphicsBackend == "none" {
+	switch graphicsBackend {
+	case "none":
 		// No graphics dependencies
 		csproj = `<Project Sdk="Microsoft.NET.Sdk">
 
@@ -1551,7 +1551,42 @@ func (cse *CSharpEmitter) GenerateCsproj() error {
 
 </Project>
 `
-	} else {
+	case "tigr":
+		// tigr graphics - compile tigr.c to native library at build time
+		csproj = `<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- Compile tigr.c to native library before build -->
+  <Target Name="CompileTigr" BeforeTargets="Build">
+    <!-- macOS -->
+    <Exec Command="cc -shared -o $(OutputPath)libtigr.dylib tigr.c -framework OpenGL -framework Cocoa"
+          Condition="$([MSBuild]::IsOSPlatform('OSX'))"
+          WorkingDirectory="$(ProjectDir)" />
+    <!-- Linux -->
+    <Exec Command="gcc -shared -fPIC -o $(OutputPath)libtigr.so tigr.c -lGL -lX11 -lm"
+          Condition="$([MSBuild]::IsOSPlatform('Linux'))"
+          WorkingDirectory="$(ProjectDir)" />
+    <!-- Windows -->
+    <Exec Command="cl /LD tigr.c opengl32.lib gdi32.lib user32.lib /Fe:$(OutputPath)tigr.dll"
+          Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+          WorkingDirectory="$(ProjectDir)" />
+  </Target>
+
+  <!-- Ensure output directory exists before compiling tigr -->
+  <Target Name="EnsureOutputDir" BeforeTargets="CompileTigr">
+    <MakeDir Directories="$(OutputPath)" />
+  </Target>
+
+</Project>
+`
+	default:
 		// SDL2 graphics
 		csproj = `<Project Sdk="Microsoft.NET.Sdk">
 
@@ -1596,8 +1631,26 @@ func (cse *CSharpEmitter) CopyGraphicsRuntime() error {
 		return nil
 	}
 
+	// Determine graphics backend
+	graphicsBackend := cse.GraphicsRuntime
+	if graphicsBackend == "" {
+		graphicsBackend = "tigr"
+	}
+
+	// Select the appropriate runtime file based on backend
+	var runtimeFileName string
+	switch graphicsBackend {
+	case "tigr":
+		runtimeFileName = "GraphicsRuntimeTigr.cs"
+	case "sdl2":
+		runtimeFileName = "GraphicsRuntime.cs"
+	default:
+		// For "none" or unknown, use SDL2 runtime as fallback
+		runtimeFileName = "GraphicsRuntime.cs"
+	}
+
 	// Source path: LinkRuntime points to runtime directory, graphics runtime is in graphics/csharp/
-	runtimeSrcPath := filepath.Join(cse.LinkRuntime, "graphics", "csharp", "GraphicsRuntime.cs")
+	runtimeSrcPath := filepath.Join(cse.LinkRuntime, "graphics", "csharp", runtimeFileName)
 	graphicsCs, err := os.ReadFile(runtimeSrcPath)
 	if err != nil {
 		return fmt.Errorf("failed to read graphics runtime from %s: %w", runtimeSrcPath, err)
@@ -1610,5 +1663,33 @@ func (cse *CSharpEmitter) CopyGraphicsRuntime() error {
 	}
 
 	DebugLogPrintf("Copied GraphicsRuntime.cs from %s to %s", runtimeSrcPath, graphicsPath)
+
+	// For tigr backend, also copy tigr.c and tigr.h
+	if graphicsBackend == "tigr" {
+		// Copy tigr.c
+		tigrCSrc := filepath.Join(cse.LinkRuntime, "graphics", "cpp", "tigr.c")
+		tigrCDst := filepath.Join(cse.OutputDir, "tigr.c")
+		tigrCContent, err := os.ReadFile(tigrCSrc)
+		if err != nil {
+			return fmt.Errorf("failed to read tigr.c from %s: %w", tigrCSrc, err)
+		}
+		if err := os.WriteFile(tigrCDst, tigrCContent, 0644); err != nil {
+			return fmt.Errorf("failed to write tigr.c: %w", err)
+		}
+		DebugLogPrintf("Copied tigr.c to %s", tigrCDst)
+
+		// Copy tigr.h
+		tigrHSrc := filepath.Join(cse.LinkRuntime, "graphics", "cpp", "tigr.h")
+		tigrHDst := filepath.Join(cse.OutputDir, "tigr.h")
+		tigrHContent, err := os.ReadFile(tigrHSrc)
+		if err != nil {
+			return fmt.Errorf("failed to read tigr.h from %s: %w", tigrHSrc, err)
+		}
+		if err := os.WriteFile(tigrHDst, tigrHContent, 0644); err != nil {
+			return fmt.Errorf("failed to write tigr.h: %w", err)
+		}
+		DebugLogPrintf("Copied tigr.h to %s", tigrHDst)
+	}
+
 	return nil
 }
