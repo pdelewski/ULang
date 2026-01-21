@@ -197,6 +197,11 @@ pub fn PollEvents(mut w: Window) -> (Window, bool) {
         LAST_KEY.with(|k| *k.borrow_mut() = ch);
     }
 
+    // Also check for DEL (127) which some systems use for backspace
+    if ch == 127 {
+        LAST_KEY.with(|k| *k.borrow_mut() = 8);  // Normalize to backspace
+    }
+
     // Check special keys that don't produce characters
     // Use our own state tracking for reliable single-press detection
     // ALWAYS read current state and update prev_state to avoid double-detection

@@ -111,11 +111,15 @@ inline std::tuple<Window, bool> PollEvents(Window w) {
     lastKeyPressed = 0;
 
     // Use tigrReadChar for character input (letters, numbers, space, etc.)
-    // This is the primary method and avoids double-detection issues
     // Note: Ignore '\n' (10) as some systems send CRLF for Enter - we use '\r' (13) only
     int ch = tigrReadChar(win);
     if (ch > 0 && ch < 128 && ch != 10) {
         lastKeyPressed = ch;
+    }
+
+    // Also check for DEL (127) which some systems use for backspace
+    if (ch == 127) {
+        lastKeyPressed = 8;  // Normalize to backspace
     }
 
     // Check special keys that don't produce characters
