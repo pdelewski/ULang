@@ -202,6 +202,10 @@ func main() {
 					// Clear the character at cursor position
 					addr := TextScreenBase + (cursorRow * TextCols) + cursorCol
 					c.Memory[addr] = 32 // space
+				} else if cursorRow > 0 {
+					// At beginning of line - move to end of previous line
+					cursorRow = cursorRow - 1
+					cursorCol = TextCols - 1
 				}
 			} else if key >= 32 && key <= 126 {
 				// Printable character
