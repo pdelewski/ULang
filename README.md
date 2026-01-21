@@ -98,7 +98,7 @@ Transpile to C# and Rust:
 ./goany -source=../examples/uql -output=uql -backend=cs,rust
 ```
 
-Transpile graphics demo with tigr (default, C++ only):
+Transpile graphics demo with tigr (default):
 ```bash
 ./goany -source=../examples/graphics-demo -output=./build/graphics-demo -backend=cpp -link-runtime=../runtime
 ```
