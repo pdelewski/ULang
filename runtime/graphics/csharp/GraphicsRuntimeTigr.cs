@@ -210,38 +210,42 @@ namespace graphics
             lastKeyPressed = 0;
 
             // Use tigrReadChar for character input
+            // Note: Ignore '\n' (10) as some systems send CRLF for Enter - we use '\r' (13) only
             int ch = Tigr.tigrReadChar(win);
-            if (ch > 0 && ch < 128)
+            if (ch > 0 && ch < 128 && ch != 10)
             {
                 lastKeyPressed = ch;
             }
 
             // Check special keys using our own state tracking
+            // ALWAYS read current state and update prevKeyState to avoid double-detection
+            bool[] currKeyState = new bool[7];
+            currKeyState[0] = Tigr.tigrKeyHeld(win, Tigr.TK_RETURN) != 0;
+            currKeyState[1] = Tigr.tigrKeyHeld(win, Tigr.TK_BACKSPACE) != 0;
+            currKeyState[2] = Tigr.tigrKeyHeld(win, Tigr.TK_ESCAPE) != 0;
+            currKeyState[3] = Tigr.tigrKeyHeld(win, Tigr.TK_LEFT) != 0;
+            currKeyState[4] = Tigr.tigrKeyHeld(win, Tigr.TK_RIGHT) != 0;
+            currKeyState[5] = Tigr.tigrKeyHeld(win, Tigr.TK_UP) != 0;
+            currKeyState[6] = Tigr.tigrKeyHeld(win, Tigr.TK_DOWN) != 0;
+
+            // Only detect key press if no character was read via tigrReadChar
             if (lastKeyPressed == 0)
             {
-                bool[] currKeyState = new bool[7];
-                currKeyState[0] = Tigr.tigrKeyHeld(win, Tigr.TK_RETURN) != 0;
-                currKeyState[1] = Tigr.tigrKeyHeld(win, Tigr.TK_BACKSPACE) != 0;
-                currKeyState[2] = Tigr.tigrKeyHeld(win, Tigr.TK_ESCAPE) != 0;
-                currKeyState[3] = Tigr.tigrKeyHeld(win, Tigr.TK_LEFT) != 0;
-                currKeyState[4] = Tigr.tigrKeyHeld(win, Tigr.TK_RIGHT) != 0;
-                currKeyState[5] = Tigr.tigrKeyHeld(win, Tigr.TK_UP) != 0;
-                currKeyState[6] = Tigr.tigrKeyHeld(win, Tigr.TK_DOWN) != 0;
-
                 // Detect key press (transition from not pressed to pressed)
-                if (currKeyState[0] && !prevKeyState[0]) lastKeyPressed = 13;
-                else if (currKeyState[1] && !prevKeyState[1]) lastKeyPressed = 8;
+                // Note: TK_RETURN (index 0) is NOT detected here - Enter is handled solely via tigrReadChar
+                // to avoid double-detection due to timing differences between tigrReadChar and tigrKeyHeld
+                if (currKeyState[1] && !prevKeyState[1]) lastKeyPressed = 8;
                 else if (currKeyState[2] && !prevKeyState[2]) lastKeyPressed = 27;
                 else if (currKeyState[3] && !prevKeyState[3]) lastKeyPressed = 256;
                 else if (currKeyState[4] && !prevKeyState[4]) lastKeyPressed = 257;
                 else if (currKeyState[5] && !prevKeyState[5]) lastKeyPressed = 258;
                 else if (currKeyState[6] && !prevKeyState[6]) lastKeyPressed = 259;
+            }
 
-                // Update previous state
-                for (int i = 0; i < 7; i++)
-                {
-                    prevKeyState[i] = currKeyState[i];
-                }
+            // ALWAYS update previous state to prevent double-detection
+            for (int i = 0; i < 7; i++)
+            {
+                prevKeyState[i] = currKeyState[i];
             }
 
             // Check if window was closed during event processing

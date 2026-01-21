@@ -191,31 +191,34 @@ pub fn PollEvents(mut w: Window) -> (Window, bool) {
     LAST_KEY.with(|k| *k.borrow_mut() = 0);
 
     // Use tigrReadChar for character input
+    // Note: Ignore '\n' (10) as some systems send CRLF for Enter - we use '\r' (13) only
     let ch = unsafe { tigrReadChar(win) };
-    if ch > 0 && ch < 128 {
+    if ch > 0 && ch < 128 && ch != 10 {
         LAST_KEY.with(|k| *k.borrow_mut() = ch);
     }
 
     // Check special keys that don't produce characters
     // Use our own state tracking for reliable single-press detection
-    LAST_KEY.with(|k| {
-        if *k.borrow() == 0 {
-            PREV_KEY_STATE.with(|prev| {
-                let mut prev_state = prev.borrow_mut();
-                let curr_state: [bool; 7] = unsafe {[
-                    tigrKeyHeld(win, TK_RETURN) != 0,
-                    tigrKeyHeld(win, TK_BACKSPACE) != 0,
-                    tigrKeyHeld(win, TK_ESCAPE) != 0,
-                    tigrKeyHeld(win, TK_LEFT) != 0,
-                    tigrKeyHeld(win, TK_RIGHT) != 0,
-                    tigrKeyHeld(win, TK_UP) != 0,
-                    tigrKeyHeld(win, TK_DOWN) != 0,
-                ]};
+    // ALWAYS read current state and update prev_state to avoid double-detection
+    PREV_KEY_STATE.with(|prev| {
+        let mut prev_state = prev.borrow_mut();
+        let curr_state: [bool; 7] = unsafe {[
+            tigrKeyHeld(win, TK_RETURN) != 0,
+            tigrKeyHeld(win, TK_BACKSPACE) != 0,
+            tigrKeyHeld(win, TK_ESCAPE) != 0,
+            tigrKeyHeld(win, TK_LEFT) != 0,
+            tigrKeyHeld(win, TK_RIGHT) != 0,
+            tigrKeyHeld(win, TK_UP) != 0,
+            tigrKeyHeld(win, TK_DOWN) != 0,
+        ]};
 
+        // Only detect key press if no character was read via tigrReadChar
+        LAST_KEY.with(|k| {
+            if *k.borrow() == 0 {
                 // Detect key press (transition from not pressed to pressed)
-                if curr_state[0] && !prev_state[0] {
-                    *k.borrow_mut() = 13;
-                } else if curr_state[1] && !prev_state[1] {
+                // Note: TK_RETURN (index 0) is NOT detected here - Enter is handled solely via tigrReadChar
+                // to avoid double-detection due to timing differences between tigrReadChar and tigrKeyHeld
+                if curr_state[1] && !prev_state[1] {
                     *k.borrow_mut() = 8;
                 } else if curr_state[2] && !prev_state[2] {
                     *k.borrow_mut() = 27;
@@ -228,11 +231,11 @@ pub fn PollEvents(mut w: Window) -> (Window, bool) {
                 } else if curr_state[6] && !prev_state[6] {
                     *k.borrow_mut() = 259;
                 }
+            }
+        });
 
-                // Update previous state
-                *prev_state = curr_state;
-            });
-        }
+        // ALWAYS update previous state to prevent double-detection
+        *prev_state = curr_state;
     });
 
     // Check if window was closed during event processing

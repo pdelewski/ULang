@@ -182,6 +182,12 @@ func main() {
 		// Handle keyboard input
 		key := graphics.GetLastKey()
 		if key != 0 {
+			// Clear old cursor BEFORE changing position
+			oldCursorAddr := TextScreenBase + (cursorRow * TextCols) + cursorCol
+			if c.Memory[oldCursorAddr] == 95 {
+				c.Memory[oldCursorAddr] = 32 // clear old cursor
+			}
+
 			if key == 13 {
 				// Enter - move to next line
 				cursorCol = 0
@@ -209,19 +215,6 @@ func main() {
 						cursorRow = TextRows - 1
 					}
 				}
-			}
-			// Update cursor position (underscore)
-			// First clear old cursor positions on current row
-			i := 0
-			for {
-				if i >= TextCols {
-					break
-				}
-				oldAddr := TextScreenBase + (cursorRow * TextCols) + i
-				if c.Memory[oldAddr] == 95 {
-					c.Memory[oldAddr] = 32 // clear old cursor
-				}
-				i = i + 1
 			}
 			// Draw cursor at new position
 			cursorAddr := TextScreenBase + (cursorRow * TextCols) + cursorCol
