@@ -9,8 +9,31 @@ A Go language transpiler that generates portable code for multiple target platfo
 This project provides a foundation for writing portable libraries in Go that can be transpiled to multiple backend languages. Currently supported backends:
 
 - **C++** - generates `.cpp` files
-- **C#** - generates `.cs` files
+- **C#** (.NET) - generates `.cs` files
 - **Rust** - generates `.rs` files
+
+## Project Goals
+
+The main aim of goany is to provide a tool for writing **portable applications and libraries** that work across different programming languages and platforms.
+
+### Key Objectives
+
+1. **Cross-language portability** - Write code once and transpile it to C++, Rust, and C#/.NET, enabling code reuse across different ecosystems and platforms.
+
+2. **Near 1-to-1 translation** - The generated code maintains almost direct correspondence to the original source, making it readable, debuggable, and easy to understand.
+
+3. **Focused feature set** - goany intentionally does not support all Go language features. The goal is to support the subset needed to write reusable libraries across languages, not to be a complete Go transpiler.
+
+### Important Note
+
+> **All valid goany programs are valid Go programs, but not vice-versa.**
+
+This means:
+- You can compile and run any goany program with the standard Go toolchain
+- Not every Go program can be transpiled by goany (only the supported subset)
+- goany source files are regular `.go` files that follow Go syntax
+
+This design allows you to develop and test your code using Go's excellent tooling, then transpile to other languages when ready for deployment.
 
 ## Building
 
