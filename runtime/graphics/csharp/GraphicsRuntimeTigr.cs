@@ -217,6 +217,12 @@ namespace graphics
                 lastKeyPressed = ch;
             }
 
+            // Also check for DEL (127) which some systems use for backspace
+            if (ch == 127)
+            {
+                lastKeyPressed = 8;  // Normalize to backspace
+            }
+
             // Check special keys using our own state tracking
             // ALWAYS read current state and update prevKeyState to avoid double-detection
             bool[] currKeyState = new bool[7];
