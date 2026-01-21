@@ -224,4 +224,4 @@ goany/
 
 ## License
 
-This project is a personal experiment for exploring language transpilation concepts.
+This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
