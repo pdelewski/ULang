@@ -194,6 +194,36 @@ BRK
   - macOS: `brew install sdl2`
   - Ubuntu: `apt-get install libsdl2-dev`
 
+## Roadmap: Evolution to Full C64 Emulator
+
+The long-term goal is to evolve this project into a complete Commodore 64 emulator. The planned evolution path:
+
+```
+Current State (Hybrid)
+    │
+    │  Go handles input/rendering, 6502 for screen memory
+    ↓
+Add Go-based BASIC interpreter
+    │
+    │  Functional C64 BASIC V2 commands
+    ↓
+Replace Go keyboard with CIA emulation
+    │
+    │  Accurate keyboard matrix scanning via CIA chip
+    ↓
+Replace Go rendering with VIC-II emulation
+    │
+    │  Raster timing, sprites, screen modes
+    ↓
+Swap in real C64 ROMs
+    │
+    │  Load actual BASIC ($A000-$BFFF) and KERNAL ($E000-$FFFF) ROMs
+    ↓
+Full Emulator
+```
+
+Each step produces a working system while gradually moving toward authentic hardware emulation.
+
 ## See Also
 
 - [graphics-demo](../graphics-demo/) - Graphics runtime demonstration
