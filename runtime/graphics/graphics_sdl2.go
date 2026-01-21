@@ -1,12 +1,13 @@
+//go:build sdl2
+
 // Package graphics provides a cross-platform 2D graphics API.
-// This package is designed to be transpiled to C++, C#, and Rust,
-// with each backend using SDL2 for window management and rendering.
+// This package is designed to be transpiled to C++, C#, and Rust.
 //
-// For Go execution, this uses CGO to bind directly to SDL2 via the go/ subpackage.
-// For transpiled code, the backend-specific runtime implementations are used.
+// For Go execution, this uses CGO to bind to the graphics library.
+// This file uses the SDL2 backend. Build with: go build -tags sdl2
 package graphics
 
-import "runtime/graphics/go"
+import sdl "runtime/graphics/go/sdl2"
 
 // Window represents a graphics window with an SDL2 renderer.
 type Window struct {
@@ -94,7 +95,7 @@ func IsRunning(w Window) bool {
 
 // PollEvents processes pending events and returns updated window and false if quit requested.
 func PollEvents(w Window) (Window, bool) {
-	if sdl.PollEvents() {
+	if sdl.PollEvents(w.handle) {
 		w.running = false
 		return w, false
 	}
