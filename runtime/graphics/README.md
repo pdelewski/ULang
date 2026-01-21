@@ -179,8 +179,8 @@ go build -tags sdl2
 ```
 runtime/graphics/
 ├── go.mod
-├── graphics.go                    # Go API (tigr backend, default)
-├── graphics_sdl2.go               # Go API (SDL2 backend, build tag: sdl2)
+├── graphics_tigr.go               # Go API wrapper, forwards to go/tigr/ (default)
+├── graphics_sdl2.go               # Go API wrapper, forwards to go/sdl2/ (build tag: sdl2)
 ├── README.md
 ├── go/
 │   ├── tigr/
