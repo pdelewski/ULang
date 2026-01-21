@@ -1643,10 +1643,10 @@ func (cse *CSharpEmitter) CopyGraphicsRuntime() error {
 	case "tigr":
 		runtimeFileName = "GraphicsRuntimeTigr.cs"
 	case "sdl2":
-		runtimeFileName = "GraphicsRuntime.cs"
+		runtimeFileName = "GraphicsRuntimeSDL2.cs"
 	default:
 		// For "none" or unknown, use SDL2 runtime as fallback
-		runtimeFileName = "GraphicsRuntime.cs"
+		runtimeFileName = "GraphicsRuntimeSDL2.cs"
 	}
 
 	// Source path: LinkRuntime points to runtime directory, graphics runtime is in graphics/csharp/
