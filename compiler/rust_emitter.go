@@ -3391,10 +3391,10 @@ func (re *RustEmitter) GenerateGraphicsMod() error {
 	case "tigr":
 		runtimeFileName = "graphics_runtime_tigr.rs"
 	case "sdl2":
-		runtimeFileName = "graphics_runtime.rs"
+		runtimeFileName = "graphics_runtime_sdl2.rs"
 	default:
 		// For "none" or unknown, use SDL2 runtime as fallback
-		runtimeFileName = "graphics_runtime.rs"
+		runtimeFileName = "graphics_runtime_sdl2.rs"
 	}
 
 	// Source path: LinkRuntime points to runtime directory, graphics runtime is in graphics/rust/
