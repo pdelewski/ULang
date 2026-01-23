@@ -37,6 +37,27 @@ func (sema *SemaChecker) PreVisitPackage(pkg *packages.Package, indent int) {
 
 func (sema *SemaChecker) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 	sema.constCtx = true
+
+	// Check if the constant is declared without an explicit type
+	if sema.pkg != nil && sema.pkg.TypesInfo != nil {
+		if obj := sema.pkg.TypesInfo.Defs[node]; obj != nil {
+			if constObj, ok := obj.(*types.Const); ok {
+				if basic, ok := constObj.Type().(*types.Basic); ok {
+					if basic.Info()&types.IsUntyped != 0 {
+						fmt.Printf("\033[33m\033[1mWarning: constant '%s' declared without explicit type\033[0m\n", node.Name)
+						fmt.Println("  For cross-platform compatibility, constants should have explicit types.")
+						fmt.Println()
+						fmt.Println("  \033[33mInstead of:\033[0m")
+						fmt.Printf("    const %s = value\n", node.Name)
+						fmt.Println()
+						fmt.Println("  \033[32mUse explicit type:\033[0m")
+						fmt.Printf("    const %s int = value\n", node.Name)
+						fmt.Println()
+					}
+				}
+			}
+		}
+	}
 }
 
 func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
