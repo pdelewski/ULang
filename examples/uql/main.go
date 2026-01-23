@@ -5,6 +5,7 @@ import (
 	"uql/emitter"
 	"uql/lexer"
 	"uql/parser"
+	"uql/transform"
 )
 
 func main() {
@@ -23,8 +24,15 @@ func main() {
 		fmt.Println("Error parsing query")
 	}
 
+	// Emit UQL AST representation
 	result := emitter.EmitUql(astTree)
 	fmt.Print(result)
+
+	// Transform to PostgreSQL AST and emit SQL
+	fmt.Println("\n=== PostgreSQL Emitter ===")
+	pgAst := transform.TransformToPostgreSQL(astTree)
+	sql := emitter.EmitPostgreSQL(pgAst)
+	fmt.Println(sql)
 
 	lexer.TokenizeTest()
 }
