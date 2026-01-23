@@ -144,15 +144,7 @@ func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 
 // PreVisitAssignStmt checks for problematic patterns like: x += x + a
 // where x is both borrowed (for +=) and moved (in x + a) in the same statement
-// Also checks for untyped constant assignments to small int types
 func (sema *SemaChecker) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
-	// Check for untyped constant assignments to small int types (int8, int16, etc.)
-	for i, lhs := range node.Lhs {
-		if i < len(node.Rhs) {
-			sema.checkConstantAssignment(lhs, node.Rhs[i])
-		}
-	}
-
 	// Check for += with string concatenation on RHS that uses the same variable
 	if node.Tok == token.ADD_ASSIGN {
 		for _, lhs := range node.Lhs {
@@ -235,98 +227,8 @@ func isNilIdent(expr ast.Expr) bool {
 	return false
 }
 
-// isSmallIntType checks if a type is int8 or int16 (types that need explicit casts from untyped constants in Rust)
-func isSmallIntType(t types.Type) bool {
-	if basic, ok := t.(*types.Basic); ok {
-		return basic.Kind() == types.Int8 || basic.Kind() == types.Int16 ||
-			basic.Kind() == types.Uint8 || basic.Kind() == types.Uint16
-	}
-	return false
-}
-
-// isUntypedConstant checks if an expression refers to an untyped constant declaration
-func (sema *SemaChecker) isUntypedConstant(expr ast.Expr) bool {
-	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
-		return false
-	}
-
-	// Get the identifier (could be direct ident or selector like pkg.Const)
-	var ident *ast.Ident
-	switch e := expr.(type) {
-	case *ast.Ident:
-		ident = e
-	case *ast.SelectorExpr:
-		ident = e.Sel
-	default:
-		return false
-	}
-
-	// Look up the constant's definition to check if it was declared without a type
-	if obj := sema.pkg.TypesInfo.Uses[ident]; obj != nil {
-		if constObj, ok := obj.(*types.Const); ok {
-			// Check the type of the constant at declaration
-			// An untyped constant will have an untyped basic type
-			if basic, ok := constObj.Type().(*types.Basic); ok {
-				return basic.Info()&types.IsUntyped != 0
-			}
-		}
-	}
-	return false
-}
-
-// isTypeCast checks if an expression is a type cast (e.g., int8(value))
-func isTypeCast(expr ast.Expr) bool {
-	if call, ok := expr.(*ast.CallExpr); ok {
-		// Type casts look like function calls with a type as the function
-		if _, ok := call.Fun.(*ast.Ident); ok {
-			return true // e.g., int8(value)
-		}
-		if _, ok := call.Fun.(*ast.SelectorExpr); ok {
-			return true // e.g., pkg.Type(value)
-		}
-	}
-	return false
-}
-
-// checkConstantAssignment checks for untyped constant assignments to small int types
-func (sema *SemaChecker) checkConstantAssignment(lhs ast.Expr, rhs ast.Expr) {
-	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
-		return
-	}
-
-	// Skip if RHS is already a type cast
-	if isTypeCast(rhs) {
-		return
-	}
-
-	// Get the type of the LHS
-	lhsType := sema.pkg.TypesInfo.TypeOf(lhs)
-	if lhsType == nil {
-		return
-	}
-
-	// Check if LHS is a small int type (int8, int16, uint8, uint16)
-	if !isSmallIntType(lhsType) {
-		return
-	}
-
-	// Check if RHS is an untyped constant
-	if sema.isUntypedConstant(rhs) {
-		typeName := lhsType.String()
-		fmt.Printf("\033[33m\033[1mWarning: untyped constant assigned to %s field without explicit cast\033[0m\n", typeName)
-		fmt.Println("  Rust requires explicit casts for numeric type conversions.")
-		fmt.Println()
-		fmt.Println("  \033[33mInstead of:\033[0m")
-		fmt.Printf("    field = CONSTANT\n")
-		fmt.Println()
-		fmt.Println("  \033[32mUse explicit cast:\033[0m")
-		fmt.Printf("    field = %s(CONSTANT)\n", typeName)
-	}
-}
-
 // PreVisitCompositeLit checks for struct field initialization order
 // C++ designated initializers require fields to be in declaration order
-// Also checks for untyped constant assignments to small int fields
 func (sema *SemaChecker) PreVisitCompositeLit(node *ast.CompositeLit, indent int) {
 	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
 		return
@@ -344,13 +246,6 @@ func (sema *SemaChecker) PreVisitCompositeLit(node *ast.CompositeLit, indent int
 		return
 	}
 
-	// Build a map of field names to their types
-	fieldTypes := make(map[string]types.Type)
-	for i := 0; i < structType.NumFields(); i++ {
-		field := structType.Field(i)
-		fieldTypes[field.Name()] = field.Type()
-	}
-
 	// Get field names from the struct declaration (in order)
 	declaredFields := make([]string, structType.NumFields())
 	fieldIndex := make(map[string]int)
@@ -366,21 +261,6 @@ func (sema *SemaChecker) PreVisitCompositeLit(node *ast.CompositeLit, indent int
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
 			if ident, ok := kv.Key.(*ast.Ident); ok {
 				initFields = append(initFields, ident.Name)
-
-				// Check for untyped constant assignment to small int field
-				if fieldType, exists := fieldTypes[ident.Name]; exists {
-					if isSmallIntType(fieldType) && !isTypeCast(kv.Value) && sema.isUntypedConstant(kv.Value) {
-						typeName := fieldType.String()
-						fmt.Printf("\033[33m\033[1mWarning: untyped constant assigned to %s field '%s' without explicit cast\033[0m\n", typeName, ident.Name)
-						fmt.Println("  Rust requires explicit casts for numeric type conversions.")
-						fmt.Println()
-						fmt.Println("  \033[33mInstead of:\033[0m")
-						fmt.Printf("    %s: CONSTANT\n", ident.Name)
-						fmt.Println()
-						fmt.Println("  \033[32mUse explicit cast:\033[0m")
-						fmt.Printf("    %s: %s(CONSTANT)\n", ident.Name, typeName)
-					}
-				}
 			}
 		}
 	}
