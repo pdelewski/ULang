@@ -111,6 +111,11 @@ type RustEmitter struct {
 	captureRangeExpr             bool
 	suppressRangeEmit            bool
 	rangeStmtIndent              int
+	// Liveness analysis for cross-statement clone detection
+	varFutureUses                map[string]bool   // Variables that will be used in later statements from current position
+	currentFuncBody              *ast.BlockStmt    // Current function body being processed
+	currentStmtIndex             int               // Index of current statement in function body
+	stmtVarUsages                []map[string]bool // Variable usages per statement
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -228,6 +233,163 @@ func tokensToStrings(tokens []Token) []string {
 		result[i] = token.Content
 	}
 	return result
+}
+
+// collectIdentifiersInCallArgs collects all identifiers used as function call arguments in an expression
+func (re *RustEmitter) collectIdentifiersInCallArgs(expr ast.Expr, result map[string]bool) {
+	if expr == nil {
+		return
+	}
+	switch e := expr.(type) {
+	case *ast.Ident:
+		// Don't collect type names or package names
+		if obj := re.pkg.TypesInfo.ObjectOf(e); obj != nil {
+			if _, isTypeName := obj.(*types.TypeName); isTypeName {
+				return
+			}
+			if _, isPkgName := obj.(*types.PkgName); isPkgName {
+				return
+			}
+		}
+		result[e.Name] = true
+	case *ast.CallExpr:
+		// Collect identifiers in the arguments
+		for _, arg := range e.Args {
+			re.collectIdentifiersInCallArgs(arg, result)
+		}
+		// Also check the function being called (for method receivers)
+		re.collectIdentifiersInCallArgs(e.Fun, result)
+	case *ast.SelectorExpr:
+		// For selectors like x.Method(), collect the base (x)
+		re.collectIdentifiersInCallArgs(e.X, result)
+	case *ast.IndexExpr:
+		re.collectIdentifiersInCallArgs(e.X, result)
+		re.collectIdentifiersInCallArgs(e.Index, result)
+	case *ast.BinaryExpr:
+		re.collectIdentifiersInCallArgs(e.X, result)
+		re.collectIdentifiersInCallArgs(e.Y, result)
+	case *ast.UnaryExpr:
+		re.collectIdentifiersInCallArgs(e.X, result)
+	case *ast.ParenExpr:
+		re.collectIdentifiersInCallArgs(e.X, result)
+	case *ast.TypeAssertExpr:
+		re.collectIdentifiersInCallArgs(e.X, result)
+	case *ast.CompositeLit:
+		for _, elt := range e.Elts {
+			re.collectIdentifiersInCallArgs(elt, result)
+		}
+	case *ast.KeyValueExpr:
+		re.collectIdentifiersInCallArgs(e.Value, result)
+	}
+}
+
+// collectIdentifiersInStmt collects all identifiers used as function call arguments in a statement
+func (re *RustEmitter) collectIdentifiersInStmt(stmt ast.Stmt) map[string]bool {
+	result := make(map[string]bool)
+	if stmt == nil {
+		return result
+	}
+	switch s := stmt.(type) {
+	case *ast.ExprStmt:
+		re.collectIdentifiersInCallArgs(s.X, result)
+	case *ast.AssignStmt:
+		for _, rhs := range s.Rhs {
+			re.collectIdentifiersInCallArgs(rhs, result)
+		}
+	case *ast.DeclStmt:
+		if genDecl, ok := s.Decl.(*ast.GenDecl); ok {
+			for _, spec := range genDecl.Specs {
+				if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+					for _, value := range valueSpec.Values {
+						re.collectIdentifiersInCallArgs(value, result)
+					}
+				}
+			}
+		}
+	case *ast.ReturnStmt:
+		for _, r := range s.Results {
+			re.collectIdentifiersInCallArgs(r, result)
+		}
+	case *ast.IfStmt:
+		re.collectIdentifiersInCallArgs(s.Cond, result)
+		// Recursively process body
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				for k, v := range re.collectIdentifiersInStmt(bodyStmt) {
+					result[k] = v
+				}
+			}
+		}
+		if s.Else != nil {
+			for k, v := range re.collectIdentifiersInStmt(s.Else) {
+				result[k] = v
+			}
+		}
+	case *ast.ForStmt:
+		re.collectIdentifiersInCallArgs(s.Cond, result)
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				for k, v := range re.collectIdentifiersInStmt(bodyStmt) {
+					result[k] = v
+				}
+			}
+		}
+	case *ast.RangeStmt:
+		re.collectIdentifiersInCallArgs(s.X, result)
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				for k, v := range re.collectIdentifiersInStmt(bodyStmt) {
+					result[k] = v
+				}
+			}
+		}
+	case *ast.BlockStmt:
+		for _, bodyStmt := range s.List {
+			for k, v := range re.collectIdentifiersInStmt(bodyStmt) {
+				result[k] = v
+			}
+		}
+	case *ast.SwitchStmt:
+		re.collectIdentifiersInCallArgs(s.Tag, result)
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				for k, v := range re.collectIdentifiersInStmt(bodyStmt) {
+					result[k] = v
+				}
+			}
+		}
+	}
+	return result
+}
+
+// analyzeVariableLiveness performs liveness analysis for a function body
+// It builds stmtVarUsages which maps each statement index to the set of variables used in that statement
+func (re *RustEmitter) analyzeVariableLiveness(body *ast.BlockStmt) {
+	if body == nil {
+		re.stmtVarUsages = nil
+		re.currentFuncBody = nil
+		return
+	}
+	re.currentFuncBody = body
+	re.stmtVarUsages = make([]map[string]bool, len(body.List))
+	for i, stmt := range body.List {
+		re.stmtVarUsages[i] = re.collectIdentifiersInStmt(stmt)
+	}
+	re.currentStmtIndex = 0
+}
+
+// isVariableUsedInLaterStatements checks if a variable will be used in any statement after the current one
+func (re *RustEmitter) isVariableUsedInLaterStatements(varName string) bool {
+	if re.stmtVarUsages == nil || re.currentFuncBody == nil {
+		return false
+	}
+	// Check all statements after the current one
+	for i := re.currentStmtIndex + 1; i < len(re.stmtVarUsages); i++ {
+		if re.stmtVarUsages[i][varName] {
+			return true
+		}
+	}
+	return false
 }
 
 func (re *RustEmitter) SetFile(file *os.File) {
@@ -405,6 +567,23 @@ func (re *RustEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 	var str string
 	str = re.emitAsString(fmt.Sprintf("pub fn %s", node.Name), 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+}
+
+func (re *RustEmitter) PreVisitFuncDeclBody(node *ast.BlockStmt, indent int) {
+	// Perform liveness analysis before emitting the function body
+	re.analyzeVariableLiveness(node)
+}
+
+func (re *RustEmitter) PreVisitBlockStmtList(node ast.Stmt, index int, indent int) {
+	// Update current statement index if this statement is in the function body
+	if re.currentFuncBody != nil {
+		for i, stmt := range re.currentFuncBody.List {
+			if stmt == node {
+				re.currentStmtIndex = i
+				break
+			}
+		}
+	}
 }
 
 func (re *RustEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
@@ -1781,6 +1960,46 @@ func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) 
 				}
 			}
 		}
+
+		// Add .clone() for simple identifier RHS of non-Copy types
+		// This handles cases like: x = y where y is a struct/string/slice variable
+		// Skip if RHS is an index expression (already clones) or call expression
+		if rhsIdent, ok := node.Rhs[0].(*ast.Ident); ok {
+			// Skip constants - they don't need cloning
+			if obj := re.pkg.TypesInfo.Uses[rhsIdent]; obj != nil {
+				if _, isConst := obj.(*types.Const); isConst {
+					// Constants don't need clone
+				} else if rhsType.Type != nil {
+					// Check if it's a non-Copy type that needs cloning
+					needsClone := false
+					typeStr := rhsType.Type.String()
+
+					// String type
+					if typeStr == "string" {
+						needsClone = true
+					}
+
+					// Slice type
+					if strings.HasPrefix(typeStr, "[]") {
+						needsClone = true
+					}
+
+					// Struct type (named or anonymous)
+					if named, ok := rhsType.Type.(*types.Named); ok {
+						if _, isStruct := named.Underlying().(*types.Struct); isStruct {
+							needsClone = true
+						}
+					}
+					if _, isStruct := rhsType.Type.(*types.Struct); isStruct {
+						needsClone = true
+					}
+
+					if needsClone {
+						re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+					}
+				}
+			}
+		}
 	}
 
 	// For local closure assignments, remove the entire statement from token stream
@@ -2158,8 +2377,15 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 			}
 		}
 
-		// Check if it's a named type (potential struct)
+		// Check if it's a named type (potential struct or slice alias)
 		if named, ok := tv.Type.(*types.Named); ok {
+			// Check if underlying type is a slice (e.g., type AST []Statement)
+			if _, isSlice := named.Underlying().(*types.Slice); isSlice {
+				if !re.currentCallIsAppend {
+					re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+				}
+				return
+			}
 			// Check if underlying type is a struct
 			if underlyingStruct, isStruct := named.Underlying().(*types.Struct); isStruct {
 				// Check if any field has interface{} type (Box<dyn Any> doesn't implement Clone)
@@ -2186,6 +2412,43 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 		if _, isStruct := tv.Type.(*types.Struct); isStruct {
 			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 			return
+		}
+	}
+
+	// Liveness-based clone: if this identifier will be used in a later statement,
+	// we need to clone it now to avoid Rust move errors
+	if ident, isIdent := node.(*ast.Ident); isIdent {
+		if re.isVariableUsedInLaterStatements(ident.Name) {
+			// Check if the type requires cloning (non-Copy types)
+			if tv.Type != nil {
+				typeStr := tv.Type.String()
+				// Clone for slice/Vec types
+				if strings.Contains(typeStr, "[]") {
+					if !re.currentCallIsAppend {
+						re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+					}
+					return
+				}
+				// Clone for string types
+				if typeStr == "string" {
+					re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+					return
+				}
+				// Clone for named types (structs or slices)
+				if named, ok := tv.Type.(*types.Named); ok {
+					// Check if underlying type is a slice (e.g., type AST []Statement)
+					if _, isSlice := named.Underlying().(*types.Slice); isSlice {
+						if !re.currentCallIsAppend {
+							re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+						}
+						return
+					}
+					if _, isStruct := named.Underlying().(*types.Struct); isStruct {
+						re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+						return
+					}
+				}
+			}
 		}
 	}
 }

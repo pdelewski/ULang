@@ -1391,6 +1391,10 @@ func (cse *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) 
 				if constType == cse.pkg.TypesInfo.Defs[node].Type().String() {
 					constType = trimBeforeChar(constType, '.')
 				}
+				// Map Go types to C# types (e.g., int8 -> sbyte)
+				if mappedType, ok := csTypesMap[constType]; ok {
+					constType = mappedType
+				}
 				str := cse.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), 0)
 
 				cse.gir.emitToFileBuffer(str, EmptyVisitMethod)

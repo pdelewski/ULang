@@ -17,6 +17,9 @@ import (
 // 4. type switch statements
 // 5. string variable reuse after concatenation (Rust move semantics)
 // 6. struct field initialization out of declaration order (C++ designated initializers)
+// 7. same variable multiple times in expression (Rust ownership)
+// 8. slice self-assignment (Rust borrow checker)
+// 9. multiple closures capturing same variable (Rust borrow checker)
 //
 // Supported (with limitations):
 // - interface{} / any - maps to std::any (C++), Box<dyn Any> (Rust), object (C#)
@@ -27,16 +30,48 @@ type SemaChecker struct {
 	constCtx bool
 	// Track string variables consumed by concatenation (for Rust compatibility)
 	consumedStringVars map[string]token.Pos
+	// Track variables used in closures for multiple closure detection
+	closureVars map[string]token.Pos
 }
 
 func (sema *SemaChecker) PreVisitPackage(pkg *packages.Package, indent int) {
 	sema.pkg = pkg
 	// Reset consumed variables map for each package
 	sema.consumedStringVars = make(map[string]token.Pos)
+	// Reset closure variables map for each package
+	sema.closureVars = make(map[string]token.Pos)
+}
+
+// PreVisitFuncDecl resets closure tracking for each function
+func (sema *SemaChecker) PreVisitFuncDecl(node *ast.FuncDecl, indent int) {
+	// Reset closure variables for each function to avoid false positives
+	// between closures in different functions
+	sema.closureVars = make(map[string]token.Pos)
 }
 
 func (sema *SemaChecker) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 	sema.constCtx = true
+
+	// Check if the constant is declared without an explicit type
+	if sema.pkg != nil && sema.pkg.TypesInfo != nil {
+		if obj := sema.pkg.TypesInfo.Defs[node]; obj != nil {
+			if constObj, ok := obj.(*types.Const); ok {
+				if basic, ok := constObj.Type().(*types.Basic); ok {
+					if basic.Info()&types.IsUntyped != 0 {
+						fmt.Printf("\033[33m\033[1mWarning: constant '%s' declared without explicit type\033[0m\n", node.Name)
+						fmt.Println("  For cross-platform compatibility, constants should have explicit types.")
+						fmt.Println()
+						fmt.Println("  \033[33mInstead of:\033[0m")
+						fmt.Printf("    const %s = value\n", node.Name)
+						fmt.Println()
+						fmt.Println("  \033[32mUse explicit type:\033[0m")
+						fmt.Printf("    const %s int = value\n", node.Name)
+						fmt.Println()
+					}
+				}
+			}
+		}
+	}
 }
 
 func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
@@ -67,6 +102,9 @@ func (sema *SemaChecker) PreVisitIdent(node *ast.Ident, indent int) {
 			}
 		}
 	}
+
+	// Note: "whole struct use after field access" check removed
+	// This pattern is valid in Go, and Rust handles it via .clone()
 }
 
 func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
@@ -144,7 +182,11 @@ func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 
 // PreVisitAssignStmt checks for problematic patterns like: x += x + a
 // where x is both borrowed (for +=) and moved (in x + a) in the same statement
+// Also checks for slice self-assignment: slice[i] = slice[j]
 func (sema *SemaChecker) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Check for slice self-assignment pattern
+	sema.checkSliceSelfAssignment(node)
+
 	// Check for += with string concatenation on RHS that uses the same variable
 	if node.Tok == token.ADD_ASSIGN {
 		for _, lhs := range node.Lhs {
@@ -171,6 +213,11 @@ func (sema *SemaChecker) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 				}
 			}
 		}
+	}
+
+	// Check for same non-Copy variable in binary expression: f(x) + g(x)
+	for _, rhs := range node.Rhs {
+		sema.checkBinaryExprWithSameVar(rhs)
 	}
 }
 
@@ -265,7 +312,7 @@ func (sema *SemaChecker) PreVisitCompositeLit(node *ast.CompositeLit, indent int
 		}
 	}
 
-	// If no keyed fields, skip the check (positional initialization)
+	// If no keyed fields, skip the order check (positional initialization)
 	if len(initFields) == 0 {
 		return
 	}
@@ -299,3 +346,280 @@ func (sema *SemaChecker) PreVisitCompositeLit(node *ast.CompositeLit, indent int
 		lastIndex = idx
 	}
 }
+
+// isNonCopyType checks if a type requires cloning in Rust (non-Copy types)
+func (sema *SemaChecker) isNonCopyType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	typeStr := t.String()
+	// Strings are non-Copy
+	if typeStr == "string" {
+		return true
+	}
+	// Slices are non-Copy
+	if _, ok := t.Underlying().(*types.Slice); ok {
+		return true
+	}
+	// Named struct types are non-Copy
+	if named, ok := t.(*types.Named); ok {
+		if _, isStruct := named.Underlying().(*types.Struct); isStruct {
+			return true
+		}
+	}
+	return false
+}
+
+// collectIdentifiers collects identifiers that are actually "consumed" (moved) in an expression
+// It excludes identifiers used as the base of selector expressions (field access doesn't move)
+// and identifiers that are the Sel part of selector expressions (field names)
+func (sema *SemaChecker) collectIdentifiers(node ast.Node) []*ast.Ident {
+	var idents []*ast.Ident
+	// Track identifiers that are used as selector bases (field access doesn't move)
+	selectorBases := make(map[*ast.Ident]bool)
+	// Track identifiers that are field names (the Sel part of SelectorExpr)
+	selectorFields := make(map[*ast.Ident]bool)
+
+	// First pass: find all selector bases and field names
+	ast.Inspect(node, func(n ast.Node) bool {
+		if sel, ok := n.(*ast.SelectorExpr); ok {
+			if ident, ok := sel.X.(*ast.Ident); ok {
+				selectorBases[ident] = true
+			}
+			// The Sel part is always the field name, not a variable
+			selectorFields[sel.Sel] = true
+		}
+		return true
+	})
+
+	// Second pass: collect identifiers that are not selector bases or field names
+	ast.Inspect(node, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok {
+			if !selectorBases[ident] && !selectorFields[ident] {
+				idents = append(idents, ident)
+			}
+		}
+		return true
+	})
+	return idents
+}
+
+// getDirectFunctionArgs returns variable names passed directly to a function call
+// Returns empty if the expression is not a direct function call
+func (sema *SemaChecker) getDirectFunctionArgs(expr ast.Expr) map[string]bool {
+	args := make(map[string]bool)
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return args
+	}
+
+	// Skip built-in functions
+	if ident, ok := call.Fun.(*ast.Ident); ok {
+		builtins := map[string]bool{
+			"len": true, "cap": true, "append": true, "copy": true,
+			"make": true, "new": true, "delete": true, "close": true,
+			"panic": true, "recover": true, "print": true, "println": true,
+			"complex": true, "real": true, "imag": true,
+		}
+		if builtins[ident.Name] {
+			return args
+		}
+	}
+
+	// Collect direct identifier arguments
+	for _, arg := range call.Args {
+		if ident, ok := arg.(*ast.Ident); ok {
+			args[ident.Name] = true
+		}
+	}
+	return args
+}
+
+// checkBinaryExprWithSameVar checks for binary expressions like f(x) + g(x)
+// where the same non-Copy variable is passed to function calls on both sides
+func (sema *SemaChecker) checkBinaryExprWithSameVar(node ast.Node) {
+	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
+		return
+	}
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		// Skip closure bodies
+		if _, ok := n.(*ast.FuncLit); ok {
+			return false
+		}
+
+		binExpr, ok := n.(*ast.BinaryExpr)
+		if !ok {
+			return true
+		}
+
+		// Get args from left and right sides (only if they are direct function calls)
+		leftArgs := sema.getDirectFunctionArgs(binExpr.X)
+		rightArgs := sema.getDirectFunctionArgs(binExpr.Y)
+
+		// Check for same variable in both sides
+		for varName := range leftArgs {
+			if rightArgs[varName] {
+				// Check if it's a non-Copy type
+				// We need to find the identifier to get type info
+				var foundIdent *ast.Ident
+				ast.Inspect(binExpr.X, func(inner ast.Node) bool {
+					if ident, ok := inner.(*ast.Ident); ok && ident.Name == varName {
+						foundIdent = ident
+						return false
+					}
+					return true
+				})
+
+				if foundIdent != nil {
+					if obj := sema.pkg.TypesInfo.Uses[foundIdent]; obj != nil {
+						if _, isConst := obj.(*types.Const); !isConst {
+							if _, isFunc := obj.(*types.Func); !isFunc {
+								if sema.isNonCopyType(obj.Type()) {
+									fmt.Println("\033[31m\033[1mCompilation error: same variable used multiple times in expression\033[0m")
+									fmt.Printf("  Variable '%s' (non-Copy type) appears in both sides of a binary expression.\n", varName)
+									fmt.Println("  This pattern fails in Rust due to move semantics.")
+									fmt.Println()
+									fmt.Println("  \033[33mInstead of:\033[0m")
+									fmt.Printf("    foo(%s) + bar(%s)\n", varName, varName)
+									fmt.Println()
+									fmt.Println("  \033[32mUse separate statements:\033[0m")
+									fmt.Printf("    a := foo(%s)\n", varName)
+									fmt.Printf("    b := bar(%s.clone())  // or redesign to avoid multiple uses\n", varName)
+									os.Exit(-1)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+}
+
+// checkSliceSelfAssignment checks for slice[i] = slice[j] pattern
+// This causes Rust borrow checker issues (mutable + immutable borrow)
+func (sema *SemaChecker) checkSliceSelfAssignment(node *ast.AssignStmt) {
+	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
+		return
+	}
+
+	// Check if LHS is an index expression on a slice
+	for _, lhs := range node.Lhs {
+		lhsIndex, ok := lhs.(*ast.IndexExpr)
+		if !ok {
+			continue
+		}
+
+		// Get the slice name from LHS
+		lhsSlice, ok := lhsIndex.X.(*ast.Ident)
+		if !ok {
+			continue
+		}
+
+		// Check if it's a slice type
+		if tv, exists := sema.pkg.TypesInfo.Types[lhsIndex.X]; exists {
+			if _, isSlice := tv.Type.Underlying().(*types.Slice); !isSlice {
+				continue
+			}
+		} else {
+			continue
+		}
+
+		// Check RHS for index expression on the same slice
+		for _, rhs := range node.Rhs {
+			rhsIndex, ok := rhs.(*ast.IndexExpr)
+			if !ok {
+				continue
+			}
+
+			rhsSlice, ok := rhsIndex.X.(*ast.Ident)
+			if !ok {
+				continue
+			}
+
+			// Check if same slice
+			if lhsSlice.Name == rhsSlice.Name {
+				fmt.Println("\033[31m\033[1mCompilation error: slice self-assignment pattern\033[0m")
+				fmt.Printf("  Pattern '%s[i] = %s[j]' is not allowed.\n", lhsSlice.Name, rhsSlice.Name)
+				fmt.Println("  This causes Rust borrow checker issues (simultaneous mutable and immutable borrow).")
+				fmt.Println()
+				fmt.Println("  \033[33mInstead of:\033[0m")
+				fmt.Printf("    %s[i] = %s[j]\n", lhsSlice.Name, rhsSlice.Name)
+				fmt.Println()
+				fmt.Println("  \033[32mUse a temporary variable:\033[0m")
+				fmt.Printf("    tmp := %s[j]\n", rhsSlice.Name)
+				fmt.Printf("    %s[i] = tmp\n", lhsSlice.Name)
+				os.Exit(-1)
+			}
+		}
+	}
+}
+
+// PreVisitFuncLit checks for multiple closures capturing the same non-Copy variable
+func (sema *SemaChecker) PreVisitFuncLit(node *ast.FuncLit, indent int) {
+	if sema.pkg == nil || sema.pkg.TypesInfo == nil {
+		return
+	}
+
+	// Collect all identifiers used in the closure body
+	idents := sema.collectIdentifiers(node.Body)
+
+	// Dedupe: track which variables we've already processed for this closure
+	processedInThisClosure := make(map[string]bool)
+
+	for _, ident := range idents {
+		// Skip if we've already processed this variable name in this closure
+		if processedInThisClosure[ident.Name] {
+			continue
+		}
+
+		// Get the object this identifier refers to
+		if obj := sema.pkg.TypesInfo.Uses[ident]; obj != nil {
+			// Skip constants, functions, and type names
+			if _, isConst := obj.(*types.Const); isConst {
+				continue
+			}
+			if _, isFunc := obj.(*types.Func); isFunc {
+				continue
+			}
+			if _, isTypeName := obj.(*types.TypeName); isTypeName {
+				continue
+			}
+
+			// Check if it's a non-Copy type
+			if !sema.isNonCopyType(obj.Type()) {
+				continue
+			}
+
+			// Check if this is a variable from an outer scope (closure capture)
+			// by verifying it was declared before this function literal
+			if obj.Pos() < node.Pos() {
+				// Mark as processed for this closure
+				processedInThisClosure[ident.Name] = true
+
+				// Check if another closure already captured this variable
+				if prevPos, exists := sema.closureVars[ident.Name]; exists {
+					fmt.Println("\033[31m\033[1mCompilation error: multiple closures capture same variable\033[0m")
+					fmt.Printf("  Variable '%s' (non-Copy type) is captured by multiple closures.\n", ident.Name)
+					fmt.Println("  This causes Rust borrow checker issues.")
+					fmt.Println()
+					fmt.Println("  \033[33mInstead of:\033[0m")
+					fmt.Printf("    fn1 := func() { use(%s) }\n", ident.Name)
+					fmt.Printf("    fn2 := func() { use(%s) }  // error: already captured\n", ident.Name)
+					fmt.Println()
+					fmt.Println("  \033[32mUse Arc/Rc for shared ownership or redesign:\033[0m")
+					fmt.Printf("    %s1 := %s.clone()\n", ident.Name, ident.Name)
+					fmt.Printf("    fn1 := func() { use(%s) }\n", ident.Name)
+					fmt.Printf("    fn2 := func() { use(%s1) }\n", ident.Name)
+					_ = prevPos // suppress unused variable warning
+					os.Exit(-1)
+				}
+				// Mark this variable as captured by a closure
+				sema.closureVars[ident.Name] = node.Pos()
+			}
+		}
+	}
+}
+
