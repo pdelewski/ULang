@@ -605,8 +605,20 @@ func (cppe *CPPEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 func (cppe *CPPEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	assignmentToken := node.Tok.String()
 	if assignmentToken == ":=" && len(node.Lhs) == 1 {
-		str := cppe.emitAsString("auto ", indent)
-		cppe.emitToFile(str)
+		// Check if RHS is a string literal - use std::string instead of auto
+		// to avoid const char* which breaks string concatenation
+		if len(node.Rhs) == 1 {
+			if lit, ok := node.Rhs[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+				str := cppe.emitAsString("std::string ", indent)
+				cppe.emitToFile(str)
+			} else {
+				str := cppe.emitAsString("auto ", indent)
+				cppe.emitToFile(str)
+			}
+		} else {
+			str := cppe.emitAsString("auto ", indent)
+			cppe.emitToFile(str)
+		}
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
 		str := cppe.emitAsString("auto [", indent)
 		cppe.emitToFile(str)

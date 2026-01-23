@@ -3,13 +3,12 @@ package main
 import (
 	"fmt"
 	"uql/emitter"
-	"uql/lexer"
 	"uql/parser"
 	"uql/transform"
 )
 
 func main() {
-	astTree, err := parser.Parse(`
+	uqlTxt := `
  t1 = from table1;
  t2 = from table2;
  t3 = join t1 t2 on t1.id == t2.id;
@@ -18,8 +17,10 @@ func main() {
  t6 = limit t5 100;
  t7 = groupby t4 t4.category count t4.id sum t4.amount;
  t8 = select t6.field1;
-`)
+`
 
+	fmt.Println("input:" + uqlTxt)
+	astTree, err := parser.Parse(uqlTxt)
 	if err != 0 {
 		fmt.Println("Error parsing query")
 	}
@@ -33,6 +34,4 @@ func main() {
 	pgAst := transform.TransformToPostgreSQL(astTree)
 	sql := emitter.EmitPostgreSQL(pgAst)
 	fmt.Println(sql)
-
-	lexer.TokenizeTest()
 }
