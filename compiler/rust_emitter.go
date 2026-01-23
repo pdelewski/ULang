@@ -1781,6 +1781,46 @@ func (re *RustEmitter) PostVisitAssignStmtRhs(node *ast.AssignStmt, indent int) 
 				}
 			}
 		}
+
+		// Add .clone() for simple identifier RHS of non-Copy types
+		// This handles cases like: x = y where y is a struct/string/slice variable
+		// Skip if RHS is an index expression (already clones) or call expression
+		if rhsIdent, ok := node.Rhs[0].(*ast.Ident); ok {
+			// Skip constants - they don't need cloning
+			if obj := re.pkg.TypesInfo.Uses[rhsIdent]; obj != nil {
+				if _, isConst := obj.(*types.Const); isConst {
+					// Constants don't need clone
+				} else if rhsType.Type != nil {
+					// Check if it's a non-Copy type that needs cloning
+					needsClone := false
+					typeStr := rhsType.Type.String()
+
+					// String type
+					if typeStr == "string" {
+						needsClone = true
+					}
+
+					// Slice type
+					if strings.HasPrefix(typeStr, "[]") {
+						needsClone = true
+					}
+
+					// Struct type (named or anonymous)
+					if named, ok := rhsType.Type.(*types.Named); ok {
+						if _, isStruct := named.Underlying().(*types.Struct); isStruct {
+							needsClone = true
+						}
+					}
+					if _, isStruct := rhsType.Type.(*types.Struct); isStruct {
+						needsClone = true
+					}
+
+					if needsClone {
+						re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+					}
+				}
+			}
+		}
 	}
 
 	// For local closure assignments, remove the entire statement from token stream
