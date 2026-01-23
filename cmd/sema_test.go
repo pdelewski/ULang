@@ -116,6 +116,49 @@ func main() {
 `,
 		ExpectedError: "struct field initialization order does not match declaration order",
 	},
+	// Rust ownership pattern checks
+	{
+		Name: "same_var_multiple_times_in_expr_string",
+		Code: `package main
+
+func process(s string) string { return s }
+
+func main() {
+	x := "hello"
+	result := process(x) + process(x)
+	_ = result
+}
+`,
+		ExpectedError: "same variable used multiple times in expression",
+	},
+	{
+		Name: "slice_self_assignment",
+		Code: `package main
+
+func main() {
+	slice := []int{1, 2, 3, 4, 5}
+	i := 0
+	j := 1
+	slice[i] = slice[j]
+	_ = slice
+}
+`,
+		ExpectedError: "slice self-assignment pattern",
+	},
+	{
+		Name: "multiple_closures_capture_same_var",
+		Code: `package main
+
+func main() {
+	x := "hello"
+	fn1 := func() string { return x }
+	fn2 := func() string { return x }
+	_ = fn1
+	_ = fn2
+}
+`,
+		ExpectedError: "multiple closures capture same variable",
+	},
 }
 
 // SemaValidTestCase represents code that SHOULD compile successfully
@@ -166,6 +209,55 @@ func main() {
 		City: "NYC",
 	}
 	_ = p
+}
+`,
+	},
+	// Valid Rust ownership patterns
+	{
+		Name: "same_var_int_multiple_times_ok",
+		Code: `package main
+
+func add(a int, b int) int { return a + b }
+
+func main() {
+	x := 5
+	result := add(x, x)
+	_ = result
+}
+`,
+	},
+	{
+		Name: "slice_different_slices_assignment_ok",
+		Code: `package main
+
+func main() {
+	slice1 := []int{1, 2, 3}
+	slice2 := []int{4, 5, 6}
+	slice1[0] = slice2[0]
+	_ = slice1
+}
+`,
+	},
+	{
+		Name: "slice_temp_variable_ok",
+		Code: `package main
+
+func main() {
+	slice := []int{1, 2, 3, 4, 5}
+	tmp := slice[1]
+	slice[0] = tmp
+	_ = slice
+}
+`,
+	},
+	{
+		Name: "single_closure_capture_ok",
+		Code: `package main
+
+func main() {
+	x := "hello"
+	fn := func() string { return x }
+	_ = fn
 }
 `,
 	},
