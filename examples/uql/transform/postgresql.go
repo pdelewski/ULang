@@ -140,7 +140,7 @@ func transformJoin(state TransformState, result ast.PgSelectStatement, join ast.
 
 	// Add JOIN clause
 	joinClause := ast.PgJoinClause{
-		JoinType:  ast.PgJoinTypeInner,
+		JoinType:  int8(ast.PgJoinTypeInner),
 		Table:     rightTable,
 		Alias:     join.RightTable,
 		Condition: transformLogicalExpr(join.OnCondition),

@@ -284,21 +284,21 @@ func Parse(text string) (ast.AST, int8) {
 		if lexer.IsFrom(token) {
 			var from ast.From
 			from, tokens = parseFrom(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeFrom, FromF: from})
+			resultAst = append(resultAst, ast.Statement{Type: int8(ast.StatementTypeFrom), FromF: from})
 			continue
 		}
 
 		if lexer.IsWhere(token) {
 			var where ast.Where
 			where, tokens = parseWhere(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeWhere, WhereF: where})
+			resultAst = append(resultAst, ast.Statement{Type: int8(ast.StatementTypeWhere), WhereF: where})
 			continue
 		}
 
 		if lexer.IsSelect(token) {
 			var project ast.Select
 			project, tokens = parseSelect(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeSelect, SelectF: project})
+			resultAst = append(resultAst, ast.Statement{Type: int8(ast.StatementTypeSelect), SelectF: project})
 			token, tokens = lexer.GetNextToken(tokens)
 			continue
 		}
@@ -306,28 +306,28 @@ func Parse(text string) (ast.AST, int8) {
 		if lexer.IsJoin(token) {
 			var join ast.Join
 			join, tokens = parseJoin(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeJoin, JoinF: join})
+			resultAst = append(resultAst, ast.Statement{Type: int8(ast.StatementTypeJoin), JoinF: join})
 			continue
 		}
 
 		if lexer.IsOrderBy(token) {
 			var orderBy ast.OrderBy
 			orderBy, tokens = parseOrderBy(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeOrderBy, OrderByF: orderBy})
+			resultAst = append(resultAst, ast.Statement{Type: int8(ast.StatementTypeOrderBy), OrderByF: orderBy})
 			continue
 		}
 
 		if lexer.IsLimit(token) {
 			var limit ast.Limit
 			limit, tokens = parseLimit(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeLimit, LimitF: limit})
+			resultAst = append(resultAst, ast.Statement{Type: int8(ast.StatementTypeLimit), LimitF: limit})
 			continue
 		}
 
 		if lexer.IsGroupBy(token) {
 			var groupBy ast.GroupBy
 			groupBy, tokens = parseGroupBy(tokens, lhs)
-			resultAst = append(resultAst, ast.Statement{Type: ast.StatementTypeGroupBy, GroupByF: groupBy})
+			resultAst = append(resultAst, ast.Statement{Type: int8(ast.StatementTypeGroupBy), GroupByF: groupBy})
 			continue
 		}
 	}
