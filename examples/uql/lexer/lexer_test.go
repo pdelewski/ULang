@@ -18,9 +18,9 @@ func TestGetTokens(t *testing.T) {
 	token := Token{Representation: []int8{'a', 'b', ' ', 'c', ' ', 'd'}}
 
 	tokens := GetTokens(token)
-	assert.Equal(t, 5, len(tokens))
+	assert.Equal(t, 3, len(tokens))
 	assert.Equal(t, []int8{'a', 'b'}, tokens[0].Representation)
-	assert.Equal(t, []int8{'c'}, tokens[2].Representation)
-	assert.Equal(t, []int8{'d'}, tokens[4].Representation)
+	assert.Equal(t, []int8{'c'}, tokens[1].Representation)
+	assert.Equal(t, []int8{'d'}, tokens[2].Representation)
 	DumpTokens(tokens)
 }
