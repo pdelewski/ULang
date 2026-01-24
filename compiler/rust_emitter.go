@@ -78,6 +78,8 @@ type RustEmitter struct {
 	compLitTypeNoDefaultStack    []bool                  // Stack to save/restore currentCompLitTypeNoDefault for nested composite literals
 	inFuncParam                  bool                    // Track if we're in function parameter type (for slice -> &[T])
 	currentCallIsAppend          bool                    // Track if current function call is to append (takes ownership)
+	inCallExprArg                bool                    // Track if we're inside a call expression argument (for closure wrapping)
+	closureWrappedInRc           bool                    // Track if current closure was wrapped in Rc::new()
 	currentCompLitType           types.Type              // Track the current composite literal's type for checking at post-visit
 	compLitTypeStack             []types.Type            // Stack of composite literal types
 	processedPkgsInterfaceTypes  map[string]bool         // Cache for package interface{} type checks
@@ -2351,10 +2353,13 @@ func (re *RustEmitter) PreVisitCallExprArg(node ast.Expr, index int, indent int)
 		str := re.emitAsString(", ", 0)
 		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	}
+	// Track that we're inside a call argument (for closure wrapping decisions)
+	re.inCallExprArg = true
 }
 
 func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int) {
 	if re.forwardDecls {
+		re.inCallExprArg = false
 		return
 	}
 	// Check if the argument type needs .clone()
@@ -2367,6 +2372,7 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 			if !re.currentCallIsAppend {
 				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 			}
+			re.inCallExprArg = false
 			return
 		}
 
@@ -2374,6 +2380,7 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 		if typeStr == "string" {
 			if _, isBasicLit := node.(*ast.BasicLit); !isBasicLit {
 				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+				re.inCallExprArg = false
 				return
 			}
 		}
@@ -2385,6 +2392,7 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 				if !re.currentCallIsAppend {
 					re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 				}
+				re.inCallExprArg = false
 				return
 			}
 			// Check if underlying type is a struct
@@ -2402,16 +2410,19 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 				}
 				if hasNonClonableField {
 					// Don't clone structs with interface fields (Box<dyn Any> doesn't implement Clone)
+					re.inCallExprArg = false
 					return
 				}
 				// Clone all other structs (including those with function fields - Rc implements Clone)
 				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+				re.inCallExprArg = false
 				return
 			}
 		}
 		// Also handle non-named struct types (rare but possible)
 		if _, isStruct := tv.Type.(*types.Struct); isStruct {
 			re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+			re.inCallExprArg = false
 			return
 		}
 	}
@@ -2428,11 +2439,13 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 					if !re.currentCallIsAppend {
 						re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 					}
+					re.inCallExprArg = false
 					return
 				}
 				// Clone for string types
 				if typeStr == "string" {
 					re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+					re.inCallExprArg = false
 					return
 				}
 				// Clone for named types (structs or slices)
@@ -2442,16 +2455,20 @@ func (re *RustEmitter) PostVisitCallExprArg(node ast.Expr, index int, indent int
 						if !re.currentCallIsAppend {
 							re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 						}
+						re.inCallExprArg = false
 						return
 					}
 					if _, isStruct := named.Underlying().(*types.Struct); isStruct {
 						re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
+						re.inCallExprArg = false
 						return
 					}
 				}
 			}
 		}
 	}
+	// Clear the call argument flag
+	re.inCallExprArg = false
 }
 
 func (re *RustEmitter) PostVisitExprStmtX(node ast.Expr, indent int) {
@@ -3107,10 +3124,16 @@ func (re *RustEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 			}
 		}
 	}
-	// Wrap closure with Rc::new() since all function types use Rc<dyn Fn>
-	wrapperStr := "Rc::new("
-	str := re.emitAsString(wrapperStr, 0)
-	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+	// Only wrap closure with Rc::new() when NOT passed as a direct call argument
+	// Functions that take closure arguments expect FnMut, not Rc<dyn Fn>
+	if !re.inCallExprArg {
+		wrapperStr := "Rc::new("
+		str := re.emitAsString(wrapperStr, 0)
+		re.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		re.closureWrappedInRc = true
+	} else {
+		re.closureWrappedInRc = false
+	}
 	re.emitToken("|", Identifier, indent)
 }
 func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
@@ -3129,9 +3152,12 @@ func (re *RustEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
 		return
 	}
 	re.emitToken("}", RightBrace, 0)
-	// Close the Rc::new() or Box::new() wrapper
-	re.emitToken(")", RightParen, 0)
+	// Close the Rc::new() wrapper only if it was opened
+	if re.closureWrappedInRc {
+		re.emitToken(")", RightParen, 0)
+	}
 	re.currentFuncReturnsAny = false
+	re.closureWrappedInRc = false
 }
 
 func (re *RustEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
