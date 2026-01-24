@@ -6,15 +6,8 @@ func main() {
 	// Create a window
 	w := graphics.CreateWindow("goany Graphics Demo", 800, 600)
 
-	// Main loop
-	for {
-		// Poll events
-		var running bool
-		w, running = graphics.PollEvents(w)
-		if !running {
-			break
-		}
-
+	// Run main loop with frame callback
+	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Clear screen with dark blue
 		graphics.Clear(w, graphics.NewColor(20, 20, 40, 255))
 
@@ -48,7 +41,9 @@ func main() {
 
 		// Present the frame
 		graphics.Present(w)
-	}
+
+		return true // Continue running
+	})
 
 	// Cleanup
 	graphics.CloseWindow(w)
