@@ -14,20 +14,21 @@ type TestCase struct {
 	CppEnabled    bool
 	DotnetEnabled bool
 	RustEnabled   bool
+	JsEnabled     bool
 }
 
 const runtimePath = "../runtime"
 
 var e2eTestCases = []TestCase{
-	{"lang-constructs", "../tests/lang-constructs", true, true, true},
-	{"contlib", "../examples/contlib", true, true, true},
-	{"uql", "../examples/uql", true, true, true},
-	{"graphics-minimal", "../examples/graphics-minimal", true, true, true},
-	{"graphics-demo", "../examples/graphics-demo", true, true, true},
-	{"mos6502-graphic", "../examples/mos6502/cmd/graphic", true, true, true},
-	{"mos6502-text", "../examples/mos6502/cmd/text", true, true, true},
-	{"mos6502-textscroll", "../examples/mos6502/cmd/textscroll", true, true, true},
-	{"mos6502-c64", "../examples/mos6502/cmd/c64", true, true, true},
+	{"lang-constructs", "../tests/lang-constructs", true, true, true, true},
+	{"contlib", "../examples/contlib", true, true, true, false},
+	{"uql", "../examples/uql", true, true, true, false},
+	{"graphics-minimal", "../examples/graphics-minimal", true, true, true, false},
+	{"graphics-demo", "../examples/graphics-demo", true, true, true, false},
+	{"mos6502-graphic", "../examples/mos6502/cmd/graphic", true, true, true, false},
+	{"mos6502-text", "../examples/mos6502/cmd/text", true, true, true, false},
+	{"mos6502-textscroll", "../examples/mos6502/cmd/textscroll", true, true, true, false},
+	{"mos6502-c64", "../examples/mos6502/cmd/c64", true, true, true, false},
 }
 
 func TestE2E(t *testing.T) {
@@ -82,6 +83,10 @@ func runE2ETest(t *testing.T, wd, buildDir string, tc TestCase) {
 		fmt.Sprintf("--output=%s", outputPath),
 		fmt.Sprintf("--link-runtime=%s", runtimePath),
 	}
+	// Add JS backend if enabled (JS is opt-in, not included in "all")
+	if tc.JsEnabled {
+		args = append(args, "--backend=all,js")
+	}
 	cmd := exec.Command("go", args...)
 	cmd.Dir = wd
 	output, err := cmd.CombinedOutput()
@@ -124,6 +129,19 @@ func runE2ETest(t *testing.T, wd, buildDir string, tc TestCase) {
 			t.Fatalf("Rust compilation failed: %v\nOutput: %s", err, output)
 		}
 		t.Logf("Rust compilation output: %s", output)
+	}
+
+	// Step 5: Run JavaScript using node
+	if tc.JsEnabled {
+		jsFile := filepath.Join(outputDir, tc.Name+".js")
+		t.Logf("Running JavaScript for %s", tc.Name)
+		cmd = exec.Command("node", jsFile)
+		cmd.Dir = outputDir
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("JavaScript execution failed: %v\nOutput: %s", err, output)
+		}
+		t.Logf("JavaScript execution output: %s", output)
 	}
 
 	t.Logf("Done with %s", tc.Name)

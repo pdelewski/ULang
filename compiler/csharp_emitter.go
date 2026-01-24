@@ -444,12 +444,13 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	cse.executeIfNotForwardDecls(func() {
 		var str string
 		if e.Kind == token.STRING {
-			e.Value = strings.Replace(e.Value, "\"", "", -1)
-			if len(e.Value) > 0 && e.Value[0] == '`' {
-				e.Value = strings.Replace(e.Value, "`", "", -1)
-				str = (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", e.Value), 0))
+			// Use a local copy to avoid mutating the AST (which affects other emitters)
+			value := strings.Replace(e.Value, "\"", "", -1)
+			if len(value) > 0 && value[0] == '`' {
+				value = strings.Replace(value, "`", "", -1)
+				str = (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", value), 0))
 			} else {
-				str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", e.Value), 0))
+				str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", value), 0))
 			}
 			cse.emitToken(str, StringLiteral, 0)
 		} else {

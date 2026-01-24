@@ -921,12 +921,13 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	}
 	var str string
 	if e.Kind == token.STRING {
-		e.Value = strings.Replace(e.Value, "\"", "", -1)
-		if len(e.Value) > 0 && e.Value[0] == '`' {
-			e.Value = strings.Replace(e.Value, "`", "", -1)
-			str = (re.emitAsString(fmt.Sprintf("r#\"%s\"#", e.Value), 0))
+		// Use a local copy to avoid mutating the AST (which affects other emitters)
+		value := strings.Replace(e.Value, "\"", "", -1)
+		if len(value) > 0 && value[0] == '`' {
+			value = strings.Replace(value, "`", "", -1)
+			str = (re.emitAsString(fmt.Sprintf("r#\"%s\"#", value), 0))
 		} else {
-			str = (re.emitAsString(fmt.Sprintf("\"%s\"", e.Value), 0))
+			str = (re.emitAsString(fmt.Sprintf("\"%s\"", value), 0))
 		}
 		re.emitToken(str, StringLiteral, 0)
 	} else if e.Kind == token.CHAR {

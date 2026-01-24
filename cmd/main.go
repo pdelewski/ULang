@@ -66,7 +66,7 @@ func main() {
 	var graphicsRuntime string
 	flag.StringVar(&sourceDir, "source", "", "Source directory")
 	flag.StringVar(&output, "output", "", "Output program name (can include path, e.g., ./build/project)")
-	flag.StringVar(&backend, "backend", "all", "Backend to use: all, cpp, cs, rust (comma-separated for multiple)")
+	flag.StringVar(&backend, "backend", "all", "Backend to use: all, cpp, cs, rust, js (comma-separated for multiple)")
 	flag.StringVar(&linkRuntime, "link-runtime", "", "Path to runtime for linking (generates Makefile with -I flag)")
 	flag.StringVar(&graphicsRuntime, "graphics-runtime", "tigr", "Graphics runtime: tigr (default), sdl2, none")
 	flag.BoolVar(&compiler.DebugMode, "debug", false, "Enable debug output")
@@ -119,6 +119,7 @@ func main() {
 	useCpp := useAll || backendSet["cpp"]
 	useCs := useAll || backendSet["cs"]
 	useRust := useAll || backendSet["rust"]
+	useJs := backendSet["js"] // JS is opt-in, not included in "all"
 
 	// Build passes list
 	sema := &compiler.BasePass{PassName: "Sema", Emitter: &compiler.SemaChecker{Emitter: &compiler.BaseEmitter{}}}
@@ -160,6 +161,18 @@ func main() {
 		}}
 		passes = append(passes, rustBackend)
 		programFiles = append(programFiles, "rs")
+	}
+	if useJs {
+		jsBackend := &compiler.BasePass{PassName: "JsGen", Emitter: &compiler.JSEmitter{
+			Emitter:         &compiler.BaseEmitter{},
+			Output:          output + ".js",
+			LinkRuntime:     linkRuntime,
+			GraphicsRuntime: graphicsRuntime,
+			OutputDir:       outputDir,
+			OutputName:      outputName,
+		}}
+		passes = append(passes, jsBackend)
+		programFiles = append(programFiles, "js")
 	}
 
 	passManager := &compiler.PassManager{
