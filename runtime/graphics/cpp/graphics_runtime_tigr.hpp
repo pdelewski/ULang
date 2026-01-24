@@ -9,6 +9,7 @@
 #include <string>
 #include <tuple>
 #include <cstdint>
+#include <functional>
 
 namespace graphics {
 
@@ -211,6 +212,22 @@ inline void DrawCircle(Window w, int32_t centerX, int32_t centerY, int32_t radiu
 inline void FillCircle(Window w, int32_t centerX, int32_t centerY, int32_t radius, Color c) {
     Tigr* win = reinterpret_cast<Tigr*>(w.handle);
     tigrFillCircle(win, centerX, centerY, radius, detail::toTPixel(c));
+}
+
+// RunLoop runs the main loop, calling frameFunc each frame.
+// frameFunc receives the window and returns true to continue, false to stop.
+// This is the preferred way to write cross-platform graphics code that works in browsers.
+inline void RunLoop(Window w, std::function<bool(Window)> frameFunc) {
+    while (true) {
+        bool running;
+        std::tie(w, running) = PollEvents(w);
+        if (!running) {
+            break;
+        }
+        if (!frameFunc(w)) {
+            break;
+        }
+    }
 }
 
 } // namespace graphics

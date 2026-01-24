@@ -337,5 +337,25 @@ namespace graphics
                 Tigr.tigrFillCircle(new IntPtr(w.handle), centerX, centerY, radius, ColorToUint(c));
             }
         }
+
+        // RunLoop runs the main loop, calling frameFunc each frame.
+        // frameFunc receives the window and returns true to continue, false to stop.
+        // This is the preferred way to write cross-platform graphics code that works in browsers.
+        public static void RunLoop(Window w, Func<Window, bool> frameFunc)
+        {
+            while (true)
+            {
+                bool running;
+                (w, running) = PollEvents(w);
+                if (!running)
+                {
+                    break;
+                }
+                if (!frameFunc(w))
+                {
+                    break;
+                }
+            }
+        }
     }
 }
