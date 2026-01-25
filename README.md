@@ -2,7 +2,9 @@
 
 ![goany banner](docs/goany-banner.png)
 
-A Go language transpiler that generates portable code for multiple target platforms. Write your code once in Go and transpile it to C++, C#, or Rust.
+A Go language transpiler that generates portable code for multiple target platforms. Write your code once in Go and transpile it to C++, C#, Rust, or JavaScript.
+
+[**▶ Try the C64 Emulator Demo WIP (runs in browser)**](https://pdelewski.github.io/goany/demos/c64.html)
 
 ## Overview
 
@@ -11,6 +13,7 @@ This project provides a foundation for writing portable libraries in Go that can
 - **C++** - generates `.cpp` files
 - **C#** (.NET) - generates `.cs` files
 - **Rust** - generates `.rs` files
+- **JavaScript** - generates `.js` files (runs in browser with Canvas API)
 
 ## Project Goals
 
@@ -18,7 +21,7 @@ The main aim of goany is to provide a tool for writing **portable applications a
 
 ### Key Objectives
 
-1. **Cross-language portability** - Write code once and transpile it to C++, Rust, and C#/.NET, enabling code reuse across different ecosystems and platforms.
+1. **Cross-language portability** - Write code once and transpile it to C++, Rust, C#/.NET, and JavaScript, enabling code reuse across different ecosystems and platforms.
 
 2. **Near 1-to-1 translation** - The generated code maintains almost direct correspondence to the original source, making it readable, debuggable, and easy to understand.
 
@@ -69,7 +72,7 @@ make
 |------|-------------|---------|
 | `-source` | Source directory containing Go files | (required) |
 | `-output` | Output file name (without extension) | (required) |
-| `-backend` | Backend(s) to use: `all`, `cpp`, `cs`, `rust` | `all` |
+| `-backend` | Backend(s) to use: `all`, `cpp`, `cs`, `rust`, `js` | `all` |
 | `-link-runtime` | Path to runtime for linking (generates build files with include paths) | (none) |
 | `-graphics-runtime` | Graphics backend: `tigr`, `sdl2`, `none` | `tigr` |
 | `-debug` | Enable debug output | `false` |
@@ -96,6 +99,11 @@ Transpile to Rust only:
 Transpile to C# and Rust:
 ```bash
 ./goany -source=../examples/uql -output=uql -backend=cs,rust
+```
+
+Transpile to JavaScript (runs in browser):
+```bash
+./goany -source=../examples/mos6502/cmd/c64 -output=c64 -backend=js -link-runtime=../runtime
 ```
 
 Transpile graphics demo with tigr (default):
@@ -156,14 +164,16 @@ arr = newArr
 
 A cross-platform 2D graphics library for window creation and drawing shapes.
 
-#### Transpiled Code (C++, C#, Rust)
+#### Transpiled Code (C++, C#, Rust, JavaScript)
 
-Two backends are available for transpiled code, selected via `-graphics-runtime` flag:
+Two backends are available for native transpiled code, selected via `-graphics-runtime` flag:
 
 | Backend | Platforms | Dependencies | Notes |
 |---------|-----------|--------------|-------|
 | `tigr` | C++, C#, Rust | C compiler (bundled source) | Default, lightweight |
 | `sdl2` | C++, C#, Rust | SDL2 library | Hardware accelerated, full-featured |
+
+**JavaScript** uses the HTML5 Canvas API and runs directly in the browser - no external dependencies required.
 
 **Setup SDL2 dependencies (only needed for `-graphics-runtime=sdl2`):**
 ```bash
@@ -224,6 +234,7 @@ goany/
 │   ├── rust_emitter.go    # Rust backend
 │   ├── csharp_emitter.go  # C# backend
 │   ├── cpp_emitter.go     # C++ backend
+│   ├── js_emitter.go      # JavaScript backend
 │   ├── base_pass.go       # Pass infrastructure
 │   ├── emitter.go         # Emitter interface
 │   └── astyle/            # Code formatting (CGO)
