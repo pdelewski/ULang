@@ -195,13 +195,7 @@ func main() {
 	bgColor := graphics.NewColor(0, 0, 0, 255)
 
 	// Main display loop
-	for {
-		var running bool
-		w, running = graphics.PollEvents(w)
-		if !running {
-			break
-		}
-
+	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Update scroll positions every few frames
 		frameCount = frameCount + 1
 		if frameCount >= 8 {
@@ -304,7 +298,9 @@ func main() {
 
 		// Present frame
 		graphics.Present(w)
-	}
+
+		return true
+	})
 
 	graphics.CloseWindow(w)
 }

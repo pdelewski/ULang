@@ -172,13 +172,7 @@ func main() {
 	cursorCol := 0
 
 	// Main display loop
-	for {
-		var running bool
-		w, running = graphics.PollEvents(w)
-		if !running {
-			break
-		}
-
+	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Handle keyboard input
 		key := graphics.GetLastKey()
 		if key != 0 {
@@ -286,7 +280,9 @@ func main() {
 
 		// Present frame
 		graphics.Present(w)
-	}
+
+		return true
+	})
 
 	graphics.CloseWindow(w)
 }

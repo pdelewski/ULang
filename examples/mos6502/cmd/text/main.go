@@ -143,13 +143,7 @@ func main() {
 	textColor := graphics.NewColor(0, 255, 0, 255)
 
 	// Main display loop
-	for {
-		var running bool
-		w, running = graphics.PollEvents(w)
-		if !running {
-			break
-		}
-
+	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Clear screen with dark background
 		graphics.Clear(w, graphics.NewColor(0, 0, 0, 255))
 
@@ -201,7 +195,9 @@ func main() {
 
 		// Present frame
 		graphics.Present(w)
-	}
+
+		return true
+	})
 
 	graphics.CloseWindow(w)
 }
