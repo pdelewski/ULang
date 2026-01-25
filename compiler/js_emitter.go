@@ -229,6 +229,7 @@ const graphics = {
   ctx: null,
   running: true,
   keys: {},
+  lastKey: 0,
   mouseX: 0,
   mouseY: 0,
   mouseDown: false,
@@ -242,7 +243,13 @@ const graphics = {
     document.title = title;
 
     // Event listeners
-    window.addEventListener('keydown', (e) => { this.keys[e.key] = true; });
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.key] = true;
+      // Store ASCII code for GetLastKey (single char keys only)
+      if (e.key.length === 1) {
+        this.lastKey = e.key.charCodeAt(0);
+      }
+    });
     window.addEventListener('keyup', (e) => { this.keys[e.key] = false; });
     this.canvas.addEventListener('mousemove', (e) => {
       const rect = this.canvas.getBoundingClientRect();
@@ -327,6 +334,12 @@ const graphics = {
 
   KeyDown: function(canvas, key) {
     return this.keys[key] || false;
+  },
+
+  GetLastKey: function() {
+    const key = this.lastKey;
+    this.lastKey = 0;  // Clear after reading (like native backends)
+    return key;
   },
 
   GetMousePos: function(canvas) {
