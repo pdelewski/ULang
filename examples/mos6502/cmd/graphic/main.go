@@ -255,13 +255,7 @@ func main() {
 	c = cpu.Run(c, 100000)
 
 	// Main display loop
-	for {
-		var running bool
-		w, running = graphics.PollEvents(w)
-		if !running {
-			break
-		}
-
+	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Clear screen with dark background
 		graphics.Clear(w, graphics.NewColor(16, 16, 32, 255))
 
@@ -310,7 +304,9 @@ func main() {
 
 		// Present frame
 		graphics.Present(w)
-	}
+
+		return true
+	})
 
 	graphics.CloseWindow(w)
 }
