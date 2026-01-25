@@ -15,20 +15,21 @@ type TestCase struct {
 	DotnetEnabled bool
 	RustEnabled   bool
 	JsEnabled     bool
+	JsRunnable    bool // Can run with Node.js (false for graphics apps that need browser)
 }
 
 const runtimePath = "../runtime"
 
 var e2eTestCases = []TestCase{
-	{"lang-constructs", "../tests/lang-constructs", true, true, true, true},
-	{"contlib", "../examples/contlib", true, true, true, true},
-	{"uql", "../examples/uql", true, true, true, true},
-	{"graphics-minimal", "../examples/graphics-minimal", true, true, true, false},
-	{"graphics-demo", "../examples/graphics-demo", true, true, true, false},
-	{"mos6502-graphic", "../examples/mos6502/cmd/graphic", true, true, true, false},
-	{"mos6502-text", "../examples/mos6502/cmd/text", true, true, true, false},
-	{"mos6502-textscroll", "../examples/mos6502/cmd/textscroll", true, true, true, false},
-	{"mos6502-c64", "../examples/mos6502/cmd/c64", true, true, true, false},
+	{"lang-constructs", "../tests/lang-constructs", true, true, true, true, true},
+	{"contlib", "../examples/contlib", true, true, true, true, true},
+	{"uql", "../examples/uql", true, true, true, true, true},
+	{"graphics-minimal", "../examples/graphics-minimal", true, true, true, true, false},  // JS transpile only (needs browser)
+	{"graphics-demo", "../examples/graphics-demo", true, true, true, true, false},        // JS transpile only (needs browser)
+	{"mos6502-graphic", "../examples/mos6502/cmd/graphic", true, true, true, true, false}, // JS transpile only (needs browser)
+	{"mos6502-text", "../examples/mos6502/cmd/text", true, true, true, true, false},       // JS transpile only (needs browser)
+	{"mos6502-textscroll", "../examples/mos6502/cmd/textscroll", true, true, true, true, false}, // JS transpile only (needs browser)
+	{"mos6502-c64", "../examples/mos6502/cmd/c64", true, true, true, true, false},         // JS transpile only (needs browser)
 }
 
 func TestE2E(t *testing.T) {
@@ -131,8 +132,8 @@ func runE2ETest(t *testing.T, wd, buildDir string, tc TestCase) {
 		t.Logf("Rust compilation output: %s", output)
 	}
 
-	// Step 5: Run JavaScript using node
-	if tc.JsEnabled {
+	// Step 5: Run JavaScript using node (only if runnable - graphics apps need browser)
+	if tc.JsEnabled && tc.JsRunnable {
 		jsFile := filepath.Join(outputDir, tc.Name+".js")
 		t.Logf("Running JavaScript for %s", tc.Name)
 		cmd = exec.Command("node", jsFile)
@@ -142,6 +143,8 @@ func runE2ETest(t *testing.T, wd, buildDir string, tc TestCase) {
 			t.Fatalf("JavaScript execution failed: %v\nOutput: %s", err, output)
 		}
 		t.Logf("JavaScript execution output: %s", output)
+	} else if tc.JsEnabled {
+		t.Logf("Skipping JavaScript execution for %s (requires browser)", tc.Name)
 	}
 
 	t.Logf("Done with %s", tc.Name)
