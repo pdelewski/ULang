@@ -92,45 +92,86 @@ func PrintTree(t BinaryTree) {
 }
 
 // Remove removes a node by value in the binary tree and returns the modified tree
+// This implementation removes the last node and replaces the target node's value
 func RemoveFromTree(t BinaryTree, value int) BinaryTree {
-	/*
-		if t.root == -1 {
-			fmt.Println("The tree is empty.")
-			return t
+	if t.root == -1 {
+		fmt.Println("The tree is empty.")
+		return t
+	}
+
+	// Find the index of the node to remove
+	indexToRemove := -1
+	i := 0
+	for {
+		if i >= len(t.nodes) {
+			break
 		}
-
-		// Find the index of the node to remove
-		indexToRemove := -1
-		for i := 0; i < len(t.nodes); i++ {
-			if t.nodes[i].value == value {
-				indexToRemove = i
-				break
-			}
+		if t.nodes[i].value == value {
+			indexToRemove = i
+			break
 		}
+		i = i + 1
+	}
 
-		if indexToRemove == -1 {
-			fmt.Println("Value not found in the tree.")
-			return t
+	if indexToRemove == -1 {
+		fmt.Println("Value not found in the tree.")
+		return t
+	}
+
+	// Get the last node index
+	lastNodeIndex := len(t.nodes) - 1
+
+	// If the node to remove is not the last node, replace its value with the last node's value
+	if indexToRemove != lastNodeIndex {
+		tmp := t.nodes[indexToRemove]
+		tmp.value = t.nodes[lastNodeIndex].value
+		t.nodes[indexToRemove] = tmp
+	}
+
+	// Remove the last node from the array by creating a new slice without the last element
+	newNodes := []BinaryTreeNode{}
+	j := 0
+	for {
+		if j >= lastNodeIndex {
+			break
 		}
+		newNodes = append(newNodes, t.nodes[j])
+		j = j + 1
+	}
+	t.nodes = newNodes
 
-		// Swap the node to be removed with the last node in the array
-		lastNodeIndex := len(t.nodes) - 1
-		t.nodes[indexToRemove], t.nodes[lastNodeIndex] = t.nodes[lastNodeIndex], t.nodes[indexToRemove]
+	// If the tree is now empty, reset root
+	if len(t.nodes) == 0 {
+		t.root = -1
+	}
 
-		// Remove the last node from the array
-		t.nodes = t.nodes[:lastNodeIndex]
-
-		// If the removed node had children, we need to fix the parent-child relationships
-		if indexToRemove < len(t.nodes) {
-			parentIndex := (indexToRemove - 1) / 2
-			if indexToRemove%2 == 1 {
-				// Update parent's left child index
-				t.nodes[parentIndex].left = indexToRemove
-			} else {
-				// Update parent's right child index
-				t.nodes[parentIndex].right = indexToRemove
-			}
+	// Update parent's child pointer if the last node was moved
+	if lastNodeIndex > 0 && lastNodeIndex != indexToRemove {
+		parentIndex := (lastNodeIndex - 1) / 2
+		if lastNodeIndex%2 == 1 {
+			// Was left child - clear parent's left pointer
+			tmp := t.nodes[parentIndex]
+			tmp.left = -1
+			t.nodes[parentIndex] = tmp
+		} else {
+			// Was right child - clear parent's right pointer
+			tmp := t.nodes[parentIndex]
+			tmp.right = -1
+			t.nodes[parentIndex] = tmp
 		}
-	*/
+	} else if lastNodeIndex > 0 && lastNodeIndex == indexToRemove {
+		// The removed node was the last node, update its parent
+		parentIndex := (lastNodeIndex - 1) / 2
+		if lastNodeIndex%2 == 1 {
+			tmp := t.nodes[parentIndex]
+			tmp.left = -1
+			t.nodes[parentIndex] = tmp
+		} else {
+			tmp := t.nodes[parentIndex]
+			tmp.right = -1
+			t.nodes[parentIndex] = tmp
+		}
+	}
+
 	return t
 }
