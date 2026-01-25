@@ -68,14 +68,15 @@ type JSEmitter struct {
 	// Pending slice/struct initialization
 	pendingSliceInit      bool
 	pendingStructInit     bool
+	// Namespace handling for non-main packages
+	inNamespace           bool
+	// Integer division handling
+	intDivision           bool
 }
 
 func (*JSEmitter) lowerToBuiltins(selector string) string {
 	switch selector {
 	case "fmt":
-		return ""
-	case "types":
-		// Local package reference - constants are defined globally
 		return ""
 	case "Sprintf":
 		return "stringFormat"
@@ -376,6 +377,19 @@ func (jse *JSEmitter) createHTMLWrapper() {
 func (jse *JSEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 	jse.pkg = pkg
 	jse.currentPackage = pkg.Name
+	// For non-main packages, create a namespace object
+	if pkg.Name != "main" {
+		jse.inNamespace = true
+		jse.emitToFile(fmt.Sprintf("\nconst %s = {\n", pkg.Name))
+	}
+}
+
+func (jse *JSEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
+	// Close the namespace object for non-main packages
+	if pkg.Name != "main" {
+		jse.emitToFile("};\n")
+		jse.inNamespace = false
+	}
 }
 
 // PreVisitFuncDecl handles function declarations
@@ -383,8 +397,14 @@ func (jse *JSEmitter) PreVisitFuncDecl(node *ast.FuncDecl, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	str := jse.emitAsString("\nfunction ", indent)
-	jse.emitToFile(str)
+	if jse.inNamespace {
+		// Inside a namespace object, use method syntax
+		str := jse.emitAsString("\n", indent)
+		jse.emitToFile(str)
+	} else {
+		str := jse.emitAsString("\nfunction ", indent)
+		jse.emitToFile(str)
+	}
 }
 
 func (jse *JSEmitter) PreVisitFuncDeclSignature(node *ast.FuncDecl, indent int) {
@@ -412,7 +432,12 @@ func (jse *JSEmitter) PreVisitFuncDeclName(node *ast.Ident, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	jse.emitToFile(node.Name)
+	if jse.inNamespace {
+		// Method syntax: name: function
+		jse.emitToFile(node.Name + ": function")
+	} else {
+		jse.emitToFile(node.Name)
+	}
 }
 
 func (jse *JSEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
@@ -459,7 +484,12 @@ func (jse *JSEmitter) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	jse.emitToFile("\n")
+	if jse.inNamespace {
+		// Add comma after method in namespace object
+		jse.emitToFile(",\n")
+	} else {
+		jse.emitToFile("\n")
+	}
 }
 
 // JavaScript doesn't need forward declarations (function hoisting handles this)
@@ -652,6 +682,23 @@ func (jse *JSEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	if jse.forwardDecl {
 		return
 	}
+	// Check for integer division
+	if node.Op == token.QUO {
+		// Check if both operands are integer types
+		if jse.pkg != nil && jse.pkg.TypesInfo != nil {
+			leftType := jse.pkg.TypesInfo.TypeOf(node.X)
+			rightType := jse.pkg.TypesInfo.TypeOf(node.Y)
+			if leftType != nil && rightType != nil {
+				leftBasic, leftIsBasic := leftType.Underlying().(*types.Basic)
+				rightBasic, rightIsBasic := rightType.Underlying().(*types.Basic)
+				if leftIsBasic && rightIsBasic {
+					if (leftBasic.Info()&types.IsInteger) != 0 && (rightBasic.Info()&types.IsInteger) != 0 {
+						jse.intDivision = true
+					}
+				}
+			}
+		}
+	}
 	jse.emitToFile("(")
 }
 
@@ -675,7 +722,14 @@ func (jse *JSEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	jse.emitToFile(")")
+	// Only add | 0 for the actual division operation, not nested expressions
+	if node.Op == token.QUO && jse.intDivision {
+		// Use bitwise OR to convert to integer (truncate towards zero)
+		jse.emitToFile(" | 0)")
+		jse.intDivision = false
+	} else {
+		jse.emitToFile(")")
+	}
 }
 
 // Unary expressions
@@ -1307,15 +1361,25 @@ func (jse *JSEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	str := jse.emitAsString("const "+node.Name+" = ", indent)
-	jse.emitToFile(str)
+	if jse.inNamespace {
+		// Inside namespace object, use property syntax
+		str := jse.emitAsString(node.Name+": ", indent)
+		jse.emitToFile(str)
+	} else {
+		str := jse.emitAsString("const "+node.Name+" = ", indent)
+		jse.emitToFile(str)
+	}
 }
 
 func (jse *JSEmitter) PostVisitGenDeclConstName(node *ast.Ident, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	jse.emitToFile(";\n")
+	if jse.inNamespace {
+		jse.emitToFile(",\n")
+	} else {
+		jse.emitToFile(";\n")
+	}
 }
 
 // Parenthesized expressions

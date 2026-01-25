@@ -21,7 +21,7 @@ const runtimePath = "../runtime"
 
 var e2eTestCases = []TestCase{
 	{"lang-constructs", "../tests/lang-constructs", true, true, true, true},
-	{"contlib", "../examples/contlib", true, true, true, false},
+	{"contlib", "../examples/contlib", true, true, true, true},
 	{"uql", "../examples/uql", true, true, true, false},
 	{"graphics-minimal", "../examples/graphics-minimal", true, true, true, false},
 	{"graphics-demo", "../examples/graphics-demo", true, true, true, false},
