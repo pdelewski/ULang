@@ -1412,6 +1412,20 @@ func (cse *CSharpEmitter) PreVisitCompositeLitElt(node ast.Expr, index int, inde
 	})
 }
 
+// LIMITATION: C# slice syntax (arr[low..high]) has issues with the current emitter.
+// The slice expression `arr[:high]` may emit incorrectly as `arr[....high]` (4 dots instead of 2).
+// Workaround: Instead of using slice syntax like `arr = arr[:n]`, use a manual loop:
+//
+//	newArr := []T{}
+//	i := 0
+//	for {
+//	    if i >= n { break }
+//	    newArr = append(newArr, arr[i])
+//	    i = i + 1
+//	}
+//	arr = newArr
+//
+// This limitation is tracked and should be fixed in a future version.
 func (cse *CSharpEmitter) PostVisitSliceExprX(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
 		cse.emitToken("[", LeftBracket, 0)

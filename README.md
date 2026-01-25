@@ -134,6 +134,22 @@ Transpile CLI app without graphics:
 
 Some Go features may not be fully supported due to differences in target platforms. See `cmd/doc/rust_backend_rules.md` for detailed implementation notes on the Rust backend.
 
+#### Known Issues
+
+**C# Slice Syntax**: The slice expression `arr[:n]` may not emit correctly in C#. Use a manual loop instead:
+```go
+// Instead of: arr = arr[:n]
+// Use:
+newArr := []T{}
+i := 0
+for {
+    if i >= n { break }
+    newArr = append(newArr, arr[i])
+    i = i + 1
+}
+arr = newArr
+```
+
 ## Runtime Libraries
 
 ### Graphics Runtime
