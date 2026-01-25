@@ -564,7 +564,7 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 			value := strings.Replace(e.Value, "\"", "", -1)
 			if len(value) > 0 && value[0] == '`' {
 				value = strings.Replace(value, "`", "", -1)
-				str = (cse.emitAsString(fmt.Sprintf("@\"(%s)\"", value), 0))
+				str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", value), 0))
 			} else {
 				str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", value), 0))
 			}
