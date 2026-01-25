@@ -83,9 +83,9 @@ func (*JSEmitter) lowerToBuiltins(selector string) string {
 	case "Println":
 		return "console.log"
 	case "Printf":
-		return "console.log"
+		return "printf" // Uses process.stdout.write (no newline)
 	case "Print":
-		return "console.log"
+		return "print" // Uses process.stdout.write (no newline)
 	case "len":
 		return "len"
 	}
@@ -155,6 +155,31 @@ function stringFormat(fmt, ...args) {
       default: return arg;
     }
   });
+}
+
+// printf - like fmt.Printf (no newline)
+function printf(fmt, ...args) {
+  const str = stringFormat(fmt, ...args);
+  if (typeof process !== 'undefined' && process.stdout) {
+    process.stdout.write(str);
+  } else {
+    // Browser fallback - accumulate output
+    if (typeof window !== 'undefined') {
+      window._printBuffer = (window._printBuffer || '') + str;
+    }
+  }
+}
+
+// print - like fmt.Print (no newline)
+function print(...args) {
+  const str = args.map(a => String(a)).join(' ');
+  if (typeof process !== 'undefined' && process.stdout) {
+    process.stdout.write(str);
+  } else {
+    if (typeof window !== 'undefined') {
+      window._printBuffer = (window._printBuffer || '') + str;
+    }
+  }
 }
 
 function make(type, length, capacity) {
