@@ -65,11 +65,15 @@ type JSEmitter struct {
 	suppressTypeEmit      bool
 	// For loop init section (suppress semicolon after assignment)
 	insideForInit         bool
-	// Pending slice/struct initialization
+	// Pending slice/struct/basic type initialization
 	pendingSliceInit      bool
 	pendingStructInit     bool
+	pendingStructType     *types.Struct // Store struct type for full initialization
+	pendingBasicInit      *types.Basic  // Store basic type for proper initialization
 	// Namespace handling for non-main packages
 	inNamespace           bool
+	// Track when inside a function literal (closure) where 'this' has different meaning
+	inFuncLit             bool
 	// Integer division handling
 	intDivision           bool
 }
@@ -137,12 +141,21 @@ function len(arr) {
 }
 
 function append(arr, ...items) {
-  return [...arr, ...items];
+  // Handle nil/undefined slices like Go does
+  if (arr == null) arr = [];
+  // Clone plain objects to preserve Go's value semantics for structs
+  const clonedItems = items.map(item => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      return {...item};
+    }
+    return item;
+  });
+  return [...arr, ...clonedItems];
 }
 
 function stringFormat(fmt, ...args) {
   let i = 0;
-  return fmt.replace(/%[sdvfx%]/g, (match) => {
+  return fmt.replace(/%[sdvfxc%]/g, (match) => {
     if (match === '%%') return '%';
     if (i >= args.length) return match;
     const arg = args[i++];
@@ -152,6 +165,7 @@ function stringFormat(fmt, ...args) {
       case '%f': return parseFloat(arg);
       case '%v': return String(arg);
       case '%x': return parseInt(arg, 10).toString(16);
+      case '%c': return String.fromCharCode(arg);
       default: return arg;
     }
   });
@@ -189,16 +203,17 @@ function make(type, length, capacity) {
   return [];
 }
 
-// Type conversion functions (no-op in JavaScript - all numbers are float64)
-function int8(v) { return v | 0; }
-function int16(v) { return v | 0; }
-function int32(v) { return v | 0; }
-function int64(v) { return v; }  // BigInt not used for simplicity
-function int(v) { return v | 0; }
-function uint8(v) { return (v | 0) & 0xFF; }
-function uint16(v) { return (v | 0) & 0xFFFF; }
-function uint32(v) { return (v | 0) >>> 0; }
-function uint64(v) { return v; }  // BigInt not used for simplicity
+// Type conversion functions
+// Handle string-to-int conversion for character codes (Go rune semantics)
+function int8(v) { return typeof v === 'string' ? v.charCodeAt(0) | 0 : v | 0; }
+function int16(v) { return typeof v === 'string' ? v.charCodeAt(0) | 0 : v | 0; }
+function int32(v) { return typeof v === 'string' ? v.charCodeAt(0) | 0 : v | 0; }
+function int64(v) { return typeof v === 'string' ? v.charCodeAt(0) : v; }  // BigInt not used for simplicity
+function int(v) { return typeof v === 'string' ? v.charCodeAt(0) | 0 : v | 0; }
+function uint8(v) { return typeof v === 'string' ? v.charCodeAt(0) & 0xFF : (v | 0) & 0xFF; }
+function uint16(v) { return typeof v === 'string' ? v.charCodeAt(0) & 0xFFFF : (v | 0) & 0xFFFF; }
+function uint32(v) { return typeof v === 'string' ? v.charCodeAt(0) >>> 0 : (v | 0) >>> 0; }
+function uint64(v) { return typeof v === 'string' ? v.charCodeAt(0) : v; }  // BigInt not used for simplicity
 function float32(v) { return v; }
 function float64(v) { return v; }
 function string(v) { return String(v); }
@@ -582,6 +597,10 @@ func (jse *JSEmitter) PreVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	} else if assignmentToken == ":=" && len(node.Lhs) > 1 {
 		str := jse.emitAsString("let [", indent)
 		jse.emitToFile(str)
+	} else if len(node.Lhs) > 1 {
+		// Multi-value assignment (not declaration) needs destructuring
+		str := jse.emitAsString("[", indent)
+		jse.emitToFile(str)
 	} else {
 		str := jse.emitAsString("", indent)
 		jse.emitToFile(str)
@@ -597,7 +616,8 @@ func (jse *JSEmitter) PostVisitAssignStmtLhs(node *ast.AssignStmt, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	if node.Tok.String() == ":=" && len(node.Lhs) > 1 {
+	// Close destructuring bracket for multi-value assignments
+	if len(node.Lhs) > 1 {
 		jse.emitToFile("]")
 	}
 }
@@ -676,6 +696,34 @@ func (jse *JSEmitter) PreVisitIdent(node *ast.Ident, indent int) {
 	case "nil":
 		jse.emitToFile("null")
 	default:
+		// Check if this identifier refers to a constant or function in the current namespace
+		if jse.inNamespace && jse.pkg != nil && jse.pkg.TypesInfo != nil {
+			if obj := jse.pkg.TypesInfo.Uses[node]; obj != nil {
+				needsThis := false
+				// Check for constants
+				if _, isConst := obj.(*types.Const); isConst {
+					if obj.Pkg() != nil && obj.Pkg().Name() == jse.currentPackage {
+						needsThis = true
+					}
+				}
+				// Check for functions
+				if _, isFunc := obj.(*types.Func); isFunc {
+					if obj.Pkg() != nil && obj.Pkg().Name() == jse.currentPackage {
+						needsThis = true
+					}
+				}
+				if needsThis {
+					// Inside function literals, use package name instead of 'this'
+					// because 'this' has different meaning inside closures
+					if jse.inFuncLit {
+						jse.emitToFile(jse.currentPackage + "." + lowered)
+					} else {
+						jse.emitToFile("this." + lowered)
+					}
+					return
+				}
+			}
+		}
 		jse.emitToFile(lowered)
 	}
 }
@@ -695,8 +743,41 @@ func (jse *JSEmitter) PreVisitBasicLit(node *ast.BasicLit, indent int) {
 			jse.emitToFile(node.Value)
 		}
 	case token.CHAR:
-		// Convert char to string
-		jse.emitToFile(node.Value)
+		// Convert char literal to integer (Go rune semantics)
+		// node.Value is like 'a' or '\n', we need to convert to integer
+		val := node.Value
+		if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
+			inner := val[1 : len(val)-1]
+			// Handle escape sequences
+			var charCode int
+			if len(inner) == 1 {
+				charCode = int(inner[0])
+			} else if len(inner) == 2 && inner[0] == '\\' {
+				switch inner[1] {
+				case 'n':
+					charCode = 10
+				case 't':
+					charCode = 9
+				case 'r':
+					charCode = 13
+				case '\\':
+					charCode = 92
+				case '\'':
+					charCode = 39
+				case '0':
+					charCode = 0
+				default:
+					charCode = int(inner[1])
+				}
+			} else {
+				// Fallback to emitting as string
+				jse.emitToFile(node.Value)
+				return
+			}
+			jse.emitToFile(fmt.Sprintf("%d", charCode))
+		} else {
+			jse.emitToFile(node.Value)
+		}
 	default:
 		jse.emitToFile(node.Value)
 	}
@@ -1085,6 +1166,16 @@ func (jse *JSEmitter) PreVisitCompositeLit(node *ast.CompositeLit, indent int) {
 			jse.emitToFile("[")
 			return
 		case *ast.Ident, *ast.SelectorExpr:
+			// Check if this named type is actually a slice type alias
+			if jse.pkg != nil && jse.pkg.TypesInfo != nil {
+				if typeAndValue, ok := jse.pkg.TypesInfo.Types[node]; ok {
+					underlying := typeAndValue.Type.Underlying()
+					if _, isSlice := underlying.(*types.Slice); isSlice {
+						jse.emitToFile("[")
+						return
+					}
+				}
+			}
 			// Struct initialization - use object literal syntax
 			// Check if it has named fields (KeyValueExpr)
 			if len(node.Elts) > 0 {
@@ -1126,12 +1217,83 @@ func (jse *JSEmitter) PostVisitCompositeLit(node *ast.CompositeLit, indent int) 
 	if node.Type != nil {
 		switch node.Type.(type) {
 		case *ast.Ident, *ast.SelectorExpr:
+			// Check if this named type is actually a slice type alias
+			if jse.pkg != nil && jse.pkg.TypesInfo != nil {
+				if typeAndValue, ok := jse.pkg.TypesInfo.Types[node]; ok {
+					underlying := typeAndValue.Type.Underlying()
+					if _, isSlice := underlying.(*types.Slice); isSlice {
+						jse.emitToFile("]")
+						return
+					}
+					// If it's a struct, emit default values for missing fields
+					if structType, isStruct := underlying.(*types.Struct); isStruct {
+						// Collect specified field names
+						specifiedFields := make(map[string]bool)
+						for _, elt := range node.Elts {
+							if kv, ok := elt.(*ast.KeyValueExpr); ok {
+								if ident, ok := kv.Key.(*ast.Ident); ok {
+									specifiedFields[ident.Name] = true
+								}
+							}
+						}
+						// Emit defaults for missing fields
+						needsComma := len(node.Elts) > 0
+						for i := 0; i < structType.NumFields(); i++ {
+							field := structType.Field(i)
+							if !specifiedFields[field.Name()] {
+								if needsComma {
+									jse.emitToFile(", ")
+								}
+								needsComma = true
+								// Emit field with default value
+								jse.emitToFile(field.Name() + ": ")
+								jse.emitDefaultValue(field.Type())
+							}
+						}
+					}
+				}
+			}
 			// Close struct/object literal
 			jse.emitToFile("}")
 			return
 		}
 	}
 	jse.emitToFile("]")
+}
+
+// emitDefaultValue emits the JavaScript default value for a Go type
+func (jse *JSEmitter) emitDefaultValue(t types.Type) {
+	switch underlying := t.Underlying().(type) {
+	case *types.Basic:
+		info := underlying.Info()
+		if info&types.IsInteger != 0 || info&types.IsFloat != 0 {
+			jse.emitToFile("0")
+		} else if info&types.IsBoolean != 0 {
+			jse.emitToFile("false")
+		} else if info&types.IsString != 0 {
+			jse.emitToFile(`""`)
+		} else {
+			jse.emitToFile("null")
+		}
+	case *types.Slice:
+		jse.emitToFile("[]")
+	case *types.Struct:
+		// Recursively initialize all struct fields
+		jse.emitToFile("{")
+		for i := 0; i < underlying.NumFields(); i++ {
+			if i > 0 {
+				jse.emitToFile(", ")
+			}
+			field := underlying.Field(i)
+			jse.emitToFile(field.Name() + ": ")
+			jse.emitDefaultValue(field.Type())
+		}
+		jse.emitToFile("}")
+	case *types.Pointer:
+		jse.emitToFile("null")
+	default:
+		jse.emitToFile("null")
+	}
 }
 
 // Selector expressions (field access)
@@ -1152,6 +1314,14 @@ func (jse *JSEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	// Only emit dot if X was not lowered to empty (e.g., fmt -> "")
 	if ident, ok := node.(*ast.Ident); ok {
 		if jse.lowerToBuiltins(ident.Name) == "" {
+			return
+		}
+		// If X is a known namespace/package, don't emit dot
+		// Constants and functions are accessible globally or via the namespace object
+		if _, found := namespaces[ident.Name]; found {
+			// For cross-package access, emit the dot to access namespace object
+			// e.g., lexer.GetTokens() works because GetTokens is a method of the lexer object
+			jse.emitToFile(".")
 			return
 		}
 	}
@@ -1253,6 +1423,27 @@ func (jse *JSEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index i
 	jse.emitToFile(str)
 	// Check if we need to add default initialization
 	if len(node.Values) == 0 && node.Type != nil {
+		// Use type info to detect actual type (handles type aliases)
+		if jse.pkg != nil && jse.pkg.TypesInfo != nil {
+			if typeAndValue, ok := jse.pkg.TypesInfo.Types[node.Type]; ok {
+				underlying := typeAndValue.Type.Underlying()
+				if _, isSlice := underlying.(*types.Slice); isSlice {
+					jse.pendingSliceInit = true
+					return
+				}
+				if structType, isStruct := underlying.(*types.Struct); isStruct {
+					jse.pendingStructInit = true
+					jse.pendingStructType = structType
+					return
+				}
+				// Handle basic types (string, int, bool, etc.)
+				if basicType, isBasic := underlying.(*types.Basic); isBasic {
+					jse.pendingBasicInit = basicType
+					return
+				}
+			}
+		}
+		// Fallback to AST-based detection
 		switch t := node.Type.(type) {
 		case *ast.ArrayType:
 			// Slice/array type - initialize to []
@@ -1285,8 +1476,34 @@ func (jse *JSEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int
 		jse.emitToFile(" = []")
 		jse.pendingSliceInit = false
 	} else if jse.pendingStructInit {
-		jse.emitToFile(" = {}")
+		if jse.pendingStructType != nil {
+			// Emit full struct with all fields initialized
+			jse.emitToFile(" = {")
+			for i := 0; i < jse.pendingStructType.NumFields(); i++ {
+				if i > 0 {
+					jse.emitToFile(", ")
+				}
+				field := jse.pendingStructType.Field(i)
+				jse.emitToFile(field.Name() + ": ")
+				jse.emitDefaultValue(field.Type())
+			}
+			jse.emitToFile("}")
+			jse.pendingStructType = nil
+		} else {
+			jse.emitToFile(" = {}")
+		}
 		jse.pendingStructInit = false
+	} else if jse.pendingBasicInit != nil {
+		// Emit default value for basic types (string, int, bool, etc.)
+		info := jse.pendingBasicInit.Info()
+		if info&types.IsInteger != 0 || info&types.IsFloat != 0 {
+			jse.emitToFile(" = 0")
+		} else if info&types.IsBoolean != 0 {
+			jse.emitToFile(" = false")
+		} else if info&types.IsString != 0 {
+			jse.emitToFile(` = ""`)
+		}
+		jse.pendingBasicInit = nil
 	}
 	jse.emitToFile(";\n")
 }
@@ -1347,32 +1564,14 @@ func (jse *JSEmitter) PostVisitValueSpec(node *ast.ValueSpec, indent int) {
 	}
 	// If no value, initialize with default
 	if len(node.Values) == 0 {
-		if node.Type != nil {
-			jse.emitToFile(" = ")
-			jse.emitDefaultValue(node.Type)
+		if node.Type != nil && jse.pkg != nil && jse.pkg.TypesInfo != nil {
+			if typeAndValue, ok := jse.pkg.TypesInfo.Types[node.Type]; ok {
+				jse.emitToFile(" = ")
+				jse.emitDefaultValue(typeAndValue.Type)
+			}
 		}
 	}
 	jse.emitToFile(";\n")
-}
-
-func (jse *JSEmitter) emitDefaultValue(typeExpr ast.Expr) {
-	switch t := typeExpr.(type) {
-	case *ast.Ident:
-		switch t.Name {
-		case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64":
-			jse.emitToFile("0")
-		case "bool":
-			jse.emitToFile("false")
-		case "string":
-			jse.emitToFile("\"\"")
-		default:
-			jse.emitToFile("null")
-		}
-	case *ast.ArrayType:
-		jse.emitToFile("[]")
-	default:
-		jse.emitToFile("null")
-	}
 }
 
 // Constant declarations
@@ -1387,11 +1586,11 @@ func (jse *JSEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 		return
 	}
 	if jse.inNamespace {
-		// Inside namespace object, use property syntax
-		str := jse.emitAsString(node.Name+": ", indent)
+		// Inside a namespace object, use property syntax
+		str := jse.emitAsString(node.Name+": ", 0)
 		jse.emitToFile(str)
 	} else {
-		str := jse.emitAsString("const "+node.Name+" = ", indent)
+		str := jse.emitAsString("const "+node.Name+" = ", 0)
 		jse.emitToFile(str)
 	}
 }
@@ -1594,11 +1793,21 @@ func (jse *JSEmitter) PostVisitTypeAssertExpr(node *ast.TypeAssertExpr, indent i
 	// No-op for JavaScript
 }
 
+func (jse *JSEmitter) PreVisitTypeAssertExprType(node ast.Expr, indent int) {
+	// Suppress type emission - JavaScript has no type assertions
+	jse.suppressTypeEmit = true
+}
+
+func (jse *JSEmitter) PostVisitTypeAssertExprType(node ast.Expr, indent int) {
+	jse.suppressTypeEmit = false
+}
+
 // Function literals (closures)
 func (jse *JSEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 	if jse.forwardDecl {
 		return
 	}
+	jse.inFuncLit = true
 	jse.emitToFile("function(")
 }
 
@@ -1637,6 +1846,10 @@ func (jse *JSEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int
 
 func (jse *JSEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
 	jse.suppressTypeEmit = false
+}
+
+func (jse *JSEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	jse.inFuncLit = false
 }
 
 // Helper to check if type needs special handling
