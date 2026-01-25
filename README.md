@@ -6,6 +6,8 @@ A Go language transpiler that generates portable code for multiple target platfo
 
 [**▶ Try the C64 Emulator Demo WIP (runs in browser)**](https://pdelewski.github.io/goany/demos/c64.html)
 
+[**▶ MOS 6502 Text Sprites Demo**](https://pdelewski.github.io/goany/demos/text.html) | [**▶ MOS 6502 Basic Graphics Shapes Demo**](https://pdelewski.github.io/goany/demos/graphic.html)
+
 ## Overview
 
 This project provides a foundation for writing portable libraries in Go that can be transpiled to multiple backend languages. Currently supported backends:
