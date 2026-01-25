@@ -161,3 +161,19 @@ func DrawCircle(w Window, centerX int32, centerY int32, radius int32, c Color) {
 func FillCircle(w Window, centerX int32, centerY int32, radius int32, c Color) {
 	sdl.FillCircle(w.renderer, centerX, centerY, radius, c.R, c.G, c.B, c.A)
 }
+
+// RunLoop runs the main loop, calling frameFunc each frame.
+// frameFunc receives the window and returns true to continue, false to stop.
+// This is the preferred way to write cross-platform graphics code that works in browsers.
+func RunLoop(w Window, frameFunc func(Window) bool) {
+	for {
+		var running bool
+		w, running = PollEvents(w)
+		if !running {
+			break
+		}
+		if !frameFunc(w) {
+			break
+		}
+	}
+}

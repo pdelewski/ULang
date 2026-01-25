@@ -9,7 +9,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace graphics
+public static class graphics
 {
     // --- P/Invoke declarations for tigr ---
     internal static class Tigr
@@ -114,227 +114,244 @@ namespace graphics
         public bool running;
     }
 
-    public static class Api
+    // Key state tracking for reliable single-press detection
+    private static bool[] prevKeyState = new bool[7];
+    private static int lastKeyPressed = 0;
+
+    // --- Helper function ---
+    private static uint ColorToUint(Color c)
     {
-        // Key state tracking for reliable single-press detection
-        private static bool[] prevKeyState = new bool[7];
-        private static int lastKeyPressed = 0;
+        return Tigr.RGBA(c.R, c.G, c.B, c.A);
+    }
 
-        // --- Helper function ---
-        private static uint ColorToUint(Color c)
+    // --- Color constructors ---
+
+    public static Color NewColor(byte r, byte g, byte b, byte a)
+    {
+        return new Color(r, g, b, a);
+    }
+
+    public static Color Black() { return new Color(0, 0, 0, 255); }
+    public static Color White() { return new Color(255, 255, 255, 255); }
+    public static Color Red() { return new Color(255, 0, 0, 255); }
+    public static Color Green() { return new Color(0, 255, 0, 255); }
+    public static Color Blue() { return new Color(0, 0, 255, 255); }
+
+    // --- Rect constructor ---
+
+    public static Rect NewRect(int x, int y, int width, int height)
+    {
+        return new Rect(x, y, width, height);
+    }
+
+    // --- Window management ---
+
+    public static Window CreateWindow(string title, int width, int height)
+    {
+        IntPtr win = Tigr.tigrWindow(width, height, title, 0);
+
+        if (win == IntPtr.Zero)
         {
-            return Tigr.RGBA(c.R, c.G, c.B, c.A);
-        }
-
-        // --- Color constructors ---
-
-        public static Color NewColor(byte r, byte g, byte b, byte a)
-        {
-            return new Color(r, g, b, a);
-        }
-
-        public static Color Black() { return new Color(0, 0, 0, 255); }
-        public static Color White() { return new Color(255, 255, 255, 255); }
-        public static Color Red() { return new Color(255, 0, 0, 255); }
-        public static Color Green() { return new Color(0, 255, 0, 255); }
-        public static Color Blue() { return new Color(0, 0, 255, 255); }
-
-        // --- Rect constructor ---
-
-        public static Rect NewRect(int x, int y, int width, int height)
-        {
-            return new Rect(x, y, width, height);
-        }
-
-        // --- Window management ---
-
-        public static Window CreateWindow(string title, int width, int height)
-        {
-            IntPtr win = Tigr.tigrWindow(width, height, title, 0);
-
-            if (win == IntPtr.Zero)
-            {
-                return new Window
-                {
-                    handle = 0,
-                    renderer = 0,
-                    width = width,
-                    height = height,
-                    running = false
-                };
-            }
-
             return new Window
             {
-                handle = win.ToInt64(),
-                renderer = win.ToInt64(),
+                handle = 0,
+                renderer = 0,
                 width = width,
                 height = height,
-                running = true
+                running = false
             };
         }
 
-        public static void CloseWindow(Window w)
+        return new Window
         {
-            if (w.handle != 0)
-            {
-                Tigr.tigrFree(new IntPtr(w.handle));
-            }
+            handle = win.ToInt64(),
+            renderer = win.ToInt64(),
+            width = width,
+            height = height,
+            running = true
+        };
+    }
+
+    public static void CloseWindow(Window w)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrFree(new IntPtr(w.handle));
+        }
+    }
+
+    public static bool IsRunning(Window w)
+    {
+        return w.running;
+    }
+
+    public static (Window, bool) PollEvents(Window w)
+    {
+        if (w.handle == 0)
+        {
+            return (w, false);
         }
 
-        public static bool IsRunning(Window w)
+        IntPtr win = new IntPtr(w.handle);
+
+        // Check if window should close BEFORE update
+        if (Tigr.tigrClosed(win) != 0)
         {
-            return w.running;
+            w.running = false;
+            return (w, false);
         }
 
-        public static (Window, bool) PollEvents(Window w)
+        // Call tigrUpdate to process events and present previous frame
+        Tigr.tigrUpdate(win);
+
+        // Reset last key
+        lastKeyPressed = 0;
+
+        // Use tigrReadChar for character input
+        // Note: Ignore '\n' (10) as some systems send CRLF for Enter - we use '\r' (13) only
+        int ch = Tigr.tigrReadChar(win);
+        if (ch > 0 && ch < 128 && ch != 10)
         {
-            if (w.handle == 0)
-            {
-                return (w, false);
-            }
-
-            IntPtr win = new IntPtr(w.handle);
-
-            // Check if window should close BEFORE update
-            if (Tigr.tigrClosed(win) != 0)
-            {
-                w.running = false;
-                return (w, false);
-            }
-
-            // Call tigrUpdate to process events and present previous frame
-            Tigr.tigrUpdate(win);
-
-            // Reset last key
-            lastKeyPressed = 0;
-
-            // Use tigrReadChar for character input
-            // Note: Ignore '\n' (10) as some systems send CRLF for Enter - we use '\r' (13) only
-            int ch = Tigr.tigrReadChar(win);
-            if (ch > 0 && ch < 128 && ch != 10)
-            {
-                lastKeyPressed = ch;
-            }
-
-            // Also check for DEL (127) which some systems use for backspace
-            if (ch == 127)
-            {
-                lastKeyPressed = 8;  // Normalize to backspace
-            }
-
-            // Check special keys using our own state tracking
-            // ALWAYS read current state and update prevKeyState to avoid double-detection
-            bool[] currKeyState = new bool[7];
-            currKeyState[0] = Tigr.tigrKeyHeld(win, Tigr.TK_RETURN) != 0;
-            currKeyState[1] = Tigr.tigrKeyHeld(win, Tigr.TK_BACKSPACE) != 0;
-            currKeyState[2] = Tigr.tigrKeyHeld(win, Tigr.TK_ESCAPE) != 0;
-            currKeyState[3] = Tigr.tigrKeyHeld(win, Tigr.TK_LEFT) != 0;
-            currKeyState[4] = Tigr.tigrKeyHeld(win, Tigr.TK_RIGHT) != 0;
-            currKeyState[5] = Tigr.tigrKeyHeld(win, Tigr.TK_UP) != 0;
-            currKeyState[6] = Tigr.tigrKeyHeld(win, Tigr.TK_DOWN) != 0;
-
-            // Only detect key press if no character was read via tigrReadChar
-            if (lastKeyPressed == 0)
-            {
-                // Detect key press (transition from not pressed to pressed)
-                // Note: TK_RETURN (index 0) is NOT detected here - Enter is handled solely via tigrReadChar
-                // to avoid double-detection due to timing differences between tigrReadChar and tigrKeyHeld
-                if (currKeyState[1] && !prevKeyState[1]) lastKeyPressed = 8;
-                else if (currKeyState[2] && !prevKeyState[2]) lastKeyPressed = 27;
-                else if (currKeyState[3] && !prevKeyState[3]) lastKeyPressed = 256;
-                else if (currKeyState[4] && !prevKeyState[4]) lastKeyPressed = 257;
-                else if (currKeyState[5] && !prevKeyState[5]) lastKeyPressed = 258;
-                else if (currKeyState[6] && !prevKeyState[6]) lastKeyPressed = 259;
-            }
-
-            // ALWAYS update previous state to prevent double-detection
-            for (int i = 0; i < 7; i++)
-            {
-                prevKeyState[i] = currKeyState[i];
-            }
-
-            // Check if window was closed during event processing
-            if (Tigr.tigrClosed(win) != 0)
-            {
-                w.running = false;
-                return (w, false);
-            }
-
-            return (w, true);
+            lastKeyPressed = ch;
         }
 
-        public static int GetLastKey()
+        // Also check for DEL (127) which some systems use for backspace
+        if (ch == 127)
         {
-            return lastKeyPressed;
+            lastKeyPressed = 8;  // Normalize to backspace
         }
 
-        public static int GetWidth(Window w) { return w.width; }
-        public static int GetHeight(Window w) { return w.height; }
+        // Check special keys using our own state tracking
+        // ALWAYS read current state and update prevKeyState to avoid double-detection
+        bool[] currKeyState = new bool[7];
+        currKeyState[0] = Tigr.tigrKeyHeld(win, Tigr.TK_RETURN) != 0;
+        currKeyState[1] = Tigr.tigrKeyHeld(win, Tigr.TK_BACKSPACE) != 0;
+        currKeyState[2] = Tigr.tigrKeyHeld(win, Tigr.TK_ESCAPE) != 0;
+        currKeyState[3] = Tigr.tigrKeyHeld(win, Tigr.TK_LEFT) != 0;
+        currKeyState[4] = Tigr.tigrKeyHeld(win, Tigr.TK_RIGHT) != 0;
+        currKeyState[5] = Tigr.tigrKeyHeld(win, Tigr.TK_UP) != 0;
+        currKeyState[6] = Tigr.tigrKeyHeld(win, Tigr.TK_DOWN) != 0;
 
-        // --- Rendering ---
-
-        public static void Clear(Window w, Color c)
+        // Only detect key press if no character was read via tigrReadChar
+        if (lastKeyPressed == 0)
         {
-            if (w.handle != 0)
+            // Detect key press (transition from not pressed to pressed)
+            // Note: TK_RETURN (index 0) is NOT detected here - Enter is handled solely via tigrReadChar
+            // to avoid double-detection due to timing differences between tigrReadChar and tigrKeyHeld
+            if (currKeyState[1] && !prevKeyState[1]) lastKeyPressed = 8;
+            else if (currKeyState[2] && !prevKeyState[2]) lastKeyPressed = 27;
+            else if (currKeyState[3] && !prevKeyState[3]) lastKeyPressed = 256;
+            else if (currKeyState[4] && !prevKeyState[4]) lastKeyPressed = 257;
+            else if (currKeyState[5] && !prevKeyState[5]) lastKeyPressed = 258;
+            else if (currKeyState[6] && !prevKeyState[6]) lastKeyPressed = 259;
+        }
+
+        // ALWAYS update previous state to prevent double-detection
+        for (int i = 0; i < 7; i++)
+        {
+            prevKeyState[i] = currKeyState[i];
+        }
+
+        // Check if window was closed during event processing
+        if (Tigr.tigrClosed(win) != 0)
+        {
+            w.running = false;
+            return (w, false);
+        }
+
+        return (w, true);
+    }
+
+    public static int GetLastKey()
+    {
+        return lastKeyPressed;
+    }
+
+    public static int GetWidth(Window w) { return w.width; }
+    public static int GetHeight(Window w) { return w.height; }
+
+    // --- Rendering ---
+
+    public static void Clear(Window w, Color c)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrClear(new IntPtr(w.handle), ColorToUint(c));
+        }
+    }
+
+    public static void Present(Window w)
+    {
+        // tigrUpdate is called in PollEvents to ensure events are processed before key checks.
+        // This function exists for API compatibility.
+    }
+
+    // --- Drawing primitives ---
+
+    public static void DrawRect(Window w, Rect rect, Color c)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrRect(new IntPtr(w.handle), rect.X, rect.Y, rect.Width, rect.Height, ColorToUint(c));
+        }
+    }
+
+    public static void FillRect(Window w, Rect rect, Color c)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrFillRect(new IntPtr(w.handle), rect.X, rect.Y, rect.Width, rect.Height, ColorToUint(c));
+        }
+    }
+
+    public static void DrawLine(Window w, int x1, int y1, int x2, int y2, Color c)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrLine(new IntPtr(w.handle), x1, y1, x2, y2, ColorToUint(c));
+        }
+    }
+
+    public static void DrawPoint(Window w, int x, int y, Color c)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrPlot(new IntPtr(w.handle), x, y, ColorToUint(c));
+        }
+    }
+
+    public static void DrawCircle(Window w, int centerX, int centerY, int radius, Color c)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrCircle(new IntPtr(w.handle), centerX, centerY, radius, ColorToUint(c));
+        }
+    }
+
+    public static void FillCircle(Window w, int centerX, int centerY, int radius, Color c)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrFillCircle(new IntPtr(w.handle), centerX, centerY, radius, ColorToUint(c));
+        }
+    }
+
+    // RunLoop runs the main loop, calling frameFunc each frame.
+    // frameFunc receives the window and returns true to continue, false to stop.
+    // This is the preferred way to write cross-platform graphics code that works in browsers.
+    public static void RunLoop(Window w, Func<Window, bool> frameFunc)
+    {
+        while (true)
+        {
+            bool running;
+            (w, running) = PollEvents(w);
+            if (!running)
             {
-                Tigr.tigrClear(new IntPtr(w.handle), ColorToUint(c));
+                break;
             }
-        }
-
-        public static void Present(Window w)
-        {
-            // tigrUpdate is called in PollEvents to ensure events are processed before key checks.
-            // This function exists for API compatibility.
-        }
-
-        // --- Drawing primitives ---
-
-        public static void DrawRect(Window w, Rect rect, Color c)
-        {
-            if (w.handle != 0)
+            if (!frameFunc(w))
             {
-                Tigr.tigrRect(new IntPtr(w.handle), rect.X, rect.Y, rect.Width, rect.Height, ColorToUint(c));
-            }
-        }
-
-        public static void FillRect(Window w, Rect rect, Color c)
-        {
-            if (w.handle != 0)
-            {
-                Tigr.tigrFillRect(new IntPtr(w.handle), rect.X, rect.Y, rect.Width, rect.Height, ColorToUint(c));
-            }
-        }
-
-        public static void DrawLine(Window w, int x1, int y1, int x2, int y2, Color c)
-        {
-            if (w.handle != 0)
-            {
-                Tigr.tigrLine(new IntPtr(w.handle), x1, y1, x2, y2, ColorToUint(c));
-            }
-        }
-
-        public static void DrawPoint(Window w, int x, int y, Color c)
-        {
-            if (w.handle != 0)
-            {
-                Tigr.tigrPlot(new IntPtr(w.handle), x, y, ColorToUint(c));
-            }
-        }
-
-        public static void DrawCircle(Window w, int centerX, int centerY, int radius, Color c)
-        {
-            if (w.handle != 0)
-            {
-                Tigr.tigrCircle(new IntPtr(w.handle), centerX, centerY, radius, ColorToUint(c));
-            }
-        }
-
-        public static void FillCircle(Window w, int centerX, int centerY, int radius, Color c)
-        {
-            if (w.handle != 0)
-            {
-                Tigr.tigrFillCircle(new IntPtr(w.handle), centerX, centerY, radius, ColorToUint(c));
+                break;
             }
         }
     }

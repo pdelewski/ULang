@@ -69,6 +69,12 @@ type CSharpEmitter struct {
 	pendingValueName        string
 	pendingCollectionExpr   string
 	pendingKeyName          string
+	inTypeContext              bool              // Track if we're in a type context (don't add .Api. for types)
+	apiClassOpened             bool              // Track if we've opened the Api class (for functions)
+	suppressTypeAliasEmit      bool              // Suppress emission during type alias handling
+	currentAliasName           string            // Current type alias name being processed
+	typeAliasMap               map[string]string // Maps alias names to underlying type names
+	suppressTypeAliasSelectorX bool              // Suppress X part emission for type alias selectors
 }
 
 func (*CSharpEmitter) lowerToBuiltins(selector string) string {
@@ -89,6 +95,100 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 		return "SliceBuiltins.Append"
 	}
 	return selector
+}
+
+// =============================================================================
+// TYPE ALIAS HANDLING FOR C#
+// =============================================================================
+//
+// Go allows type aliases like:
+//     type ExprKind int           // simple alias
+//     type AST []Statement        // complex alias (slice)
+//
+// In C#, type aliases use "using X = T;" syntax, but these CANNOT be placed
+// inside a class. Since we use "public static class" for packages (to avoid
+// the .Api. workaround), we cannot emit using aliases inside the class body.
+//
+// SOLUTION: Replace all usages of type aliases with their underlying C# type.
+//
+// ALGORITHM:
+//
+// 1. COLLECTION PHASE (during AST traversal of type alias definitions):
+//    - PreVisitTypeAliasName: Store alias name, set suppressTypeAliasEmit=true
+//    - PostVisitTypeAliasType: Get underlying Go type from type info,
+//      convert to C# syntax, store in typeAliasMap[aliasName] = csharpType
+//    - The suppressTypeAliasEmit flag prevents any output during this phase
+//
+// 2. CONVERSION (convertGoTypeToCSharp function):
+//    - Slice types: "[]T" -> "List<T>" (recursive for nested types)
+//    - Map types: "map[K]V" -> "Dictionary<K, V>"
+//    - Package paths: "uql/ast.Statement" -> "ast.Statement" (strip path prefix)
+//    - Basic types: "int8" -> "sbyte", etc. (via csTypesMap)
+//
+// 3. REPLACEMENT PHASE (during code generation):
+//    - PreVisitIdent: If identifier is in typeAliasMap, emit underlying type
+//    - PreVisitSelectorExpr: If selector (e.g., ast.AST) refers to alias,
+//      set suppressTypeAliasSelectorX=true to skip package prefix
+//    - This transforms "ast.AST" into just "List<ast.Statement>"
+//
+// 4. SUPPRESSION FLAGS:
+//    - suppressTypeAliasEmit: Blocks PreVisitIdent, PreVisitArrayType,
+//      PostVisitArrayType during type alias definition processing
+//    - suppressTypeAliasSelectorX: Blocks package name and dot emission
+//      when a type alias is used as pkg.AliasName
+//
+// EXAMPLE:
+//
+//   Go source:
+//     type AST []Statement
+//     func Parse() (AST, int8) { var result AST; return result, 0 }
+//
+//   Generated C#:
+//     // No "using AST = ..." - alias definition produces no output
+//     public static (List<ast.Statement>, sbyte) Parse() {
+//         List<ast.Statement> result = default;
+//         return (result, 0);
+//     }
+//
+// =============================================================================
+
+// convertGoTypeToCSharp converts a Go type string to C# syntax
+// Handles: slices ([]T -> List<T>), package paths (pkg/subpkg.Type -> subpkg.Type), basic type mappings
+func (cse *CSharpEmitter) convertGoTypeToCSharp(goType string) string {
+	result := goType
+
+	// Handle slice types: []T -> List<T>
+	if strings.HasPrefix(result, "[]") {
+		elementType := result[2:]
+		elementType = cse.convertGoTypeToCSharp(elementType) // Recursive for nested types
+		return "List<" + elementType + ">"
+	}
+
+	// Handle map types: map[K]V -> Dictionary<K, V>
+	if strings.HasPrefix(result, "map[") {
+		// Find the key type (between [ and ])
+		bracketEnd := strings.Index(result, "]")
+		if bracketEnd > 4 {
+			keyType := result[4:bracketEnd]
+			valueType := result[bracketEnd+1:]
+			keyType = cse.convertGoTypeToCSharp(keyType)
+			valueType = cse.convertGoTypeToCSharp(valueType)
+			return "Dictionary<" + keyType + ", " + valueType + ">"
+		}
+	}
+
+	// Strip package path prefixes (e.g., uql/ast.Statement -> ast.Statement)
+	if strings.Contains(result, "/") {
+		lastSlash := strings.LastIndex(result, "/")
+		result = result[lastSlash+1:]
+	}
+
+	// Apply basic type mappings
+	if csType, exists := csTypesMap[result]; exists {
+		return csType
+	}
+
+	return result
 }
 
 func (cse *CSharpEmitter) emitAsString(s string, indent int) string {
@@ -171,6 +271,7 @@ func (cse *CSharpEmitter) executeIfNotForwardDecls(fn func()) {
 
 func (cse *CSharpEmitter) PreVisitProgram(indent int) {
 	cse.aliases = make(map[string]Alias)
+	cse.typeAliasMap = make(map[string]string)
 	outputFile := cse.Output
 	cse.shouldGenerate = true
 	var err error
@@ -402,9 +503,21 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		if !cse.shouldGenerate {
 			return
 		}
+		// Skip emission during type alias handling
+		if cse.suppressTypeAliasEmit {
+			return
+		}
 		// Skip emission during key-value range key/value visits
 		if cse.suppressRangeEmit {
 			return
+		}
+		// Skip package name emission for type alias selector expressions
+		// (the X part, not the Sel part - Sel will be emitted with the underlying type)
+		if cse.suppressTypeAliasSelectorX {
+			// Check if this is the package name (X part) - we need to let the Sel through
+			if _, isAlias := cse.typeAliasMap[e.Name]; !isAlias {
+				return // Skip the package name
+			}
 		}
 		// Capture to buffer during range collection expression visit
 		if cse.captureRangeExpr {
@@ -419,6 +532,9 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		} else {
 			if n, ok := csTypesMap[name]; ok {
 				str = cse.emitAsString(n, indent)
+			} else if underlyingType, ok := cse.typeAliasMap[name]; ok {
+				// Replace type alias with its underlying type
+				str = cse.emitAsString(underlyingType, indent)
 			} else {
 				str = cse.emitAsString(name, indent)
 			}
@@ -465,11 +581,15 @@ func (cse *CSharpEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, ind
 		// Reset isArray flag at the start of each variable declaration
 		// This prevents stale state from previous declarations affecting this one
 		cse.isArray = false
+		// Set type context flag - the variable type will be visited next
+		cse.inTypeContext = true
 	})
 }
 
 func (cse *CSharpEmitter) PostVisitDeclStmtValueSpecType(node *ast.ValueSpec, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Clear type context flag - type has been visited
+		cse.inTypeContext = false
 		pointerAndPosition := SearchPointerIndexReverse(PreVisitDeclStmtValueSpecType, cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			for aliasName, alias := range cse.aliases {
@@ -537,12 +657,13 @@ func (cse *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 			//packageName = capitalizeFirst(name)
 			packageName = name
 		}
-		str := cse.emitAsString(fmt.Sprintf("namespace %s {\n\n", packageName), indent)
+		// Use a static class instead of namespace so we can have both types and functions
+		// This allows pkg.Type and pkg.Function without needing .Api.
+		str := cse.emitAsString(fmt.Sprintf("public static class %s {\n\n", packageName), indent)
 		err := cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		err = cse.gir.emitToFileBufferString("", pkg.Name)
 		cse.currentPackage = packageName
-		str = cse.emitAsString(fmt.Sprintf("public struct %s {\n\n", "Api"), indent+2)
-		err = cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		cse.apiClassOpened = true // Class is already open (no separate Api class needed)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 			return
@@ -552,19 +673,11 @@ func (cse *CSharpEmitter) PreVisitPackage(pkg *packages.Package, indent int) {
 
 func (cse *CSharpEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 	cse.executeIfNotForwardDecls(func() {
-		pointerAndPosition := SearchPointerIndexReverseString(pkg.Name, cse.gir.pointerAndIndexVec)
-		if pointerAndPosition != nil {
-			var newStr string
-			for aliasKey, aliasVal := range cse.aliases {
-				aliasRepr := RebuildNestedType(aliasVal.representation)
-				newStr += "using " + aliasKey + " = " + aliasRepr + ";\n"
-			}
-			newStr += "\n"
-			cse.gir.tokenSlice, _ = RewriteTokens(cse.gir.tokenSlice, pointerAndPosition.Index, []string{}, []string{newStr})
-		}
+		// Note: Type aliases (using X = T) are not emitted here because they can't be inside a class.
+		// They would need to be at namespace or file level, but since we use static classes,
+		// we skip alias emission. The actual types will be used directly where needed.
 
-		str := cse.emitAsString("}\n", indent+2)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Close the package class
 		err := cse.gir.emitToFileBuffer("}\n", EmptyVisitMethod)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
@@ -610,6 +723,10 @@ func (cse *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
 
 func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Skip emission during type alias handling
+		if cse.suppressTypeAliasEmit {
+			return
+		}
 		str := cse.emitAsString("List", indent)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		str = cse.emitAsString("<", 0)
@@ -618,6 +735,10 @@ func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 }
 func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Skip emission during type alias handling
+		if cse.suppressTypeAliasEmit {
+			return
+		}
 		str := cse.emitAsString(">", 0)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 
@@ -632,6 +753,8 @@ func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 
 func (cse *CSharpEmitter) PreVisitFuncType(node *ast.FuncType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// All types within FuncType are type references
+		cse.inTypeContext = true
 		var str string
 		if node.Results != nil {
 			str = cse.emitAsString("Func", indent)
@@ -665,6 +788,8 @@ func (cse *CSharpEmitter) PostVisitFuncType(node *ast.FuncType, indent int) {
 
 		str := cse.emitAsString(">", 0)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Clear type context flag
+		cse.inTypeContext = false
 	})
 }
 
@@ -677,21 +802,37 @@ func (cse *CSharpEmitter) PreVisitFuncTypeParam(node *ast.Field, index int, inde
 	})
 }
 
+func (cse *CSharpEmitter) PreVisitSelectorExpr(node *ast.SelectorExpr, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		// Check if the selector is a type alias - if so, suppress package prefix emission
+		if node.Sel != nil {
+			if _, isAlias := cse.typeAliasMap[node.Sel.Name]; isAlias {
+				cse.suppressTypeAliasSelectorX = true
+			}
+		}
+	})
+}
+
+func (cse *CSharpEmitter) PostVisitSelectorExpr(node *ast.SelectorExpr, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		// Reset the flag after processing the selector expression
+		cse.suppressTypeAliasSelectorX = false
+	})
+}
+
 func (cse *CSharpEmitter) PostVisitSelectorExprX(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Skip emitting the dot if we're in a type alias selector
+		if cse.suppressTypeAliasSelectorX {
+			return
+		}
 		var str string
 		scopeOperator := "."
 		if ident, ok := node.(*ast.Ident); ok {
 			if cse.lowerToBuiltins(ident.Name) == "" {
 				return
 			}
-			// if the identifier is a package name, we need to append "Api." to the scope operator
-			obj := cse.pkg.TypesInfo.Uses[ident]
-			if obj != nil {
-				if _, ok := obj.(*types.PkgName); ok {
-					scopeOperator += "Api."
-				}
-			}
+			// No need to add .Api. - everything is in the package class directly
 		}
 
 		str = cse.emitAsString(scopeOperator, 0)
@@ -713,11 +854,15 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsList(node *ast.Fiel
 			str := cse.emitAsString(", ", 0)
 			cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		}
+		// Set type context flag - the parameter type will be visited next
+		cse.inTypeContext = true
 	})
 }
 
 func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeParamsArgName(node *ast.Ident, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Clear type context flag - type has been visited, now emitting name
+		cse.inTypeContext = false
 		cse.gir.emitToFileBuffer(" ", EmptyVisitMethod)
 	})
 }
@@ -727,11 +872,15 @@ func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResultsList(node *ast.Fie
 		if index > 0 {
 			cse.emitToken(",", Comma, 0)
 		}
+		// Set type context flag - the return type will be visited next
+		cse.inTypeContext = true
 	})
 }
 
 func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Field, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Clear type context flag - type has been visited
+		cse.inTypeContext = false
 		pointerAndPosition := SearchPointerIndexReverse(PreVisitFuncDeclSignatureTypeResultsList, cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			adjustment := 0
@@ -750,6 +899,7 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResultsList(node *ast.Fi
 
 func (cse *CSharpEmitter) PreVisitFuncDeclSignatureTypeResults(node *ast.FuncDecl, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Functions are directly in the package class (no separate Api class)
 		str := cse.emitAsString("public static ", indent+2)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		if node.Type.Results != nil {
@@ -777,21 +927,18 @@ func (cse *CSharpEmitter) PostVisitFuncDeclSignatureTypeResults(node *ast.FuncDe
 }
 
 func (cse *CSharpEmitter) PreVisitTypeAliasName(node *ast.Ident, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString("using ", indent+2)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	})
+	// Note: Type aliases (using X = T;) are not supported inside static classes.
+	// We collect the alias name here and will map it to the underlying type.
+	cse.suppressTypeAliasEmit = true
+	cse.currentAliasName = node.Name
 }
 
 func (cse *CSharpEmitter) PostVisitTypeAliasName(node *ast.Ident, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-	})
+	// Skipped - see PreVisitTypeAliasName
 }
 
 func (cse *CSharpEmitter) PreVisitTypeAliasType(node ast.Expr, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		cse.gir.emitToFileBuffer(" = ", EmptyVisitMethod)
-	})
+	// Skipped - see PreVisitTypeAliasName
 }
 
 func ConvertToAliasRepr(types []string, pkgName []string) []AliasRepr {
@@ -825,26 +972,22 @@ func ParseNestedTypes(s string) []string {
 }
 
 func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		// Extract tokens for alias processing
-		pointerAndPosition := SearchPointerIndexReverse(PreVisitTypeAliasName, cse.gir.pointerAndIndexVec)
-		if pointerAndPosition != nil {
-			tokens, _ := ExtractTokens(pointerAndPosition.Index, cse.gir.tokenSlice)
-			if len(tokens) >= 3 {
-				// tokens[0] = "using ", tokens[1] = alias name, tokens[2] = " = ", tokens[3+] = type
-				aliasName := tokens[1]
-				typeTokens := tokens[3:]
-				typeStr := strings.Join(typeTokens, "")
-				cse.aliases[aliasName] = Alias{
-					PackageName:    cse.pkg.Name + ".Api",
-					representation: ConvertToAliasRepr(ParseNestedTypes(typeStr), []string{"", cse.pkg.Name + ".Api"}),
-					UnderlyingType: cse.pkg.TypesInfo.Types[node].Type.String(),
-				}
+	// Store the alias mapping: aliasName -> underlyingType (converted to C# syntax)
+	if cse.currentAliasName != "" {
+		// Get the underlying type from the type info
+		if tv, ok := cse.pkg.TypesInfo.Types[node]; ok && tv.Type != nil {
+			underlyingType := tv.Type.String()
+			// Convert Go type to C# syntax (handles slices, package paths, basic types)
+			underlyingType = cse.convertGoTypeToCSharp(underlyingType)
+			if cse.typeAliasMap == nil {
+				cse.typeAliasMap = make(map[string]string)
 			}
-			// Remove the alias declaration from the current position - it will be added at the top later
-			cse.gir.tokenSlice, _ = RewriteTokensBetween(cse.gir.tokenSlice, pointerAndPosition.Index, len(cse.gir.tokenSlice), []string{})
+			cse.typeAliasMap[cse.currentAliasName] = underlyingType
 		}
-	})
+	}
+	// Reset flags
+	cse.suppressTypeAliasEmit = false
+	cse.currentAliasName = ""
 }
 
 func (cse *CSharpEmitter) PreVisitReturnStmt(node *ast.ReturnStmt, indent int) {
@@ -1223,11 +1366,15 @@ func (cse *CSharpEmitter) PreVisitCompositeLitType(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
 		str := cse.emitAsString("new ", 0)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Set type context flag - the composite literal type will be visited next
+		cse.inTypeContext = true
 	})
 }
 
 func (cse *CSharpEmitter) PostVisitCompositeLitType(node ast.Expr, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Clear type context flag - type has been visited
+		cse.inTypeContext = false
 		pointerAndPosition := SearchPointerIndexReverse(PreVisitCompositeLitType, cse.gir.pointerAndIndexVec)
 		if pointerAndPosition != nil {
 			// TODO not very effective
@@ -1289,10 +1436,7 @@ func (cse *CSharpEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 	})
 }
 func (cse *CSharpEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString("}", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	})
+	// Note: Don't emit } here - PostVisitBlockStmt will handle it
 }
 
 func (cse *CSharpEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int) {
@@ -1310,11 +1454,15 @@ func (cse *CSharpEmitter) PreVisitFuncLitTypeParam(node *ast.Field, index int, i
 			str += cse.emitAsString(", ", 0)
 		}
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
+		// Set type context flag - the parameter type will be visited next
+		cse.inTypeContext = true
 	})
 }
 
 func (cse *CSharpEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Clear type context flag - type has been visited
+		cse.inTypeContext = false
 		str := cse.emitAsString(" ", 0)
 		str += cse.emitAsString(node.Names[0].Name, indent)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -1322,10 +1470,7 @@ func (cse *CSharpEmitter) PostVisitFuncLitTypeParam(node *ast.Field, index int, 
 }
 
 func (cse *CSharpEmitter) PreVisitFuncLitBody(node *ast.BlockStmt, indent int) {
-	cse.executeIfNotForwardDecls(func() {
-		str := cse.emitAsString("{\n", 0)
-		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
-	})
+	// Note: Don't emit { here - PreVisitBlockStmt will handle it
 }
 
 func (cse *CSharpEmitter) PreVisitFuncLitTypeResult(node *ast.Field, index int, indent int) {
@@ -1377,6 +1522,7 @@ func trimBeforeChar(s string, ch byte) string {
 
 func (cse *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Constants are directly in the package class (no separate Api class)
 		// TODO dummy implementation
 		// not very well performed
 		for constIdent, obj := range cse.pkg.TypesInfo.Defs {
@@ -1396,7 +1542,11 @@ func (cse *CSharpEmitter) PreVisitGenDeclConstName(node *ast.Ident, indent int) 
 				if mappedType, ok := csTypesMap[constType]; ok {
 					constType = mappedType
 				}
-				str := cse.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), 0)
+				// Check if it's a type alias and replace with underlying type
+				if underlyingType, ok := cse.typeAliasMap[constType]; ok {
+					constType = underlyingType
+				}
+				str := cse.emitAsString(fmt.Sprintf("public const %s %s = ", constType, node.Name), indent+2)
 
 				cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 			}

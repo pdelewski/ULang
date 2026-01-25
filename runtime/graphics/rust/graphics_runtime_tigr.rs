@@ -357,3 +357,22 @@ pub fn FillCircle(w: Window, centerX: i32, centerY: i32, radius: i32, c: Color) 
         }
     }
 }
+
+/// RunLoop runs the main loop, calling frameFunc each frame.
+/// frameFunc receives the window and returns true to continue, false to stop.
+/// This is the preferred way to write cross-platform graphics code that works in browsers.
+pub fn RunLoop<F>(mut w: Window, mut frameFunc: F)
+where
+    F: FnMut(Window) -> bool,
+{
+    loop {
+        let running: bool;
+        (w, running) = PollEvents(w);
+        if !running {
+            break;
+        }
+        if !frameFunc(w) {
+            break;
+        }
+    }
+}
