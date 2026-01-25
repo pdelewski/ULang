@@ -218,6 +218,13 @@ const graphics = {
     return { r, g, b, a: a !== undefined ? a : 255 };
   },
 
+  // Color helper functions
+  Red: function() { return { r: 255, g: 0, b: 0, a: 255 }; },
+  Green: function() { return { r: 0, g: 255, b: 0, a: 255 }; },
+  Blue: function() { return { r: 0, g: 0, b: 255, a: 255 }; },
+  White: function() { return { r: 255, g: 255, b: 255, a: 255 }; },
+  Black: function() { return { r: 0, g: 0, b: 0, a: 255 }; },
+
   Clear: function(canvas, color) {
     this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -228,8 +235,32 @@ const graphics = {
     this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   },
 
+  DrawRect: function(canvas, rect, color) {
+    this.ctx.strokeStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+  },
+
   NewRect: function(x, y, width, height) {
     return { x, y, width, height };
+  },
+
+  FillCircle: function(canvas, centerX, centerY, radius, color) {
+    this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.beginPath();
+    this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    this.ctx.fill();
+  },
+
+  DrawCircle: function(canvas, centerX, centerY, radius, color) {
+    this.ctx.strokeStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.beginPath();
+    this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    this.ctx.stroke();
+  },
+
+  DrawPoint: function(canvas, x, y, color) {
+    this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.fillRect(x, y, 1, 1);
   },
 
   DrawLine: function(canvas, x1, y1, x2, y2, color) {
@@ -273,6 +304,30 @@ const graphics = {
     if (canvas && canvas.parentNode) {
       canvas.parentNode.removeChild(canvas);
     }
+  },
+
+  Present: function(canvas) {
+    // Canvas updates automatically, no-op
+  },
+
+  CloseWindow: function(canvas) {
+    // In browser context, don't immediately close - RunLoop is async
+    // The canvas will remain until the page is closed
+  },
+
+  RunLoop: function(canvas, frameFunc) {
+    const self = this;
+    function loop() {
+      if (!self.running) return;
+      // Poll events (update internal state)
+      const result = frameFunc(canvas);
+      if (result === false) {
+        self.running = false;
+        return;
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
   }
 };
 
@@ -1484,6 +1539,15 @@ func (jse *JSEmitter) PostVisitFuncLitTypeParams(node *ast.FieldList, indent int
 	}
 	jse.suppressTypeEmit = false
 	jse.emitToFile(") ")
+}
+
+func (jse *JSEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	// Suppress return type emission - JavaScript doesn't have return type annotations
+	jse.suppressTypeEmit = true
+}
+
+func (jse *JSEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
+	jse.suppressTypeEmit = false
 }
 
 // Helper to check if type needs special handling
