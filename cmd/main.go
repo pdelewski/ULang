@@ -223,6 +223,18 @@ func main() {
 		}
 	}
 
+	// Use prettier for JS files
+	if useJs {
+		jsFile := fmt.Sprintf("%s.js", output)
+		cmd := exec.Command("npx", "prettier", "--write", jsFile)
+		if err := cmd.Run(); err != nil {
+			// prettier not available or failed - just log warning, don't fail
+			log.Printf("Warning: prettier failed for %s: %v (install with: npm install -g prettier)", jsFile, err)
+		} else {
+			compiler.DebugLogPrintf("Successfully formatted: %s", jsFile)
+		}
+	}
+
 	// Print colorful success message
 	green := "\033[32m"
 	bold := "\033[1m"
