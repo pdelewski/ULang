@@ -97,6 +97,45 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	return selector
 }
 
+// convertGoTypeToCSharp converts a Go type string to C# syntax
+// Handles: slices ([]T -> List<T>), package paths (pkg/subpkg.Type -> subpkg.Type), basic type mappings
+func (cse *CSharpEmitter) convertGoTypeToCSharp(goType string) string {
+	result := goType
+
+	// Handle slice types: []T -> List<T>
+	if strings.HasPrefix(result, "[]") {
+		elementType := result[2:]
+		elementType = cse.convertGoTypeToCSharp(elementType) // Recursive for nested types
+		return "List<" + elementType + ">"
+	}
+
+	// Handle map types: map[K]V -> Dictionary<K, V>
+	if strings.HasPrefix(result, "map[") {
+		// Find the key type (between [ and ])
+		bracketEnd := strings.Index(result, "]")
+		if bracketEnd > 4 {
+			keyType := result[4:bracketEnd]
+			valueType := result[bracketEnd+1:]
+			keyType = cse.convertGoTypeToCSharp(keyType)
+			valueType = cse.convertGoTypeToCSharp(valueType)
+			return "Dictionary<" + keyType + ", " + valueType + ">"
+		}
+	}
+
+	// Strip package path prefixes (e.g., uql/ast.Statement -> ast.Statement)
+	if strings.Contains(result, "/") {
+		lastSlash := strings.LastIndex(result, "/")
+		result = result[lastSlash+1:]
+	}
+
+	// Apply basic type mappings
+	if csType, exists := csTypesMap[result]; exists {
+		return csType
+	}
+
+	return result
+}
+
 func (cse *CSharpEmitter) emitAsString(s string, indent int) string {
 	return strings.Repeat(" ", indent) + s
 }
@@ -629,6 +668,10 @@ func (cse *CSharpEmitter) PostVisitGenStructInfo(node GenTypeInfo, indent int) {
 
 func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Skip emission during type alias handling
+		if cse.suppressTypeAliasEmit {
+			return
+		}
 		str := cse.emitAsString("List", indent)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 		str = cse.emitAsString("<", 0)
@@ -637,6 +680,10 @@ func (cse *CSharpEmitter) PreVisitArrayType(node ast.ArrayType, indent int) {
 }
 func (cse *CSharpEmitter) PostVisitArrayType(node ast.ArrayType, indent int) {
 	cse.executeIfNotForwardDecls(func() {
+		// Skip emission during type alias handling
+		if cse.suppressTypeAliasEmit {
+			return
+		}
 		str := cse.emitAsString(">", 0)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
 
@@ -870,15 +917,13 @@ func ParseNestedTypes(s string) []string {
 }
 
 func (cse *CSharpEmitter) PostVisitTypeAliasType(node ast.Expr, indent int) {
-	// Store the alias mapping: aliasName -> underlyingType
+	// Store the alias mapping: aliasName -> underlyingType (converted to C# syntax)
 	if cse.currentAliasName != "" {
 		// Get the underlying type from the type info
 		if tv, ok := cse.pkg.TypesInfo.Types[node]; ok && tv.Type != nil {
 			underlyingType := tv.Type.String()
-			// Map Go types to C# types
-			if csType, exists := csTypesMap[underlyingType]; exists {
-				underlyingType = csType
-			}
+			// Convert Go type to C# syntax (handles slices, package paths, basic types)
+			underlyingType = cse.convertGoTypeToCSharp(underlyingType)
 			if cse.typeAliasMap == nil {
 				cse.typeAliasMap = make(map[string]string)
 			}
