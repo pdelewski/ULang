@@ -65,11 +65,15 @@ type JSEmitter struct {
 	suppressTypeEmit      bool
 	// For loop init section (suppress semicolon after assignment)
 	insideForInit         bool
-	// Pending slice/struct initialization
+	// Pending slice/struct/basic type initialization
 	pendingSliceInit      bool
 	pendingStructInit     bool
+	pendingStructType     *types.Struct // Store struct type for full initialization
+	pendingBasicInit      *types.Basic  // Store basic type for proper initialization
 	// Namespace handling for non-main packages
 	inNamespace           bool
+	// Track when inside a function literal (closure) where 'this' has different meaning
+	inFuncLit             bool
 	// Integer division handling
 	intDivision           bool
 }
@@ -151,7 +155,7 @@ function append(arr, ...items) {
 
 function stringFormat(fmt, ...args) {
   let i = 0;
-  return fmt.replace(/%[sdvfx%]/g, (match) => {
+  return fmt.replace(/%[sdvfxc%]/g, (match) => {
     if (match === '%%') return '%';
     if (i >= args.length) return match;
     const arg = args[i++];
@@ -161,6 +165,7 @@ function stringFormat(fmt, ...args) {
       case '%f': return parseFloat(arg);
       case '%v': return String(arg);
       case '%x': return parseInt(arg, 10).toString(16);
+      case '%c': return String.fromCharCode(arg);
       default: return arg;
     }
   });
@@ -708,7 +713,13 @@ func (jse *JSEmitter) PreVisitIdent(node *ast.Ident, indent int) {
 					}
 				}
 				if needsThis {
-					jse.emitToFile("this." + lowered)
+					// Inside function literals, use package name instead of 'this'
+					// because 'this' has different meaning inside closures
+					if jse.inFuncLit {
+						jse.emitToFile(jse.currentPackage + "." + lowered)
+					} else {
+						jse.emitToFile("this." + lowered)
+					}
 					return
 				}
 			}
@@ -1267,7 +1278,17 @@ func (jse *JSEmitter) emitDefaultValue(t types.Type) {
 	case *types.Slice:
 		jse.emitToFile("[]")
 	case *types.Struct:
-		jse.emitToFile("{}")
+		// Recursively initialize all struct fields
+		jse.emitToFile("{")
+		for i := 0; i < underlying.NumFields(); i++ {
+			if i > 0 {
+				jse.emitToFile(", ")
+			}
+			field := underlying.Field(i)
+			jse.emitToFile(field.Name() + ": ")
+			jse.emitDefaultValue(field.Type())
+		}
+		jse.emitToFile("}")
 	case *types.Pointer:
 		jse.emitToFile("null")
 	default:
@@ -1402,7 +1423,7 @@ func (jse *JSEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index i
 	jse.emitToFile(str)
 	// Check if we need to add default initialization
 	if len(node.Values) == 0 && node.Type != nil {
-		// First, try to use type info to detect slice type aliases
+		// Use type info to detect actual type (handles type aliases)
 		if jse.pkg != nil && jse.pkg.TypesInfo != nil {
 			if typeAndValue, ok := jse.pkg.TypesInfo.Types[node.Type]; ok {
 				underlying := typeAndValue.Type.Underlying()
@@ -1410,8 +1431,19 @@ func (jse *JSEmitter) PreVisitDeclStmtValueSpecType(node *ast.ValueSpec, index i
 					jse.pendingSliceInit = true
 					return
 				}
+				if structType, isStruct := underlying.(*types.Struct); isStruct {
+					jse.pendingStructInit = true
+					jse.pendingStructType = structType
+					return
+				}
+				// Handle basic types (string, int, bool, etc.)
+				if basicType, isBasic := underlying.(*types.Basic); isBasic {
+					jse.pendingBasicInit = basicType
+					return
+				}
 			}
 		}
+		// Fallback to AST-based detection
 		switch t := node.Type.(type) {
 		case *ast.ArrayType:
 			// Slice/array type - initialize to []
@@ -1444,8 +1476,34 @@ func (jse *JSEmitter) PostVisitDeclStmtValueSpecNames(node *ast.Ident, index int
 		jse.emitToFile(" = []")
 		jse.pendingSliceInit = false
 	} else if jse.pendingStructInit {
-		jse.emitToFile(" = {}")
+		if jse.pendingStructType != nil {
+			// Emit full struct with all fields initialized
+			jse.emitToFile(" = {")
+			for i := 0; i < jse.pendingStructType.NumFields(); i++ {
+				if i > 0 {
+					jse.emitToFile(", ")
+				}
+				field := jse.pendingStructType.Field(i)
+				jse.emitToFile(field.Name() + ": ")
+				jse.emitDefaultValue(field.Type())
+			}
+			jse.emitToFile("}")
+			jse.pendingStructType = nil
+		} else {
+			jse.emitToFile(" = {}")
+		}
 		jse.pendingStructInit = false
+	} else if jse.pendingBasicInit != nil {
+		// Emit default value for basic types (string, int, bool, etc.)
+		info := jse.pendingBasicInit.Info()
+		if info&types.IsInteger != 0 || info&types.IsFloat != 0 {
+			jse.emitToFile(" = 0")
+		} else if info&types.IsBoolean != 0 {
+			jse.emitToFile(" = false")
+		} else if info&types.IsString != 0 {
+			jse.emitToFile(` = ""`)
+		}
+		jse.pendingBasicInit = nil
 	}
 	jse.emitToFile(";\n")
 }
@@ -1749,6 +1807,7 @@ func (jse *JSEmitter) PreVisitFuncLit(node *ast.FuncLit, indent int) {
 	if jse.forwardDecl {
 		return
 	}
+	jse.inFuncLit = true
 	jse.emitToFile("function(")
 }
 
@@ -1787,6 +1846,10 @@ func (jse *JSEmitter) PreVisitFuncLitTypeResults(node *ast.FieldList, indent int
 
 func (jse *JSEmitter) PostVisitFuncLitTypeResults(node *ast.FieldList, indent int) {
 	jse.suppressTypeEmit = false
+}
+
+func (jse *JSEmitter) PostVisitFuncLit(node *ast.FuncLit, indent int) {
+	jse.inFuncLit = false
 }
 
 // Helper to check if type needs special handling
