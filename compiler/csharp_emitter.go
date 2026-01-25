@@ -97,6 +97,61 @@ func (*CSharpEmitter) lowerToBuiltins(selector string) string {
 	return selector
 }
 
+// =============================================================================
+// TYPE ALIAS HANDLING FOR C#
+// =============================================================================
+//
+// Go allows type aliases like:
+//     type ExprKind int           // simple alias
+//     type AST []Statement        // complex alias (slice)
+//
+// In C#, type aliases use "using X = T;" syntax, but these CANNOT be placed
+// inside a class. Since we use "public static class" for packages (to avoid
+// the .Api. workaround), we cannot emit using aliases inside the class body.
+//
+// SOLUTION: Replace all usages of type aliases with their underlying C# type.
+//
+// ALGORITHM:
+//
+// 1. COLLECTION PHASE (during AST traversal of type alias definitions):
+//    - PreVisitTypeAliasName: Store alias name, set suppressTypeAliasEmit=true
+//    - PostVisitTypeAliasType: Get underlying Go type from type info,
+//      convert to C# syntax, store in typeAliasMap[aliasName] = csharpType
+//    - The suppressTypeAliasEmit flag prevents any output during this phase
+//
+// 2. CONVERSION (convertGoTypeToCSharp function):
+//    - Slice types: "[]T" -> "List<T>" (recursive for nested types)
+//    - Map types: "map[K]V" -> "Dictionary<K, V>"
+//    - Package paths: "uql/ast.Statement" -> "ast.Statement" (strip path prefix)
+//    - Basic types: "int8" -> "sbyte", etc. (via csTypesMap)
+//
+// 3. REPLACEMENT PHASE (during code generation):
+//    - PreVisitIdent: If identifier is in typeAliasMap, emit underlying type
+//    - PreVisitSelectorExpr: If selector (e.g., ast.AST) refers to alias,
+//      set suppressTypeAliasSelectorX=true to skip package prefix
+//    - This transforms "ast.AST" into just "List<ast.Statement>"
+//
+// 4. SUPPRESSION FLAGS:
+//    - suppressTypeAliasEmit: Blocks PreVisitIdent, PreVisitArrayType,
+//      PostVisitArrayType during type alias definition processing
+//    - suppressTypeAliasSelectorX: Blocks package name and dot emission
+//      when a type alias is used as pkg.AliasName
+//
+// EXAMPLE:
+//
+//   Go source:
+//     type AST []Statement
+//     func Parse() (AST, int8) { var result AST; return result, 0 }
+//
+//   Generated C#:
+//     // No "using AST = ..." - alias definition produces no output
+//     public static (List<ast.Statement>, sbyte) Parse() {
+//         List<ast.Statement> result = default;
+//         return (result, 0);
+//     }
+//
+// =============================================================================
+
 // convertGoTypeToCSharp converts a Go type string to C# syntax
 // Handles: slices ([]T -> List<T>), package paths (pkg/subpkg.Type -> subpkg.Type), basic type mappings
 func (cse *CSharpEmitter) convertGoTypeToCSharp(goType string) string {
