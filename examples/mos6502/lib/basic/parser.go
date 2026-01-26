@@ -231,8 +231,7 @@ func charToString(ch int) string {
 		} else if ch == 33 {
 			return "!"
 		} else if ch == 34 {
-			// double quote - skip for now
-			return ""
+			return "\""
 		} else if ch == 35 {
 			return "#"
 		} else if ch == 36 {
