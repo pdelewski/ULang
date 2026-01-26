@@ -145,6 +145,10 @@ func CompileProgram(state BasicState) []uint8 {
 	ctx := NewCompileContext()
 
 	asmLines := []string{}
+
+	// Initialize X register to 0 for cursor offset
+	asmLines = append(asmLines, "LDX #$00")
+
 	row := state.CursorRow
 	col := 0
 
@@ -185,6 +189,10 @@ func CompileProgramDebug(state BasicState) ([]uint8, int, int, int) {
 	ctx := NewCompileContext()
 
 	asmLines := []string{}
+
+	// Initialize X register to 0 for cursor offset
+	asmLines = append(asmLines, "LDX #$00")
+
 	row := state.CursorRow
 	col := 0
 

@@ -625,8 +625,7 @@ func genPrintVar(varName string, cursorRow int, cursorCol int) []string {
 		return lines
 	}
 
-	// For now, print as a single digit (0-9) or hex
-	// This is a simplified version - full number printing would need more code
+	// Calculate base address at compile time
 	baseAddr := ScreenBase + (cursorRow * TextCols) + cursorCol
 
 	// Load variable value
@@ -637,8 +636,11 @@ func genPrintVar(varName string, cursorRow int, cursorCol int) []string {
 	lines = append(lines, "CLC")
 	lines = append(lines, "ADC #$30")
 
-	// Store to screen
-	lines = append(lines, "STA "+toHex(baseAddr))
+	// Store to screen using indexed addressing (X register holds cursor offset)
+	lines = append(lines, "STA "+toHex(baseAddr)+",X")
+
+	// Increment X register for next character
+	lines = append(lines, "INX")
 
 	return lines
 }

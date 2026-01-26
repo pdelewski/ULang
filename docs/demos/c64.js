@@ -1496,6 +1496,7 @@ const assembler = {
   ModeIndirectY: 9,
   ModeAccumulator: 10,
   ModeIndirect: 11,
+  CodeBaseAddr: 0xc000,
 
   IsDigit: function (b) {
     return b >= 48 && b <= 57;
@@ -1740,6 +1741,8 @@ const assembler = {
         Operand: 0,
         LabelBytes: currentLabelBytes,
         HasLabel: hasLabel,
+        TargetLabel: [],
+        HasTargetLabel: false,
       };
       i = i + 1;
       if (i < len(tokens) && tokens[i].Type != this.TokenTypeNewline) {
@@ -1806,6 +1809,11 @@ const assembler = {
             instr.Mode = this.ModeAbsolute;
           }
           i = i + 1;
+        } else if (tokens[i].Type == this.TokenTypeIdentifier) {
+          instr.TargetLabel = this.CopyBytes(tokens[i].Representation);
+          instr.HasTargetLabel = true;
+          instr.Mode = this.ModeAbsolute;
+          i = i + 1;
         }
       }
       instructions = append(instructions, instr);
@@ -1833,7 +1841,136 @@ const assembler = {
     }
     return true;
   },
+  BytesMatch: function (a, b) {
+    if (len(a) != len(b)) {
+      return false;
+    }
+    let i = 0;
+    while (true) {
+      if (i >= len(a)) {
+        break;
+      }
+      if (a[i] != b[i]) {
+        return false;
+      }
+      i = i + 1;
+    }
+    return true;
+  },
+  getInstructionSize: function (instr) {
+    let opcodeBytes = instr.OpcodeBytes;
+    let mode = instr.Mode;
+    if (mode == this.ModeImplied || mode == this.ModeAccumulator) {
+      return 1;
+    }
+    if (
+      this.IsOpcode(opcodeBytes, "BPL") ||
+      this.IsOpcode(opcodeBytes, "BMI") ||
+      this.IsOpcode(opcodeBytes, "BVC") ||
+      this.IsOpcode(opcodeBytes, "BVS") ||
+      this.IsOpcode(opcodeBytes, "BCC") ||
+      this.IsOpcode(opcodeBytes, "BCS") ||
+      this.IsOpcode(opcodeBytes, "BNE") ||
+      this.IsOpcode(opcodeBytes, "BEQ")
+    ) {
+      return 2;
+    }
+    if (
+      mode == this.ModeImmediate ||
+      mode == this.ModeZeroPage ||
+      mode == this.ModeZeroPageX ||
+      mode == this.ModeZeroPageY
+    ) {
+      return 2;
+    }
+    if (
+      mode == this.ModeAbsolute ||
+      mode == this.ModeAbsoluteX ||
+      mode == this.ModeAbsoluteY ||
+      mode == this.ModeIndirect
+    ) {
+      return 3;
+    }
+    if (instr.HasTargetLabel) {
+      return 3;
+    }
+    return 1;
+  },
+  findLabelAddr: function (labels, target) {
+    let i = 0;
+    while (true) {
+      if (i >= len(labels)) {
+        break;
+      }
+      if (this.BytesMatch(labels[i].Name, target)) {
+        return [labels[i].Addr, true];
+      }
+      i = i + 1;
+    }
+    return [0, false];
+  },
+  resolveLabels: function (instructions, baseAddr) {
+    let labels = [];
+    let currentAddr = baseAddr;
+    let idx = 0;
+    while (true) {
+      if (idx >= len(instructions)) {
+        break;
+      }
+      let instr = instructions[idx];
+      if (instr.HasLabel) {
+        let entry = {
+          Name: this.CopyBytes(instr.LabelBytes),
+          Addr: currentAddr,
+        };
+        labels = append(labels, entry);
+      }
+      currentAddr = currentAddr + this.getInstructionSize(instr);
+      idx = idx + 1;
+    }
+    let result = [];
+    currentAddr = baseAddr;
+    idx = 0;
+    while (true) {
+      if (idx >= len(instructions)) {
+        break;
+      }
+      let instr = instructions[idx];
+      if (instr.HasTargetLabel) {
+        let [addr, found] = this.findLabelAddr(labels, instr.TargetLabel);
+        if (found) {
+          if (
+            this.IsOpcode(instr.OpcodeBytes, "BPL") ||
+            this.IsOpcode(instr.OpcodeBytes, "BMI") ||
+            this.IsOpcode(instr.OpcodeBytes, "BVC") ||
+            this.IsOpcode(instr.OpcodeBytes, "BVS") ||
+            this.IsOpcode(instr.OpcodeBytes, "BCC") ||
+            this.IsOpcode(instr.OpcodeBytes, "BCS") ||
+            this.IsOpcode(instr.OpcodeBytes, "BNE") ||
+            this.IsOpcode(instr.OpcodeBytes, "BEQ")
+          ) {
+            let instrSize = this.getInstructionSize(instr);
+            let nextAddr = currentAddr + instrSize;
+            let offset = addr - nextAddr;
+            if (offset < -128 || offset > 127) {
+              offset = 0;
+            }
+            instr.Operand = offset & 0xff;
+            instr.Mode = this.ModeZeroPage;
+          } else {
+            instr.Operand = addr;
+          }
+          instr.HasTargetLabel = false;
+        }
+      }
+      result = append(result, instr);
+      currentAddr = currentAddr + this.getInstructionSize(instr);
+      idx = idx + 1;
+    }
+    return result;
+  },
   Assemble: function (instructions) {
+    instructions = this.resolveLabels(instructions, this.CodeBaseAddr);
     let code = [];
     let idx = 0;
     while (true) {
@@ -2506,6 +2643,16 @@ const basic = {
   TextRows: 25,
   ScreenBase: 0x0400,
   CodeBase: 0xc000,
+  VarBaseAddr: 0x10,
+  ExprNumber: 1,
+  ExprVariable: 2,
+  ExprBinaryOp: 3,
+  CondEq: 1,
+  CondNe: 2,
+  CondLt: 3,
+  CondGt: 4,
+  CondLe: 5,
+  CondGe: 6,
 
   NewBasicState: function () {
     return { Lines: [], CursorRow: 0, CursorCol: 0 };
@@ -2584,12 +2731,24 @@ const basic = {
     return state;
   },
   CompileImmediate: function (state, line) {
-    let asmLines = this.compileLine(line, state.CursorRow, state.CursorCol);
+    let ctx = this.NewCompileContext();
+    let asmLines = [];
+    [asmLines, ctx] = this.compileLine(
+      line,
+      state.CursorRow,
+      state.CursorCol,
+      ctx,
+    );
+    if (ctx.LabelCounter < 0) {
+      ctx.LabelCounter = 0;
+    }
     asmLines = append(asmLines, "BRK");
     return assembler.AssembleLines(asmLines);
   },
   CompileProgram: function (state) {
+    let ctx = this.NewCompileContext();
     let asmLines = [];
+    asmLines = append(asmLines, "LDX #$00");
     let row = state.CursorRow;
     let col = 0;
     let i = 0;
@@ -2597,7 +2756,10 @@ const basic = {
       if (i >= len(state.Lines)) {
         break;
       }
-      let lineAsm = this.compileLine(state.Lines[i].Text, row, col);
+      let lineLabel = "LINE_" + this.intToString(state.Lines[i].LineNum) + ":";
+      asmLines = append(asmLines, lineLabel);
+      let lineAsm = [];
+      [lineAsm, ctx] = this.compileLine(state.Lines[i].Text, row, col, ctx);
       let j = 0;
       while (true) {
         if (j >= len(lineAsm)) {
@@ -2616,7 +2778,9 @@ const basic = {
     return assembler.AssembleLines(asmLines);
   },
   CompileProgramDebug: function (state) {
+    let ctx = this.NewCompileContext();
     let asmLines = [];
+    asmLines = append(asmLines, "LDX #$00");
     let row = state.CursorRow;
     let col = 0;
     let i = 0;
@@ -2624,7 +2788,10 @@ const basic = {
       if (i >= len(state.Lines)) {
         break;
       }
-      let lineAsm = this.compileLine(state.Lines[i].Text, row, col);
+      let lineLabel = "LINE_" + this.intToString(state.Lines[i].LineNum) + ":";
+      asmLines = append(asmLines, lineLabel);
+      let lineAsm = [];
+      [lineAsm, ctx] = this.compileLine(state.Lines[i].Text, row, col, ctx);
       let j = 0;
       while (true) {
         if (j >= len(lineAsm)) {
@@ -2644,17 +2811,75 @@ const basic = {
     let lastByte = assembler.GetLastInstrFirstByte(asmLines);
     return [code, len(asmLines), instrCount, lastByte];
   },
-  compileLine: function (line, cursorRow, cursorCol) {
+  compileLine: function (line, cursorRow, cursorCol, ctx) {
     let [cmd, args] = this.parseLine(line);
     if (cmd == "PRINT") {
-      return this.genPrint(args, cursorRow, cursorCol);
+      let trimmedArgs = this.trimSpacesStr(args);
+      if (this.IsVariableName(trimmedArgs)) {
+        return [this.genPrintVar(trimmedArgs, cursorRow, cursorCol), ctx];
+      }
+      return [this.genPrint(args, cursorRow, cursorCol), ctx];
     } else if (cmd == "POKE") {
       let [addr, value] = this.parsePoke(args);
-      return this.genPoke(addr, value);
+      return [this.genPoke(addr, value), ctx];
     } else if (cmd == "CLR") {
-      return this.genClear();
+      return [this.genClear(), ctx];
+    } else if (cmd == "LET") {
+      let [varName, expr] = this.ParseLet(args);
+      return [this.genLet(varName, expr), ctx];
+    } else if (cmd == "GOTO") {
+      let lineNum = this.ParseGoto(args);
+      return [this.genGoto(lineNum), ctx];
+    } else if (cmd == "GOSUB") {
+      let lineNum = this.ParseGosub(args);
+      return [this.genGosub(lineNum), ctx];
+    } else if (cmd == "RETURN") {
+      return [this.genReturn(), ctx];
+    } else if (cmd == "IF") {
+      let [cond, thenStmt] = this.ParseIf(args);
+      return this.genIf(cond, thenStmt, ctx);
+    } else if (cmd == "FOR") {
+      let [varName, startVal, endVal] = this.ParseFor(args);
+      return this.genFor(varName, startVal, endVal, ctx);
+    } else if (cmd == "NEXT") {
+      let varName = this.ParseNext(args);
+      return this.genNext(varName, ctx);
+    } else if (cmd == "REM") {
+      return [[], ctx];
+    } else if (cmd == "END") {
+      return [this.genEnd(), ctx];
     }
-    return [];
+    if (len(line) > 0) {
+      let trimmed = this.trimSpacesStr(line);
+      if (len(trimmed) >= 3) {
+        let firstChar = trimmed.charCodeAt(0);
+        if (
+          (firstChar >= 65 && firstChar <= 90) ||
+          (firstChar >= 97 && firstChar <= 122)
+        ) {
+          let hasEquals = false;
+          let i = 1;
+          while (true) {
+            if (i >= len(trimmed)) {
+              break;
+            }
+            if (trimmed.charCodeAt(i) == 61) {
+              hasEquals = true;
+              break;
+            }
+            if (trimmed.charCodeAt(i) != 32 && trimmed.charCodeAt(i) != 9) {
+              break;
+            }
+            i = i + 1;
+          }
+          if (hasEquals) {
+            let [varName, expr] = this.ParseLet(trimmed);
+            return [this.genLet(varName, expr), ctx];
+          }
+        }
+      }
+    }
+    return [[], ctx];
   },
   GetLineCount: function (state) {
     return len(state.Lines);
@@ -2839,6 +3064,306 @@ const basic = {
       return "9";
     }
     return "0";
+  },
+  genSimpleValue: function (valType, valNum, valVar) {
+    let lines = [];
+    if (valType == this.ExprNumber) {
+      lines = append(lines, "LDA #" + this.toHex(valNum & 0xff));
+    } else if (valType == this.ExprVariable) {
+      let addr = this.GetVariableAddress(valVar);
+      if (addr >= 0) {
+        lines = append(lines, "LDA " + this.toHex(addr));
+      }
+    }
+    return lines;
+  },
+  genExpression: function (expr) {
+    let lines = [];
+    if (expr.Type == this.ExprNumber) {
+      lines = append(lines, "LDA #" + this.toHex(expr.Value & 0xff));
+    } else if (expr.Type == this.ExprVariable) {
+      let addr = this.GetVariableAddress(expr.VarName);
+      if (addr >= 0) {
+        lines = append(lines, "LDA " + this.toHex(addr));
+      }
+    } else if (expr.Type == this.ExprBinaryOp) {
+      let rightLines = this.genSimpleValue(
+        expr.RightType,
+        expr.RightValue,
+        expr.RightVar,
+      );
+      let i = 0;
+      while (true) {
+        if (i >= len(rightLines)) {
+          break;
+        }
+        lines = append(lines, rightLines[i]);
+        i = i + 1;
+      }
+      lines = append(lines, "PHA");
+      let leftLines = this.genSimpleValue(
+        expr.LeftType,
+        expr.LeftValue,
+        expr.LeftVar,
+      );
+      i = 0;
+      while (true) {
+        if (i >= len(leftLines)) {
+          break;
+        }
+        lines = append(lines, leftLines[i]);
+        i = i + 1;
+      }
+      lines = append(lines, "STA $00");
+      lines = append(lines, "PLA");
+      lines = append(lines, "STA $01");
+      if (expr.Op == "+") {
+        lines = append(lines, "CLC");
+        lines = append(lines, "LDA $00");
+        lines = append(lines, "ADC $01");
+      } else if (expr.Op == "-") {
+        lines = append(lines, "SEC");
+        lines = append(lines, "LDA $00");
+        lines = append(lines, "SBC $01");
+      } else if (expr.Op == "*") {
+        lines = append(lines, "LDA $00");
+        lines = append(lines, "STA $02");
+        lines = append(lines, "LDA $01");
+        lines = append(lines, "STA $03");
+        lines = append(lines, "LDA #$00");
+        lines = append(lines, "STA $04");
+        lines = append(lines, "LDX $03");
+        lines = append(lines, "BEQ mul_done");
+        lines = append(lines, "mul_loop:");
+        lines = append(lines, "CLC");
+        lines = append(lines, "LDA $04");
+        lines = append(lines, "ADC $02");
+        lines = append(lines, "STA $04");
+        lines = append(lines, "DEX");
+        lines = append(lines, "BNE mul_loop");
+        lines = append(lines, "mul_done:");
+        lines = append(lines, "LDA $04");
+      } else if (expr.Op == "/") {
+        lines = append(lines, "LDA $00");
+        lines = append(lines, "STA $02");
+        lines = append(lines, "LDA $01");
+        lines = append(lines, "STA $03");
+        lines = append(lines, "LDA #$00");
+        lines = append(lines, "STA $04");
+        lines = append(lines, "LDA $03");
+        lines = append(lines, "BEQ div_done");
+        lines = append(lines, "div_loop:");
+        lines = append(lines, "LDA $02");
+        lines = append(lines, "CMP $03");
+        lines = append(lines, "BCC div_done");
+        lines = append(lines, "SEC");
+        lines = append(lines, "SBC $03");
+        lines = append(lines, "STA $02");
+        lines = append(lines, "INC $04");
+        lines = append(lines, "JMP div_loop");
+        lines = append(lines, "div_done:");
+        lines = append(lines, "LDA $04");
+      }
+    }
+    return lines;
+  },
+  genLet: function (varName, expr) {
+    let lines = [];
+    let exprLines = this.genExpression(expr);
+    let i = 0;
+    while (true) {
+      if (i >= len(exprLines)) {
+        break;
+      }
+      lines = append(lines, exprLines[i]);
+      i = i + 1;
+    }
+    let addr = this.GetVariableAddress(varName);
+    if (addr >= 0) {
+      lines = append(lines, "STA " + this.toHex(addr));
+    }
+    return lines;
+  },
+  genGoto: function (lineNum) {
+    let lines = [];
+    lines = append(lines, "JMP LINE_" + this.intToString(lineNum));
+    return lines;
+  },
+  genGosub: function (lineNum) {
+    let lines = [];
+    lines = append(lines, "JSR LINE_" + this.intToString(lineNum));
+    return lines;
+  },
+  genReturn: function () {
+    let lines = [];
+    lines = append(lines, "RTS");
+    return lines;
+  },
+  genEnd: function () {
+    let lines = [];
+    lines = append(lines, "BRK");
+    return lines;
+  },
+  NewCompileContext: function () {
+    return { LabelCounter: 0, ForLoopStack: [] };
+  },
+  nextLabel: function (ctx) {
+    ctx.LabelCounter = ctx.LabelCounter + 1;
+    return ["L" + this.intToString(ctx.LabelCounter), ctx];
+  },
+  genCondition: function (cond) {
+    let lines = [];
+    let rightLines = this.genExpression(cond.Right);
+    let i = 0;
+    while (true) {
+      if (i >= len(rightLines)) {
+        break;
+      }
+      lines = append(lines, rightLines[i]);
+      i = i + 1;
+    }
+    lines = append(lines, "PHA");
+    let leftLines = this.genExpression(cond.Left);
+    i = 0;
+    while (true) {
+      if (i >= len(leftLines)) {
+        break;
+      }
+      lines = append(lines, leftLines[i]);
+      i = i + 1;
+    }
+    lines = append(lines, "STA $00");
+    lines = append(lines, "PLA");
+    lines = append(lines, "STA $01");
+    lines = append(lines, "LDA $00");
+    lines = append(lines, "CMP $01");
+    return lines;
+  },
+  genIf: function (cond, thenStmt, ctx) {
+    let lines = [];
+    let condLines = this.genCondition(cond);
+    let i = 0;
+    while (true) {
+      if (i >= len(condLines)) {
+        break;
+      }
+      lines = append(lines, condLines[i]);
+      i = i + 1;
+    }
+    let skipLabel = "";
+    [skipLabel, ctx] = this.nextLabel(ctx);
+    if (cond.Op == this.CondEq) {
+      lines = append(lines, "BNE " + skipLabel);
+    } else if (cond.Op == this.CondNe) {
+      lines = append(lines, "BEQ " + skipLabel);
+    } else if (cond.Op == this.CondLt) {
+      lines = append(lines, "BCS " + skipLabel);
+    } else if (cond.Op == this.CondGe) {
+      lines = append(lines, "BCC " + skipLabel);
+    } else if (cond.Op == this.CondGt) {
+      lines = append(lines, "BEQ " + skipLabel);
+      lines = append(lines, "BCC " + skipLabel);
+    } else if (cond.Op == this.CondLe) {
+      let gtLabel = "";
+      [gtLabel, ctx] = this.nextLabel(ctx);
+      lines = append(lines, "BEQ " + gtLabel);
+      lines = append(lines, "BCS " + skipLabel);
+      lines = append(lines, gtLabel + ":");
+    }
+    let thenLines = [];
+    [thenLines, ctx] = this.compileLine(thenStmt, 0, 0, ctx);
+    i = 0;
+    while (true) {
+      if (i >= len(thenLines)) {
+        break;
+      }
+      lines = append(lines, thenLines[i]);
+      i = i + 1;
+    }
+    lines = append(lines, skipLabel + ":");
+    return [lines, ctx];
+  },
+  genFor: function (varName, startVal, endVal, ctx) {
+    let lines = [];
+    let addr = this.GetVariableAddress(varName);
+    if (addr >= 0) {
+      lines = append(lines, "LDA #" + this.toHex(startVal & 0xff));
+      lines = append(lines, "STA " + this.toHex(addr));
+    }
+    let loopLabelWithColon = "FOR_";
+    loopLabelWithColon = loopLabelWithColon + varName;
+    loopLabelWithColon = loopLabelWithColon + "_";
+    loopLabelWithColon =
+      loopLabelWithColon + this.intToString(ctx.LabelCounter);
+    loopLabelWithColon = loopLabelWithColon + ":";
+    ctx.LabelCounter = ctx.LabelCounter + 1;
+    lines = append(lines, loopLabelWithColon);
+    let info = {
+      VarName: varName,
+      StartVal: startVal,
+      EndVal: endVal,
+      LoopAddr: 0,
+    };
+    ctx.ForLoopStack = append(ctx.ForLoopStack, info);
+    return [lines, ctx];
+  },
+  genNext: function (varName, ctx) {
+    let lines = [];
+    let loopIdx = -1;
+    let i = len(ctx.ForLoopStack) - 1;
+    while (true) {
+      if (i < 0) {
+        break;
+      }
+      if (ctx.ForLoopStack[i].VarName == varName) {
+        loopIdx = i;
+        break;
+      }
+      i = i - 1;
+    }
+    if (loopIdx < 0) {
+      return [lines, ctx];
+    }
+    let info = ctx.ForLoopStack[loopIdx];
+    let addr = this.GetVariableAddress(varName);
+    if (addr >= 0) {
+      lines = append(lines, "INC " + this.toHex(addr));
+      lines = append(lines, "LDA " + this.toHex(addr));
+      let endPlusOne = (info.EndVal + 1) & 0xff;
+      lines = append(lines, "CMP #" + this.toHex(endPlusOne));
+      let branchInstr = "BCC FOR_";
+      branchInstr = branchInstr + varName;
+      branchInstr = branchInstr + "_";
+      branchInstr = branchInstr + this.intToString(ctx.LabelCounter - 1);
+      lines = append(lines, branchInstr);
+    }
+    if (loopIdx == len(ctx.ForLoopStack) - 1) {
+      let newStack = [];
+      let stackIdx = 0;
+      while (true) {
+        if (stackIdx >= len(ctx.ForLoopStack) - 1) {
+          break;
+        }
+        newStack = append(newStack, ctx.ForLoopStack[stackIdx]);
+        stackIdx = stackIdx + 1;
+      }
+      ctx.ForLoopStack = newStack;
+    }
+    return [lines, ctx];
+  },
+  genPrintVar: function (varName, cursorRow, cursorCol) {
+    let lines = [];
+    let addr = this.GetVariableAddress(varName);
+    if (addr < 0) {
+      return lines;
+    }
+    let baseAddr = this.ScreenBase + cursorRow * this.TextCols + cursorCol;
+    lines = append(lines, "LDA " + this.toHex(addr));
+    lines = append(lines, "CLC");
+    lines = append(lines, "ADC #$30");
+    lines = append(lines, "STA " + this.toHex(baseAddr) + ",X");
+    lines = append(lines, "INX");
+    return lines;
   },
   parseLine: function (line) {
     let pos = 0;
@@ -3358,6 +3883,487 @@ const basic = {
     if (len(args) >= 0) {
     }
     return cmd == this.toUpper(cmdName);
+  },
+  GetVariableAddress: function (name) {
+    if (len(name) == 0) {
+      return -1;
+    }
+    let ch = int(name.charCodeAt(0));
+    if (ch >= int(97) && ch <= int(122)) {
+      ch = ch - 32;
+    }
+    if (ch >= int(65) && ch <= int(90)) {
+      return this.VarBaseAddr + (ch - int(65));
+    }
+    return -1;
+  },
+  IsVariableName: function (s) {
+    if (len(s) != 1) {
+      return false;
+    }
+    let ch = int(s.charCodeAt(0));
+    if (ch >= int(97) && ch <= int(122)) {
+      ch = ch - 32;
+    }
+    return ch >= int(65) && ch <= int(90);
+  },
+  parseSimpleValue: function (args) {
+    args = this.trimSpacesStr(args);
+    if (len(args) > 0 && this.isDigitCode(int(args.charCodeAt(0)))) {
+      return [this.ExprNumber, this.parseNumber(args), ""];
+    }
+    if (this.IsVariableName(args)) {
+      return [this.ExprVariable, 0, this.toUpperChar(int(args.charCodeAt(0)))];
+    }
+    return [this.ExprNumber, 0, ""];
+  },
+  ParseExpression: function (args) {
+    args = this.trimSpacesStr(args);
+    let parenDepth = 0;
+    let opPos = -1;
+    let opChar = "";
+    let i = len(args) - 1;
+    while (true) {
+      if (i < 0) {
+        break;
+      }
+      let ch = args.charCodeAt(i);
+      if (ch == 41) {
+        parenDepth = parenDepth + 1;
+      } else if (ch == 40) {
+        parenDepth = parenDepth - 1;
+      } else if (parenDepth == 0) {
+        if (ch == 43 || ch == 45) {
+          opPos = i;
+          opChar = this.charToString(int(ch));
+          break;
+        }
+      }
+      i = i - 1;
+    }
+    if (opPos < 0) {
+      i = len(args) - 1;
+      while (true) {
+        if (i < 0) {
+          break;
+        }
+        let ch = args.charCodeAt(i);
+        if (ch == 41) {
+          parenDepth = parenDepth + 1;
+        } else if (ch == 40) {
+          parenDepth = parenDepth - 1;
+        } else if (parenDepth == 0) {
+          if (ch == 42 || ch == 47) {
+            opPos = i;
+            opChar = this.charToString(int(ch));
+            break;
+          }
+        }
+        i = i - 1;
+      }
+    }
+    if (opPos > 0 && opPos < len(args) - 1) {
+      let leftStr = "";
+      let j = 0;
+      while (true) {
+        if (j >= opPos) {
+          break;
+        }
+        leftStr = leftStr + this.charToString(int(args.charCodeAt(j)));
+        j = j + 1;
+      }
+      let rightStr = "";
+      j = opPos + 1;
+      while (true) {
+        if (j >= len(args)) {
+          break;
+        }
+        rightStr = rightStr + this.charToString(int(args.charCodeAt(j)));
+        j = j + 1;
+      }
+      let [leftType, leftVal, leftVar] = this.parseSimpleValue(leftStr);
+      let [rightType, rightVal, rightVar] = this.parseSimpleValue(rightStr);
+      return {
+        Type: this.ExprBinaryOp,
+        Op: opChar,
+        LeftType: leftType,
+        LeftValue: leftVal,
+        LeftVar: leftVar,
+        RightType: rightType,
+        RightValue: rightVal,
+        RightVar: rightVar,
+        Value: 0,
+        VarName: "",
+      };
+    }
+    if (len(args) > 0 && this.isDigitCode(int(args.charCodeAt(0)))) {
+      return {
+        Type: this.ExprNumber,
+        Value: this.parseNumber(args),
+        VarName: "",
+        Op: "",
+        LeftType: 0,
+        LeftValue: 0,
+        LeftVar: "",
+        RightType: 0,
+        RightValue: 0,
+        RightVar: "",
+      };
+    }
+    if (this.IsVariableName(args)) {
+      return {
+        Type: this.ExprVariable,
+        VarName: this.toUpperChar(int(args.charCodeAt(0))),
+        Value: 0,
+        Op: "",
+        LeftType: 0,
+        LeftValue: 0,
+        LeftVar: "",
+        RightType: 0,
+        RightValue: 0,
+        RightVar: "",
+      };
+    }
+    return {
+      Type: this.ExprNumber,
+      Value: 0,
+      VarName: "",
+      Op: "",
+      LeftType: 0,
+      LeftValue: 0,
+      LeftVar: "",
+      RightType: 0,
+      RightValue: 0,
+      RightVar: "",
+    };
+  },
+  ParseLet: function (args) {
+    args = this.trimSpacesStr(args);
+    let varName = "";
+    let pos = 0;
+    if (len(args) >= 3) {
+      let first3 = "";
+      let j = 0;
+      while (true) {
+        if (j >= 3) {
+          break;
+        }
+        first3 = first3 + this.toUpperChar(int(args.charCodeAt(j)));
+        j = j + 1;
+      }
+      if (first3 == "LET") {
+        pos = 3;
+        while (true) {
+          if (pos >= len(args)) {
+            break;
+          }
+          if (args.charCodeAt(pos) != 32 && args.charCodeAt(pos) != 9) {
+            break;
+          }
+          pos = pos + 1;
+        }
+      }
+    }
+    if (pos < len(args)) {
+      varName = this.toUpperChar(int(args.charCodeAt(pos)));
+      pos = pos + 1;
+    }
+    while (true) {
+      if (pos >= len(args)) {
+        break;
+      }
+      if (
+        args.charCodeAt(pos) != 32 &&
+        args.charCodeAt(pos) != 9 &&
+        args.charCodeAt(pos) != 61
+      ) {
+        break;
+      }
+      pos = pos + 1;
+    }
+    let exprStr = "";
+    while (true) {
+      if (pos >= len(args)) {
+        break;
+      }
+      exprStr = exprStr + this.charToString(int(args.charCodeAt(pos)));
+      pos = pos + 1;
+    }
+    let expr = this.ParseExpression(exprStr);
+    return [varName, expr];
+  },
+  ParseGoto: function (args) {
+    return this.parseNumber(this.trimSpacesStr(args));
+  },
+  ParseGosub: function (args) {
+    return this.parseNumber(this.trimSpacesStr(args));
+  },
+  ParseCondition: function (args) {
+    args = this.trimSpacesStr(args);
+    let opPos = -1;
+    let opLen = 1;
+    let op = 0;
+    let i = 0;
+    while (true) {
+      if (i >= len(args)) {
+        break;
+      }
+      let ch = args.charCodeAt(i);
+      if (ch == 61) {
+        opPos = i;
+        opLen = 1;
+        op = this.CondEq;
+        break;
+      } else if (ch == 60) {
+        opPos = i;
+        if (i + 1 < len(args) && args.charCodeAt(i + 1) == 62) {
+          opLen = 2;
+          op = this.CondNe;
+        } else if (i + 1 < len(args) && args.charCodeAt(i + 1) == 61) {
+          opLen = 2;
+          op = this.CondLe;
+        } else {
+          opLen = 1;
+          op = this.CondLt;
+        }
+        break;
+      } else if (ch == 62) {
+        opPos = i;
+        if (i + 1 < len(args) && args.charCodeAt(i + 1) == 61) {
+          opLen = 2;
+          op = this.CondGe;
+        } else {
+          opLen = 1;
+          op = this.CondGt;
+        }
+        break;
+      }
+      i = i + 1;
+    }
+    if (opPos < 0) {
+      return {
+        Op: this.CondEq,
+        Left: {
+          Type: 0,
+          Value: 0,
+          VarName: "",
+          Op: "",
+          LeftType: 0,
+          LeftValue: 0,
+          LeftVar: "",
+          RightType: 0,
+          RightValue: 0,
+          RightVar: "",
+        },
+        Right: {
+          Type: 0,
+          Value: 0,
+          VarName: "",
+          Op: "",
+          LeftType: 0,
+          LeftValue: 0,
+          LeftVar: "",
+          RightType: 0,
+          RightValue: 0,
+          RightVar: "",
+        },
+      };
+    }
+    let leftStr = "";
+    let j = 0;
+    while (true) {
+      if (j >= opPos) {
+        break;
+      }
+      leftStr = leftStr + this.charToString(int(args.charCodeAt(j)));
+      j = j + 1;
+    }
+    let rightStr = "";
+    j = opPos + opLen;
+    while (true) {
+      if (j >= len(args)) {
+        break;
+      }
+      rightStr = rightStr + this.charToString(int(args.charCodeAt(j)));
+      j = j + 1;
+    }
+    return {
+      Left: this.ParseExpression(leftStr),
+      Op: op,
+      Right: this.ParseExpression(rightStr),
+    };
+  },
+  ParseIf: function (args) {
+    args = this.trimSpacesStr(args);
+    let thenPos = -1;
+    let i = 0;
+    while (true) {
+      if (i >= len(args) - 3) {
+        break;
+      }
+      let match = true;
+      let thenWord = "THEN";
+      let k = 0;
+      while (true) {
+        if (k >= 4) {
+          break;
+        }
+        let ch = int(args.charCodeAt(i + k));
+        if (ch >= int(97) && ch <= int(122)) {
+          ch = ch - 32;
+        }
+        if (ch != int(thenWord.charCodeAt(k))) {
+          match = false;
+          break;
+        }
+        k = k + 1;
+      }
+      if (match) {
+        thenPos = i;
+        break;
+      }
+      i = i + 1;
+    }
+    if (thenPos < 0) {
+      return [
+        {
+          Left: {
+            Type: 0,
+            Value: 0,
+            VarName: "",
+            Op: "",
+            LeftType: 0,
+            LeftValue: 0,
+            LeftVar: "",
+            RightType: 0,
+            RightValue: 0,
+            RightVar: "",
+          },
+          Op: 0,
+          Right: {
+            Type: 0,
+            Value: 0,
+            VarName: "",
+            Op: "",
+            LeftType: 0,
+            LeftValue: 0,
+            LeftVar: "",
+            RightType: 0,
+            RightValue: 0,
+            RightVar: "",
+          },
+        },
+        "",
+      ];
+    }
+    let condStr = "";
+    let j = 0;
+    while (true) {
+      if (j >= thenPos) {
+        break;
+      }
+      condStr = condStr + this.charToString(int(args.charCodeAt(j)));
+      j = j + 1;
+    }
+    let stmtStr = "";
+    j = thenPos + 4;
+    while (true) {
+      if (j >= len(args)) {
+        break;
+      }
+      if (args.charCodeAt(j) != 32 && args.charCodeAt(j) != 9) {
+        break;
+      }
+      j = j + 1;
+    }
+    while (true) {
+      if (j >= len(args)) {
+        break;
+      }
+      stmtStr = stmtStr + this.charToString(int(args.charCodeAt(j)));
+      j = j + 1;
+    }
+    return [this.ParseCondition(condStr), stmtStr];
+  },
+  ParseFor: function (args) {
+    args = this.trimSpacesStr(args);
+    let varName = "";
+    let pos = 0;
+    if (pos < len(args)) {
+      varName = this.toUpperChar(int(args.charCodeAt(pos)));
+      pos = pos + 1;
+    }
+    while (true) {
+      if (pos >= len(args)) {
+        break;
+      }
+      if (args.charCodeAt(pos) == 61) {
+        pos = pos + 1;
+        break;
+      }
+      pos = pos + 1;
+    }
+    while (true) {
+      if (pos >= len(args)) {
+        break;
+      }
+      if (args.charCodeAt(pos) != 32 && args.charCodeAt(pos) != 9) {
+        break;
+      }
+      pos = pos + 1;
+    }
+    let startStr = "";
+    while (true) {
+      if (pos >= len(args)) {
+        break;
+      }
+      let ch = int(args.charCodeAt(pos));
+      if (args.charCodeAt(pos) == 32 || args.charCodeAt(pos) == 9) {
+        break;
+      }
+      if (ch == int(84) || ch == int(116)) {
+        break;
+      }
+      startStr = startStr + this.charToString(ch);
+      pos = pos + 1;
+    }
+    while (true) {
+      if (pos >= len(args)) {
+        break;
+      }
+      let ch = int(args.charCodeAt(pos));
+      if (ch >= int(97) && ch <= int(122)) {
+        ch = ch - 32;
+      }
+      if (
+        ch == int(84) ||
+        ch == int(79) ||
+        args.charCodeAt(pos) == 32 ||
+        args.charCodeAt(pos) == 9
+      ) {
+        pos = pos + 1;
+      } else {
+        break;
+      }
+    }
+    let endStr = "";
+    while (true) {
+      if (pos >= len(args)) {
+        break;
+      }
+      endStr = endStr + this.charToString(int(args.charCodeAt(pos)));
+      pos = pos + 1;
+    }
+    let startVal = this.parseNumber(this.trimSpacesStr(startStr));
+    let endVal = this.parseNumber(this.trimSpacesStr(endStr));
+    return [varName, startVal, endVal];
+  },
+  ParseNext: function (args) {
+    args = this.trimSpacesStr(args);
+    if (len(args) > 0) {
+      return this.toUpperChar(int(args.charCodeAt(0)));
+    }
+    return "";
   },
 };
 
