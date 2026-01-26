@@ -1992,11 +1992,33 @@ func (re *RustEmitter) PostVisitDeclStmt(node *ast.DeclStmt, indent int) {
 }
 
 func (re *RustEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Check if all LHS are blank identifiers - if so, suppress the statement
+	allBlank := true
+	for _, lhs := range node.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			if ident.Name != "_" {
+				allBlank = false
+				break
+			}
+		} else {
+			allBlank = false
+			break
+		}
+	}
+	if allBlank {
+		re.suppressRangeEmit = true
+		return
+	}
 	re.shouldGenerate = true
 	str := re.emitAsString("", indent)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 }
 func (re *RustEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Reset blank identifier suppression if it was set
+	if re.suppressRangeEmit {
+		re.suppressRangeEmit = false
+		return
+	}
 	// Don't emit semicolon inside for loop post statement
 	if !re.insideForPostCond {
 		re.emitToken(";", Semicolon, 0)

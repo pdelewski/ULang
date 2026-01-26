@@ -1056,6 +1056,23 @@ func (cse *CSharpEmitter) PostVisitCallExpr(node *ast.CallExpr, indent int) {
 }
 
 func (cse *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Check if all LHS are blank identifiers - if so, suppress the statement
+	allBlank := true
+	for _, lhs := range node.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			if ident.Name != "_" {
+				allBlank = false
+				break
+			}
+		} else {
+			allBlank = false
+			break
+		}
+	}
+	if allBlank {
+		cse.suppressRangeEmit = true
+		return
+	}
 	cse.executeIfNotForwardDecls(func() {
 		str := cse.emitAsString("", indent)
 		cse.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -1063,6 +1080,11 @@ func (cse *CSharpEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
 }
 
 func (cse *CSharpEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Reset blank identifier suppression if it was set
+	if cse.suppressRangeEmit {
+		cse.suppressRangeEmit = false
+		return
+	}
 	cse.executeIfNotForwardDecls(func() {
 		// Don't emit semicolon inside for loop post statement
 		if !cse.insideForPostCond {
