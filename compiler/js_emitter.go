@@ -146,13 +146,15 @@ function append(arr, ...items) {
   // Handle nil/undefined slices like Go does
   if (arr == null) arr = [];
   // Clone plain objects to preserve Go's value semantics for structs
-  const clonedItems = items.map(item => {
+  // Use push for O(1) amortized instead of spread which is O(n)
+  for (const item of items) {
     if (item && typeof item === 'object' && !Array.isArray(item)) {
-      return {...item};
+      arr.push({...item});
+    } else {
+      arr.push(item);
     }
-    return item;
-  });
-  return [...arr, ...clonedItems];
+  }
+  return arr;
 }
 
 function stringFormat(fmt, ...args) {

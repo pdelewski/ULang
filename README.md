@@ -6,7 +6,7 @@ A Go language transpiler that generates portable code for multiple target platfo
 
 [**▶ Try the C64 Emulator Demo WIP (runs in browser)**](https://pdelewski.github.io/goany/demos/c64.html)
 
-[**▶ MOS 6502 Text Sprites Demo**](https://pdelewski.github.io/goany/demos/text.html) | [**▶ MOS 6502 Basic Graphics Shapes Demo**](https://pdelewski.github.io/goany/demos/graphic.html)
+[**▶ MOS 6502 Text Sprites Demo**](https://pdelewski.github.io/goany/demos/text.html) | [**▶ MOS 6502 Basic Graphics Shapes Demo**](https://pdelewski.github.io/goany/demos/graphic.html) | [**▶ MOS 6502 Text Scroll Demo**](https://pdelewski.github.io/goany/demos/textscroll.html)
 
 ## Overview
 
