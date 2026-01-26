@@ -596,11 +596,33 @@ func (cppe *CPPEmitter) PostVisitForStmtPost(node ast.Stmt, indent int) {
 }
 
 func (cppe *CPPEmitter) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Check if all LHS are blank identifiers - if so, suppress the statement
+	allBlank := true
+	for _, lhs := range node.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			if ident.Name != "_" {
+				allBlank = false
+				break
+			}
+		} else {
+			allBlank = false
+			break
+		}
+	}
+	if allBlank {
+		cppe.suppressRangeEmit = true
+		return
+	}
 	str := cppe.emitAsString("", indent)
 	cppe.emitToFile(str)
 }
 
 func (cppe *CPPEmitter) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Reset blank identifier suppression if it was set
+	if cppe.suppressRangeEmit {
+		cppe.suppressRangeEmit = false
+		return
+	}
 	// Don't emit semicolon inside for loop post statement
 	if !cppe.insideForPostCond {
 		str := cppe.emitAsString(";", 0)
