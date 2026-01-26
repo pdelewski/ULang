@@ -258,9 +258,14 @@ func (cppe *CPPEmitter) PostVisitPackage(pkg *packages.Package, indent int) {
 func (cppe *CPPEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	if e.Kind == token.STRING {
 		// Use a local copy to avoid mutating the AST (which affects other emitters)
-		value := strings.Replace(e.Value, "\"", "", -1)
-		if len(value) > 0 && value[0] == '`' {
-			value = strings.Replace(value, "`", "", -1)
+		value := e.Value
+		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+			// Remove only the outer quotes, keep escaped content intact
+			value = value[1 : len(value)-1]
+			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("\"%s\"", value), 0))
+		} else if len(value) >= 2 && value[0] == '`' && value[len(value)-1] == '`' {
+			// Raw string literal - use C++ raw string
+			value = value[1 : len(value)-1]
 			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("R\"(%s)\"", value), 0))
 		} else {
 			cppe.emitToFile(cppe.emitAsString(fmt.Sprintf("\"%s\"", value), 0))

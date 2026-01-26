@@ -561,12 +561,18 @@ func (cse *CSharpEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 		var str string
 		if e.Kind == token.STRING {
 			// Use a local copy to avoid mutating the AST (which affects other emitters)
-			value := strings.Replace(e.Value, "\"", "", -1)
-			if len(value) > 0 && value[0] == '`' {
-				value = strings.Replace(value, "`", "", -1)
+			value := e.Value
+			if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+				// Remove only the outer quotes, keep escaped content intact
+				value = value[1 : len(value)-1]
+				// Use regular C# string (not verbatim) to preserve escape sequences
+				str = (cse.emitAsString(fmt.Sprintf("\"%s\"", value), 0))
+			} else if len(value) >= 2 && value[0] == '`' && value[len(value)-1] == '`' {
+				// Raw string literal - use C# verbatim string
+				value = value[1 : len(value)-1]
 				str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", value), 0))
 			} else {
-				str = (cse.emitAsString(fmt.Sprintf("@\"%s\"", value), 0))
+				str = (cse.emitAsString(fmt.Sprintf("\"%s\"", value), 0))
 			}
 			cse.emitToken(str, StringLiteral, 0)
 		} else {
