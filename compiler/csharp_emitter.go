@@ -290,23 +290,23 @@ func (cse *CSharpEmitter) PreVisitProgram(indent int) {
 {
   public static List<T> Append<T>(this List<T> list, T element)
   {
-    var result = list != null ? new List<T>(list) : new List<T>();
-    result.Add(element);
-    return result;
+    if (list == null) list = new List<T>();
+    list.Add(element);
+    return list;
   }
 
   public static List<T> Append<T>(this List<T> list, params T[] elements)
   {
-    var result = list != null ? new List<T>(list) : new List<T>();
-    result.AddRange(elements);
-    return result;
+    if (list == null) list = new List<T>();
+    list.AddRange(elements);
+    return list;
   }
 
   public static List<T> Append<T>(this List<T> list, List<T> elements)
   {
-    var result = list != null ? new List<T>(list) : new List<T>();
-    result.AddRange(elements);
-    return result;
+    if (list == null) list = new List<T>();
+    list.AddRange(elements);
+    return list;
   }
 
   // Fix: Ensure Length works for collections and not generic T
