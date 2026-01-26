@@ -59,17 +59,47 @@ func toHex(n int) string {
 }
 
 // genPrint generates assembly to print text to screen
-// cursorRow and cursorCol specify where to start printing
-func genPrint(args string, cursorRow int, cursorCol int) []string {
+// Uses cursor row from $30 to calculate screen address at runtime
+// After printing, cursor moves to beginning of next line
+// Uses $35:$36 for screen address pointer, $37 for temp high byte
+func genPrint(args string, cursorRow int, cursorCol int, ctx CompileContext) ([]string, CompileContext) {
 	lines := []string{}
 
 	// Parse the string to print
 	text := parseString(args)
 
-	// Calculate base address
-	baseAddr := ScreenBase + (cursorRow * TextCols) + cursorCol
+	// Calculate base address from cursor row in $30
+	// baseAddr = ScreenBase + $30 * 40
+	// row * 40 = row * 8 + row * 32
+	// Must handle 16-bit arithmetic properly for rows >= 8
+	lines = append(lines, "LDA #$00")
+	lines = append(lines, "STA $37")      // Initialize high byte temp to 0
+	lines = append(lines, "STA $38")      // Clear row*8 storage
 
-	// Generate LDA/STA for each character using indexed addressing
+	lines = append(lines, "LDA $30")      // Load cursor row
+	lines = append(lines, "ASL A")        // * 2
+	lines = append(lines, "ASL A")        // * 4
+	lines = append(lines, "ASL A")        // * 8
+	lines = append(lines, "STA $38")      // Store row * 8 in $38 (for later)
+
+	lines = append(lines, "ASL A")        // * 16 (may set carry for row >= 16)
+	lines = append(lines, "ROL $37")      // Rotate carry into high byte
+	lines = append(lines, "ASL A")        // * 32 (may set carry for row >= 8)
+	lines = append(lines, "ROL $37")      // Rotate carry into high byte
+
+	// Now A = (row * 32) low byte, $37 = (row * 32) high byte
+	lines = append(lines, "CLC")
+	lines = append(lines, "ADC $38")      // A = (row * 40) low byte (may carry)
+	lines = append(lines, "STA $35")      // Store low byte of screen address
+	lines = append(lines, "LDA $37")      // Load high byte of row*32
+	lines = append(lines, "ADC #$04")     // Add carry + screen base high byte ($0400)
+	lines = append(lines, "STA $36")      // High byte of screen address
+
+	// Now $35:$36 contains the screen address for current row
+	// Use Y for column offset, always start at column 0
+	lines = append(lines, "LDY #$00")
+
+	// Generate LDA/STA for each character using indirect indexed addressing
 	i := 0
 	for {
 		if i >= len(text) {
@@ -77,12 +107,15 @@ func genPrint(args string, cursorRow int, cursorCol int) []string {
 		}
 		charCode := int(text[i])
 		lines = append(lines, "LDA #"+toHex(charCode))
-		lines = append(lines, "STA "+toHex(baseAddr)+",X")
-		lines = append(lines, "INX")
+		lines = append(lines, "STA ($35),Y")
+		lines = append(lines, "INY")
 		i = i + 1
 	}
 
-	return lines
+	// Increment cursor row in zero page
+	lines = append(lines, "INC $30")
+
+	return lines, ctx
 }
 
 // genPoke generates assembly for POKE addr, value
@@ -617,16 +650,43 @@ func genNext(varName string, ctx CompileContext) ([]string, CompileContext) {
 }
 
 // genPrintVar generates assembly to print a variable's value
-func genPrintVar(varName string, cursorRow int, cursorCol int) []string {
+// Uses cursor row from $30 to calculate screen address at runtime
+// After printing, cursor moves to beginning of next line
+// Uses $35:$36 for screen address pointer, $37 for temp high byte
+func genPrintVar(varName string, cursorRow int, cursorCol int, ctx CompileContext) ([]string, CompileContext) {
 	lines := []string{}
 
 	addr := GetVariableAddress(varName)
 	if addr < 0 {
-		return lines
+		return lines, ctx
 	}
 
-	// Calculate base address at compile time
-	baseAddr := ScreenBase + (cursorRow * TextCols) + cursorCol
+	// Calculate base address from cursor row in $30
+	// baseAddr = ScreenBase + $30 * 40
+	// row * 40 = row * 8 + row * 32
+	// Must handle 16-bit arithmetic properly for rows >= 8
+	lines = append(lines, "LDA #$00")
+	lines = append(lines, "STA $37")      // Initialize high byte temp to 0
+	lines = append(lines, "STA $38")      // Clear row*8 storage
+
+	lines = append(lines, "LDA $30")      // Load cursor row
+	lines = append(lines, "ASL A")        // * 2
+	lines = append(lines, "ASL A")        // * 4
+	lines = append(lines, "ASL A")        // * 8
+	lines = append(lines, "STA $38")      // Store row * 8 in $38 (for later)
+
+	lines = append(lines, "ASL A")        // * 16 (may set carry for row >= 16)
+	lines = append(lines, "ROL $37")      // Rotate carry into high byte
+	lines = append(lines, "ASL A")        // * 32 (may set carry for row >= 8)
+	lines = append(lines, "ROL $37")      // Rotate carry into high byte
+
+	// Now A = (row * 32) low byte, $37 = (row * 32) high byte
+	lines = append(lines, "CLC")
+	lines = append(lines, "ADC $38")      // A = (row * 40) low byte (may carry)
+	lines = append(lines, "STA $35")      // Store low byte of screen address
+	lines = append(lines, "LDA $37")      // Load high byte of row*32
+	lines = append(lines, "ADC #$04")     // Add carry + screen base high byte ($0400)
+	lines = append(lines, "STA $36")      // High byte of screen address
 
 	// Load variable value
 	lines = append(lines, "LDA "+toHex(addr))
@@ -636,11 +696,12 @@ func genPrintVar(varName string, cursorRow int, cursorCol int) []string {
 	lines = append(lines, "CLC")
 	lines = append(lines, "ADC #$30")
 
-	// Store to screen using indexed addressing (X register holds cursor offset)
-	lines = append(lines, "STA "+toHex(baseAddr)+",X")
+	// Store to screen using indirect indexed addressing
+	lines = append(lines, "LDY #$00")
+	lines = append(lines, "STA ($35),Y")
 
-	// Increment X register for next character
-	lines = append(lines, "INX")
+	// Increment cursor row in zero page
+	lines = append(lines, "INC $30")
 
-	return lines
+	return lines, ctx
 }

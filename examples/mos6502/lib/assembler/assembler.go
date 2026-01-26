@@ -16,6 +16,8 @@ const (
 	TokenTypeColon       = 8  // : for labels
 	TokenTypeIdentifier  = 9  // Generic identifier
 	TokenTypeComment     = 10 // ; comment
+	TokenTypeLParen      = 11 // ( for indirect addressing
+	TokenTypeRParen      = 12 // ) for indirect addressing
 )
 
 // Addressing modes
@@ -156,6 +158,20 @@ func Tokenize(text string) []Token {
 		// Comma
 		if b == ',' {
 			tokens = append(tokens, Token{Type: TokenTypeComma, Representation: []int8{b}})
+			i = i + 1
+			continue
+		}
+
+		// Left parenthesis (indirect addressing)
+		if b == '(' {
+			tokens = append(tokens, Token{Type: TokenTypeLParen, Representation: []int8{b}})
+			i = i + 1
+			continue
+		}
+
+		// Right parenthesis (indirect addressing)
+		if b == ')' {
+			tokens = append(tokens, Token{Type: TokenTypeRParen, Representation: []int8{b}})
 			i = i + 1
 			continue
 		}
@@ -325,8 +341,42 @@ func Parse(tokens []Token) []Instruction {
 
 		// Check for operand
 		if i < len(tokens) && tokens[i].Type != TokenTypeNewline {
+			// Indirect addressing: ($XX),Y or ($XX,X)
+			if tokens[i].Type == TokenTypeLParen {
+				i = i + 1
+				if i < len(tokens) && tokens[i].Type == TokenTypeDollar {
+					i = i + 1
+					if i < len(tokens) && tokens[i].Type == TokenTypeNumber {
+						instr.Operand = ParseHex(tokens[i].Representation)
+						i = i + 1
+						// Check for ,X) - indexed indirect
+						if i < len(tokens) && tokens[i].Type == TokenTypeComma {
+							i = i + 1
+							if i < len(tokens) && tokens[i].Type == TokenTypeIdentifier && MatchToken(tokens[i], "X") {
+								i = i + 1
+								if i < len(tokens) && tokens[i].Type == TokenTypeRParen {
+									instr.Mode = ModeIndirectX
+									i = i + 1
+								}
+							}
+						} else if i < len(tokens) && tokens[i].Type == TokenTypeRParen {
+							// Check for ),Y - indirect indexed
+							i = i + 1
+							if i < len(tokens) && tokens[i].Type == TokenTypeComma {
+								i = i + 1
+								if i < len(tokens) && tokens[i].Type == TokenTypeIdentifier && MatchToken(tokens[i], "Y") {
+									instr.Mode = ModeIndirectY
+									i = i + 1
+								}
+							} else {
+								// Just ($XX) - indirect mode for JMP
+								instr.Mode = ModeIndirect
+							}
+						}
+					}
+				}
+			} else if tokens[i].Type == TokenTypeHash {
 			// Immediate mode: #$XX or #NN
-			if tokens[i].Type == TokenTypeHash {
 				i = i + 1
 				instr.Mode = ModeImmediate
 				if i < len(tokens) && tokens[i].Type == TokenTypeDollar {
@@ -461,9 +511,10 @@ func getInstructionSize(instr Instruction) int {
 		return 2
 	}
 
-	// Immediate and ZeroPage modes (2 bytes)
+	// Immediate, ZeroPage, and Indirect modes (2 bytes)
 	if mode == ModeImmediate || mode == ModeZeroPage ||
-		mode == ModeZeroPageX || mode == ModeZeroPageY {
+		mode == ModeZeroPageX || mode == ModeZeroPageY ||
+		mode == ModeIndirectX || mode == ModeIndirectY {
 		return 2
 	}
 
@@ -677,6 +728,12 @@ func Assemble(instructions []Instruction) []uint8 {
 				code = append(code, uint8(cpu.OpSTAAbsY))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeIndirectY {
+				code = append(code, uint8(cpu.OpSTAIndY))
+				code = append(code, uint8(instr.Operand))
+			} else if instr.Mode == ModeIndirectX {
+				code = append(code, uint8(cpu.OpSTAIndX))
+				code = append(code, uint8(instr.Operand))
 			}
 		} else if IsOpcode(opcodeBytes, "STX") {
 			if instr.Mode == ModeZeroPage {
@@ -1191,6 +1248,20 @@ func TokenizeBytes(bytes []int8) []Token {
 		// Comma
 		if b == ',' {
 			tokens = append(tokens, Token{Type: TokenTypeComma, Representation: []int8{b}})
+			i = i + 1
+			continue
+		}
+
+		// Left parenthesis (indirect addressing)
+		if b == '(' {
+			tokens = append(tokens, Token{Type: TokenTypeLParen, Representation: []int8{b}})
+			i = i + 1
+			continue
+		}
+
+		// Right parenthesis (indirect addressing)
+		if b == ')' {
+			tokens = append(tokens, Token{Type: TokenTypeRParen, Representation: []int8{b}})
 			i = i + 1
 			continue
 		}

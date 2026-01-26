@@ -10,6 +10,9 @@ const TextRows = 25
 const ScreenBase = 0x0400
 const CodeBase = 0xC000
 
+// Zero page address for cursor row tracking (after variables $10-$29)
+const CursorRowAddr = 0x30
+
 // ProgramLine stores one line of BASIC program
 type ProgramLine struct {
 	LineNum int
@@ -149,6 +152,22 @@ func CompileProgram(state BasicState) []uint8 {
 	// Initialize X register to 0 for cursor offset
 	asmLines = append(asmLines, "LDX #$00")
 
+	// Initialize cursor row in zero page
+	asmLines = append(asmLines, "LDA #$"+toHex2(state.CursorRow))
+	asmLines = append(asmLines, "STA $30")
+
+	// Initialize temporary zero-page locations used by PRINT
+	// Uses $35:$36 for screen address, $37:$38 for temps
+	// This ensures clean state between runs (important for JS backend)
+	asmLines = append(asmLines, "LDA #$00")
+	asmLines = append(asmLines, "STA $35")
+	asmLines = append(asmLines, "STA $36")
+	asmLines = append(asmLines, "STA $37")
+	asmLines = append(asmLines, "STA $38")
+
+	// Clear carry flag to ensure clean arithmetic state
+	asmLines = append(asmLines, "CLC")
+
 	row := state.CursorRow
 	col := 0
 
@@ -237,9 +256,9 @@ func compileLine(line string, cursorRow int, cursorCol int, ctx CompileContext) 
 		// Check if printing a variable (single letter) or a string
 		trimmedArgs := trimSpacesStr(args)
 		if IsVariableName(trimmedArgs) {
-			return genPrintVar(trimmedArgs, cursorRow, cursorCol), ctx
+			return genPrintVar(trimmedArgs, cursorRow, cursorCol, ctx)
 		}
-		return genPrint(args, cursorRow, cursorCol), ctx
+		return genPrint(args, cursorRow, cursorCol, ctx)
 	} else if cmd == "POKE" {
 		addr, value := parsePoke(args)
 		return genPoke(addr, value), ctx
@@ -317,4 +336,9 @@ func GetLine(state BasicState, index int) ProgramLine {
 		return state.Lines[index]
 	}
 	return ProgramLine{LineNum: 0, Text: ""}
+}
+
+// GetCursorRowAddr returns the zero page address where cursor row is stored
+func GetCursorRowAddr() int {
+	return CursorRowAddr
 }

@@ -957,14 +957,14 @@ const cpu = {
       c = this.SetZN(c, c.A);
     } else if (opcode == this.OpASLA) {
       c = this.SetCarry(c, (c.A & 0x80) != 0);
-      c.A = c.A << 1;
+      c.A = uint8((int(c.A) << 1) & 0xff);
       c = this.SetZN(c, c.A);
     } else if (opcode == this.OpASLZp) {
       let addr = 0;
       [c, addr] = this.FetchByte(c);
       let val = c.Memory[int(addr)];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = val << 1;
+      val = uint8((int(val) << 1) & 0xff);
       c.Memory[int(addr)] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpASLZpX) {
@@ -973,7 +973,7 @@ const cpu = {
       let effAddr = int(addr + c.X) & 0xff;
       let val = c.Memory[effAddr];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = val << 1;
+      val = uint8((int(val) << 1) & 0xff);
       c.Memory[effAddr] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpASLAbs) {
@@ -981,7 +981,7 @@ const cpu = {
       [c, addr] = this.FetchWord(c);
       let val = c.Memory[addr];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = val << 1;
+      val = uint8((int(val) << 1) & 0xff);
       c.Memory[addr] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpASLAbsX) {
@@ -990,7 +990,7 @@ const cpu = {
       let effAddr = addr + int(c.X);
       let val = c.Memory[effAddr];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = val << 1;
+      val = uint8((int(val) << 1) & 0xff);
       c.Memory[effAddr] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpLSRA) {
@@ -1037,7 +1037,7 @@ const cpu = {
         carry = 1;
       }
       c = this.SetCarry(c, (c.A & 0x80) != 0);
-      c.A = (c.A << 1) | uint8(carry);
+      c.A = uint8(((int(c.A) << 1) | carry) & 0xff);
       c = this.SetZN(c, c.A);
     } else if (opcode == this.OpROLZp) {
       let addr = 0;
@@ -1048,7 +1048,7 @@ const cpu = {
       }
       let val = c.Memory[int(addr)];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = (val << 1) | uint8(carry);
+      val = uint8(((int(val) << 1) | carry) & 0xff);
       c.Memory[int(addr)] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpROLZpX) {
@@ -1061,7 +1061,7 @@ const cpu = {
       let effAddr = int(addr + c.X) & 0xff;
       let val = c.Memory[effAddr];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = (val << 1) | uint8(carry);
+      val = uint8(((int(val) << 1) | carry) & 0xff);
       c.Memory[effAddr] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpROLAbs) {
@@ -1073,7 +1073,7 @@ const cpu = {
       }
       let val = c.Memory[addr];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = (val << 1) | uint8(carry);
+      val = uint8(((int(val) << 1) | carry) & 0xff);
       c.Memory[addr] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpROLAbsX) {
@@ -1086,7 +1086,7 @@ const cpu = {
       let effAddr = addr + int(c.X);
       let val = c.Memory[effAddr];
       c = this.SetCarry(c, (val & 0x80) != 0);
-      val = (val << 1) | uint8(carry);
+      val = uint8(((int(val) << 1) | carry) & 0xff);
       c.Memory[effAddr] = val;
       c = this.SetZN(c, val);
     } else if (opcode == this.OpRORA) {
@@ -1486,6 +1486,8 @@ const assembler = {
   TokenTypeColon: 8,
   TokenTypeIdentifier: 9,
   TokenTypeComment: 10,
+  TokenTypeLParen: 11,
+  TokenTypeRParen: 12,
   ModeImplied: 0,
   ModeImmediate: 1,
   ModeZeroPage: 2,
@@ -1590,6 +1592,22 @@ const assembler = {
       if (b == 44) {
         tokens = append(tokens, {
           Type: this.TokenTypeComma,
+          Representation: [b],
+        });
+        i = i + 1;
+        continue;
+      }
+      if (b == 40) {
+        tokens = append(tokens, {
+          Type: this.TokenTypeLParen,
+          Representation: [b],
+        });
+        i = i + 1;
+        continue;
+      }
+      if (b == 41) {
+        tokens = append(tokens, {
+          Type: this.TokenTypeRParen,
           Representation: [b],
         });
         i = i + 1;
@@ -1748,7 +1766,51 @@ const assembler = {
       };
       i = i + 1;
       if (i < len(tokens) && tokens[i].Type != this.TokenTypeNewline) {
-        if (tokens[i].Type == this.TokenTypeHash) {
+        if (tokens[i].Type == this.TokenTypeLParen) {
+          i = i + 1;
+          if (i < len(tokens) && tokens[i].Type == this.TokenTypeDollar) {
+            i = i + 1;
+            if (i < len(tokens) && tokens[i].Type == this.TokenTypeNumber) {
+              instr.Operand = this.ParseHex(tokens[i].Representation);
+              i = i + 1;
+              if (i < len(tokens) && tokens[i].Type == this.TokenTypeComma) {
+                i = i + 1;
+                if (
+                  i < len(tokens) &&
+                  tokens[i].Type == this.TokenTypeIdentifier &&
+                  this.MatchToken(tokens[i], "X")
+                ) {
+                  i = i + 1;
+                  if (
+                    i < len(tokens) &&
+                    tokens[i].Type == this.TokenTypeRParen
+                  ) {
+                    instr.Mode = this.ModeIndirectX;
+                    i = i + 1;
+                  }
+                }
+              } else if (
+                i < len(tokens) &&
+                tokens[i].Type == this.TokenTypeRParen
+              ) {
+                i = i + 1;
+                if (i < len(tokens) && tokens[i].Type == this.TokenTypeComma) {
+                  i = i + 1;
+                  if (
+                    i < len(tokens) &&
+                    tokens[i].Type == this.TokenTypeIdentifier &&
+                    this.MatchToken(tokens[i], "Y")
+                  ) {
+                    instr.Mode = this.ModeIndirectY;
+                    i = i + 1;
+                  }
+                } else {
+                  instr.Mode = this.ModeIndirect;
+                }
+              }
+            }
+          }
+        } else if (tokens[i].Type == this.TokenTypeHash) {
           i = i + 1;
           instr.Mode = this.ModeImmediate;
           if (i < len(tokens) && tokens[i].Type == this.TokenTypeDollar) {
@@ -1881,7 +1943,9 @@ const assembler = {
       mode == this.ModeImmediate ||
       mode == this.ModeZeroPage ||
       mode == this.ModeZeroPageX ||
-      mode == this.ModeZeroPageY
+      mode == this.ModeZeroPageY ||
+      mode == this.ModeIndirectX ||
+      mode == this.ModeIndirectY
     ) {
       return 2;
     }
@@ -2061,6 +2125,12 @@ const assembler = {
           code = append(code, uint8(cpu.OpSTAAbsY));
           code = append(code, uint8(instr.Operand & 0xff));
           code = append(code, uint8((instr.Operand >> 8) & 0xff));
+        } else if (instr.Mode == this.ModeIndirectY) {
+          code = append(code, uint8(cpu.OpSTAIndY));
+          code = append(code, uint8(instr.Operand));
+        } else if (instr.Mode == this.ModeIndirectX) {
+          code = append(code, uint8(cpu.OpSTAIndX));
+          code = append(code, uint8(instr.Operand));
         }
       } else if (this.IsOpcode(opcodeBytes, "STX")) {
         if (instr.Mode == this.ModeZeroPage) {
@@ -2538,6 +2608,22 @@ const assembler = {
         i = i + 1;
         continue;
       }
+      if (b == 40) {
+        tokens = append(tokens, {
+          Type: this.TokenTypeLParen,
+          Representation: [b],
+        });
+        i = i + 1;
+        continue;
+      }
+      if (b == 41) {
+        tokens = append(tokens, {
+          Type: this.TokenTypeRParen,
+          Representation: [b],
+        });
+        i = i + 1;
+        continue;
+      }
       if (this.IsDigit(b)) {
         let repr = [];
         while (true) {
@@ -2645,6 +2731,7 @@ const basic = {
   TextRows: 25,
   ScreenBase: 0x0400,
   CodeBase: 0xc000,
+  CursorRowAddr: 0x30,
   VarBaseAddr: 0x10,
   ExprNumber: 1,
   ExprVariable: 2,
@@ -2751,6 +2838,14 @@ const basic = {
     let ctx = this.NewCompileContext();
     let asmLines = [];
     asmLines = append(asmLines, "LDX #$00");
+    asmLines = append(asmLines, "LDA #$" + this.toHex2(state.CursorRow));
+    asmLines = append(asmLines, "STA $30");
+    asmLines = append(asmLines, "LDA #$00");
+    asmLines = append(asmLines, "STA $35");
+    asmLines = append(asmLines, "STA $36");
+    asmLines = append(asmLines, "STA $37");
+    asmLines = append(asmLines, "STA $38");
+    asmLines = append(asmLines, "CLC");
     let row = state.CursorRow;
     let col = 0;
     let i = 0;
@@ -2818,9 +2913,9 @@ const basic = {
     if (cmd == "PRINT") {
       let trimmedArgs = this.trimSpacesStr(args);
       if (this.IsVariableName(trimmedArgs)) {
-        return [this.genPrintVar(trimmedArgs, cursorRow, cursorCol), ctx];
+        return this.genPrintVar(trimmedArgs, cursorRow, cursorCol, ctx);
       }
-      return [this.genPrint(args, cursorRow, cursorCol), ctx];
+      return this.genPrint(args, cursorRow, cursorCol, ctx);
     } else if (cmd == "POKE") {
       let [addr, value] = this.parsePoke(args);
       return [this.genPoke(addr, value), ctx];
@@ -2892,6 +2987,9 @@ const basic = {
     }
     return { LineNum: 0, Text: "" };
   },
+  GetCursorRowAddr: function () {
+    return this.CursorRowAddr;
+  },
   hexDigit: function (n) {
     if (n == 0) {
       return "0";
@@ -2942,10 +3040,28 @@ const basic = {
     }
     return "$" + this.toHex2(n);
   },
-  genPrint: function (args, cursorRow, cursorCol) {
+  genPrint: function (args, cursorRow, cursorCol, ctx) {
     let lines = [];
     let text = this.parseString(args);
-    let baseAddr = this.ScreenBase + cursorRow * this.TextCols + cursorCol;
+    lines = append(lines, "LDA #$00");
+    lines = append(lines, "STA $37");
+    lines = append(lines, "STA $38");
+    lines = append(lines, "LDA $30");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "STA $38");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ROL $37");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ROL $37");
+    lines = append(lines, "CLC");
+    lines = append(lines, "ADC $38");
+    lines = append(lines, "STA $35");
+    lines = append(lines, "LDA $37");
+    lines = append(lines, "ADC #$04");
+    lines = append(lines, "STA $36");
+    lines = append(lines, "LDY #$00");
     let i = 0;
     while (true) {
       if (i >= len(text)) {
@@ -2953,11 +3069,12 @@ const basic = {
       }
       let charCode = int(text.charCodeAt(i));
       lines = append(lines, "LDA #" + this.toHex(charCode));
-      lines = append(lines, "STA " + this.toHex(baseAddr) + ",X");
-      lines = append(lines, "INX");
+      lines = append(lines, "STA ($35),Y");
+      lines = append(lines, "INY");
       i = i + 1;
     }
-    return lines;
+    lines = append(lines, "INC $30");
+    return [lines, ctx];
   },
   genPoke: function (addr, value) {
     let lines = [];
@@ -3353,19 +3470,37 @@ const basic = {
     }
     return [lines, ctx];
   },
-  genPrintVar: function (varName, cursorRow, cursorCol) {
+  genPrintVar: function (varName, cursorRow, cursorCol, ctx) {
     let lines = [];
     let addr = this.GetVariableAddress(varName);
     if (addr < 0) {
-      return lines;
+      return [lines, ctx];
     }
-    let baseAddr = this.ScreenBase + cursorRow * this.TextCols + cursorCol;
+    lines = append(lines, "LDA #$00");
+    lines = append(lines, "STA $37");
+    lines = append(lines, "STA $38");
+    lines = append(lines, "LDA $30");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "STA $38");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ROL $37");
+    lines = append(lines, "ASL A");
+    lines = append(lines, "ROL $37");
+    lines = append(lines, "CLC");
+    lines = append(lines, "ADC $38");
+    lines = append(lines, "STA $35");
+    lines = append(lines, "LDA $37");
+    lines = append(lines, "ADC #$04");
+    lines = append(lines, "STA $36");
     lines = append(lines, "LDA " + this.toHex(addr));
     lines = append(lines, "CLC");
     lines = append(lines, "ADC #$30");
-    lines = append(lines, "STA " + this.toHex(baseAddr) + ",X");
-    lines = append(lines, "INX");
-    return lines;
+    lines = append(lines, "LDY #$00");
+    lines = append(lines, "STA ($35),Y");
+    lines = append(lines, "INC $30");
+    return [lines, ctx];
   },
   parseLine: function (line) {
     let pos = 0;
@@ -4917,18 +5052,14 @@ function main() {
             if (lineCount > 0) {
               basicState = basic.SetCursor(basicState, cursorRow, 0);
               let code = basic.CompileProgram(basicState);
-              cursorRow = cursorRow + 1;
-              if (cursorRow >= TextRows) {
-                cursorRow = TextRows - 1;
-              }
               c = cpu.LoadProgram(c, code, 0xc000);
               c = cpu.SetPC(c, 0xc000);
               c = cpu.ClearHalted(c);
               c = cpu.Run(c, 100000);
-            }
-            cursorRow = cursorRow + lineCount;
-            if (cursorRow >= TextRows) {
-              cursorRow = TextRows - 1;
+              cursorRow = int(c.Memory[basic.GetCursorRowAddr()]);
+              if (cursorRow >= TextRows) {
+                cursorRow = TextRows - 1;
+              }
             }
             c = printReady(c, cursorRow);
             cursorRow = cursorRow + 1;
