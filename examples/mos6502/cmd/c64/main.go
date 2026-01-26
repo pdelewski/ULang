@@ -516,20 +516,16 @@ func main() {
 						if lineCount > 0 {
 							basicState = basic.SetCursor(basicState, cursorRow, 0)
 							code := basic.CompileProgram(basicState)
-							cursorRow = cursorRow + 1
-							if cursorRow >= TextRows {
-								cursorRow = TextRows - 1
-							}
 							// Execute the program
 							c = cpu.LoadProgram(c, code, 0xC000)
 							c = cpu.SetPC(c, 0xC000)
 							c = cpu.ClearHalted(c)
 							c = cpu.Run(c, 100000)
-						}
-						// Move cursor after program output
-						cursorRow = cursorRow + lineCount
-						if cursorRow >= TextRows {
-							cursorRow = TextRows - 1
+							// Read cursor row from zero page (set by PRINT statements)
+							cursorRow = int(c.Memory[basic.GetCursorRowAddr()])
+							if cursorRow >= TextRows {
+								cursorRow = TextRows - 1
+							}
 						}
 						// Print READY.
 						c = printReady(c, cursorRow)

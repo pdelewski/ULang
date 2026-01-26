@@ -785,16 +785,17 @@ func Step(c CPU) CPU {
 		c = SetZN(c, c.A)
 
 	// ASL - Arithmetic Shift Left
+	// Note: Explicit & 0xFF masks ensure 8-bit results for JS backend
 	} else if opcode == OpASLA {
 		c = SetCarry(c, (c.A&0x80) != 0)
-		c.A = c.A << 1
+		c.A = uint8((int(c.A) << 1) & 0xFF)
 		c = SetZN(c, c.A)
 	} else if opcode == OpASLZp {
 		var addr uint8
 		c, addr = FetchByte(c)
 		val := c.Memory[int(addr)]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = val << 1
+		val = uint8((int(val) << 1) & 0xFF)
 		c.Memory[int(addr)] = val
 		c = SetZN(c, val)
 	} else if opcode == OpASLZpX {
@@ -803,7 +804,7 @@ func Step(c CPU) CPU {
 		effAddr := int(addr+c.X) & 0xFF
 		val := c.Memory[effAddr]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = val << 1
+		val = uint8((int(val) << 1) & 0xFF)
 		c.Memory[effAddr] = val
 		c = SetZN(c, val)
 	} else if opcode == OpASLAbs {
@@ -811,7 +812,7 @@ func Step(c CPU) CPU {
 		c, addr = FetchWord(c)
 		val := c.Memory[addr]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = val << 1
+		val = uint8((int(val) << 1) & 0xFF)
 		c.Memory[addr] = val
 		c = SetZN(c, val)
 	} else if opcode == OpASLAbsX {
@@ -820,7 +821,7 @@ func Step(c CPU) CPU {
 		effAddr := addr + int(c.X)
 		val := c.Memory[effAddr]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = val << 1
+		val = uint8((int(val) << 1) & 0xFF)
 		c.Memory[effAddr] = val
 		c = SetZN(c, val)
 
@@ -865,13 +866,14 @@ func Step(c CPU) CPU {
 		c = SetZN(c, val)
 
 	// ROL - Rotate Left
+	// Note: Explicit & 0xFF masks ensure 8-bit results for JS backend
 	} else if opcode == OpROLA {
 		carry := 0
 		if GetCarry(c) {
 			carry = 1
 		}
 		c = SetCarry(c, (c.A&0x80) != 0)
-		c.A = (c.A << 1) | uint8(carry)
+		c.A = uint8(((int(c.A) << 1) | carry) & 0xFF)
 		c = SetZN(c, c.A)
 	} else if opcode == OpROLZp {
 		var addr uint8
@@ -882,7 +884,7 @@ func Step(c CPU) CPU {
 		}
 		val := c.Memory[int(addr)]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = (val << 1) | uint8(carry)
+		val = uint8(((int(val) << 1) | carry) & 0xFF)
 		c.Memory[int(addr)] = val
 		c = SetZN(c, val)
 	} else if opcode == OpROLZpX {
@@ -895,7 +897,7 @@ func Step(c CPU) CPU {
 		effAddr := int(addr+c.X) & 0xFF
 		val := c.Memory[effAddr]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = (val << 1) | uint8(carry)
+		val = uint8(((int(val) << 1) | carry) & 0xFF)
 		c.Memory[effAddr] = val
 		c = SetZN(c, val)
 	} else if opcode == OpROLAbs {
@@ -907,7 +909,7 @@ func Step(c CPU) CPU {
 		}
 		val := c.Memory[addr]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = (val << 1) | uint8(carry)
+		val = uint8(((int(val) << 1) | carry) & 0xFF)
 		c.Memory[addr] = val
 		c = SetZN(c, val)
 	} else if opcode == OpROLAbsX {
@@ -920,7 +922,7 @@ func Step(c CPU) CPU {
 		effAddr := addr + int(c.X)
 		val := c.Memory[effAddr]
 		c = SetCarry(c, (val&0x80) != 0)
-		val = (val << 1) | uint8(carry)
+		val = uint8(((int(val) << 1) | carry) & 0xFF)
 		c.Memory[effAddr] = val
 		c = SetZN(c, val)
 
