@@ -42,11 +42,13 @@ type Token struct {
 
 // Instruction represents a parsed assembly instruction
 type Instruction struct {
-	OpcodeBytes []int8
-	Mode        int8 // 0=implied, 1=immediate, 2=zeropage, 3=absolute, 4=zeropage,X
-	Operand     int  // The operand value
-	LabelBytes  []int8
-	HasLabel    bool
+	OpcodeBytes    []int8
+	Mode           int8 // 0=implied, 1=immediate, 2=zeropage, 3=absolute, 4=zeropage,X
+	Operand        int  // The operand value
+	LabelBytes     []int8
+	HasLabel       bool
+	TargetLabel    []int8 // Label reference for JMP/JSR/branch
+	HasTargetLabel bool
 }
 
 // IsDigit checks if a character is a digit
@@ -383,6 +385,12 @@ func Parse(tokens []Token) []Instruction {
 					instr.Mode = ModeAbsolute
 				}
 				i = i + 1
+			} else if tokens[i].Type == TokenTypeIdentifier {
+				// Label reference for JMP/JSR/branch
+				instr.TargetLabel = CopyBytes(tokens[i].Representation)
+				instr.HasTargetLabel = true
+				instr.Mode = ModeAbsolute // Default to absolute for JMP/JSR
+				i = i + 1
 			}
 		}
 
@@ -416,8 +424,168 @@ func IsOpcode(opcodeBytes []int8, name string) bool {
 	return true
 }
 
+// BytesMatch checks if two byte slices are equal
+func BytesMatch(a []int8, b []int8) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	i := 0
+	for {
+		if i >= len(a) {
+			break
+		}
+		if a[i] != b[i] {
+			return false
+		}
+		i = i + 1
+	}
+	return true
+}
+
+// getInstructionSize returns the size in bytes of an instruction
+func getInstructionSize(instr Instruction) int {
+	// Most instructions are 1-3 bytes
+	opcodeBytes := instr.OpcodeBytes
+	mode := instr.Mode
+
+	// Implied mode instructions (1 byte)
+	if mode == ModeImplied || mode == ModeAccumulator {
+		return 1
+	}
+
+	// Branch instructions (2 bytes: opcode + relative offset)
+	if IsOpcode(opcodeBytes, "BPL") || IsOpcode(opcodeBytes, "BMI") ||
+		IsOpcode(opcodeBytes, "BVC") || IsOpcode(opcodeBytes, "BVS") ||
+		IsOpcode(opcodeBytes, "BCC") || IsOpcode(opcodeBytes, "BCS") ||
+		IsOpcode(opcodeBytes, "BNE") || IsOpcode(opcodeBytes, "BEQ") {
+		return 2
+	}
+
+	// Immediate and ZeroPage modes (2 bytes)
+	if mode == ModeImmediate || mode == ModeZeroPage ||
+		mode == ModeZeroPageX || mode == ModeZeroPageY {
+		return 2
+	}
+
+	// Absolute modes (3 bytes)
+	if mode == ModeAbsolute || mode == ModeAbsoluteX ||
+		mode == ModeAbsoluteY || mode == ModeIndirect {
+		return 3
+	}
+
+	// JMP and JSR with label (3 bytes)
+	if instr.HasTargetLabel {
+		return 3
+	}
+
+	// Default
+	return 1
+}
+
+// LabelEntry stores a label name and its address
+type LabelEntry struct {
+	Name []int8
+	Addr int
+}
+
+// findLabelAddr looks up a label address in the label table
+func findLabelAddr(labels []LabelEntry, target []int8) (int, bool) {
+	i := 0
+	for {
+		if i >= len(labels) {
+			break
+		}
+		if BytesMatch(labels[i].Name, target) {
+			return labels[i].Addr, true
+		}
+		i = i + 1
+	}
+	return 0, false
+}
+
+// resolveLabels performs first pass to calculate addresses and resolve labels
+func resolveLabels(instructions []Instruction, baseAddr int) []Instruction {
+	// Build label table using slices (goany compatible)
+	labels := []LabelEntry{}
+	currentAddr := baseAddr
+
+	// First pass: calculate addresses
+	idx := 0
+	for {
+		if idx >= len(instructions) {
+			break
+		}
+		instr := instructions[idx]
+
+		// If this instruction has a label definition, record its address
+		if instr.HasLabel {
+			entry := LabelEntry{
+				Name: CopyBytes(instr.LabelBytes),
+				Addr: currentAddr,
+			}
+			labels = append(labels, entry)
+		}
+
+		currentAddr = currentAddr + getInstructionSize(instr)
+		idx = idx + 1
+	}
+
+	// Second pass: resolve label references
+	result := []Instruction{}
+	currentAddr = baseAddr
+
+	idx = 0
+	for {
+		if idx >= len(instructions) {
+			break
+		}
+		instr := instructions[idx]
+
+		// Resolve label before appending to avoid C# struct indexer issue
+		if instr.HasTargetLabel {
+			// Look up address
+			addr, found := findLabelAddr(labels, instr.TargetLabel)
+			if found {
+				// Check if this is a branch instruction (needs relative offset)
+				if IsOpcode(instr.OpcodeBytes, "BPL") || IsOpcode(instr.OpcodeBytes, "BMI") ||
+					IsOpcode(instr.OpcodeBytes, "BVC") || IsOpcode(instr.OpcodeBytes, "BVS") ||
+					IsOpcode(instr.OpcodeBytes, "BCC") || IsOpcode(instr.OpcodeBytes, "BCS") ||
+					IsOpcode(instr.OpcodeBytes, "BNE") || IsOpcode(instr.OpcodeBytes, "BEQ") {
+					// Calculate relative offset
+					// Branch offset is calculated from the address AFTER the branch instruction
+					instrSize := getInstructionSize(instr)
+					nextAddr := currentAddr + instrSize
+					offset := addr - nextAddr
+					// Convert to signed byte
+					if offset < -128 || offset > 127 {
+						offset = 0 // Out of range, use 0
+					}
+					instr.Operand = offset & 0xFF
+					instr.Mode = ModeZeroPage // Branch uses 1-byte operand
+				} else {
+					// JMP or JSR - use absolute address
+					instr.Operand = addr
+				}
+				instr.HasTargetLabel = false // Mark as resolved
+			}
+		}
+
+		result = append(result, instr)
+		currentAddr = currentAddr + getInstructionSize(instr)
+		idx = idx + 1
+	}
+
+	return result
+}
+
+// CodeBase is the default base address for code
+const CodeBaseAddr = 0xC000
+
 // Assemble converts parsed instructions to machine code
 func Assemble(instructions []Instruction) []uint8 {
+	// Resolve labels before generating code
+	instructions = resolveLabels(instructions, CodeBaseAddr)
+
 	code := []uint8{}
 
 	idx := 0

@@ -128,14 +128,27 @@ func ClearProgram(state BasicState) BasicState {
 
 // CompileImmediate compiles a single line for immediate execution
 func CompileImmediate(state BasicState, line string) []uint8 {
-	asmLines := compileLine(line, state.CursorRow, state.CursorCol)
+	ctx := NewCompileContext()
+	asmLines := []string{}
+	asmLines, ctx = compileLine(line, state.CursorRow, state.CursorCol, ctx)
+	// Use ctx.LabelCounter to avoid unused variable warning (goany compatible)
+	if ctx.LabelCounter < 0 {
+		ctx.LabelCounter = 0
+	}
 	asmLines = append(asmLines, "BRK")
 	return assembler.AssembleLines(asmLines)
 }
 
 // CompileProgram compiles all stored program lines
 func CompileProgram(state BasicState) []uint8 {
+	// Create fresh compilation context
+	ctx := NewCompileContext()
+
 	asmLines := []string{}
+
+	// Initialize X register to 0 for cursor offset
+	asmLines = append(asmLines, "LDX #$00")
+
 	row := state.CursorRow
 	col := 0
 
@@ -144,7 +157,12 @@ func CompileProgram(state BasicState) []uint8 {
 		if i >= len(state.Lines) {
 			break
 		}
-		lineAsm := compileLine(state.Lines[i].Text, row, col)
+		// Add line number label for GOTO/GOSUB targets
+		lineLabel := "LINE_" + intToString(state.Lines[i].LineNum) + ":"
+		asmLines = append(asmLines, lineLabel)
+
+		lineAsm := []string{}
+		lineAsm, ctx = compileLine(state.Lines[i].Text, row, col, ctx)
 		// Append all assembly lines
 		j := 0
 		for {
@@ -167,7 +185,14 @@ func CompileProgram(state BasicState) []uint8 {
 
 // CompileProgramDebug compiles and returns asm line count, instruction count, and last opcode first byte
 func CompileProgramDebug(state BasicState) ([]uint8, int, int, int) {
+	// Create fresh compilation context
+	ctx := NewCompileContext()
+
 	asmLines := []string{}
+
+	// Initialize X register to 0 for cursor offset
+	asmLines = append(asmLines, "LDX #$00")
+
 	row := state.CursorRow
 	col := 0
 
@@ -176,7 +201,12 @@ func CompileProgramDebug(state BasicState) ([]uint8, int, int, int) {
 		if i >= len(state.Lines) {
 			break
 		}
-		lineAsm := compileLine(state.Lines[i].Text, row, col)
+		// Add line number label for GOTO/GOSUB targets
+		lineLabel := "LINE_" + intToString(state.Lines[i].LineNum) + ":"
+		asmLines = append(asmLines, lineLabel)
+
+		lineAsm := []string{}
+		lineAsm, ctx = compileLine(state.Lines[i].Text, row, col, ctx)
 		j := 0
 		for {
 			if j >= len(lineAsm) {
@@ -199,21 +229,81 @@ func CompileProgramDebug(state BasicState) ([]uint8, int, int, int) {
 }
 
 // compileLine compiles a single BASIC line to assembly
-func compileLine(line string, cursorRow int, cursorCol int) []string {
+func compileLine(line string, cursorRow int, cursorCol int, ctx CompileContext) ([]string, CompileContext) {
 	// Parse the line
 	cmd, args := parseLine(line)
 
 	if cmd == "PRINT" {
-		return genPrint(args, cursorRow, cursorCol)
+		// Check if printing a variable (single letter) or a string
+		trimmedArgs := trimSpacesStr(args)
+		if IsVariableName(trimmedArgs) {
+			return genPrintVar(trimmedArgs, cursorRow, cursorCol), ctx
+		}
+		return genPrint(args, cursorRow, cursorCol), ctx
 	} else if cmd == "POKE" {
 		addr, value := parsePoke(args)
-		return genPoke(addr, value)
+		return genPoke(addr, value), ctx
 	} else if cmd == "CLR" {
-		return genClear()
+		return genClear(), ctx
+	} else if cmd == "LET" {
+		varName, expr := ParseLet(args)
+		return genLet(varName, expr), ctx
+	} else if cmd == "GOTO" {
+		lineNum := ParseGoto(args)
+		return genGoto(lineNum), ctx
+	} else if cmd == "GOSUB" {
+		lineNum := ParseGosub(args)
+		return genGosub(lineNum), ctx
+	} else if cmd == "RETURN" {
+		return genReturn(), ctx
+	} else if cmd == "IF" {
+		cond, thenStmt := ParseIf(args)
+		return genIf(cond, thenStmt, ctx)
+	} else if cmd == "FOR" {
+		varName, startVal, endVal := ParseFor(args)
+		return genFor(varName, startVal, endVal, ctx)
+	} else if cmd == "NEXT" {
+		varName := ParseNext(args)
+		return genNext(varName, ctx)
+	} else if cmd == "REM" {
+		// Comment - generate no code
+		return []string{}, ctx
+	} else if cmd == "END" {
+		return genEnd(), ctx
+	}
+
+	// Check if it's a variable assignment without LET (e.g., "A = 5")
+	if len(line) > 0 {
+		trimmed := trimSpacesStr(line)
+		if len(trimmed) >= 3 {
+			firstChar := trimmed[0]
+			if (firstChar >= 'A' && firstChar <= 'Z') || (firstChar >= 'a' && firstChar <= 'z') {
+				// Check for = sign
+				hasEquals := false
+				i := 1
+				for {
+					if i >= len(trimmed) {
+						break
+					}
+					if trimmed[i] == '=' {
+						hasEquals = true
+						break
+					}
+					if trimmed[i] != ' ' && trimmed[i] != '\t' {
+						break
+					}
+					i = i + 1
+				}
+				if hasEquals {
+					varName, expr := ParseLet(trimmed)
+					return genLet(varName, expr), ctx
+				}
+			}
+		}
 	}
 
 	// Unknown command - return empty
-	return []string{}
+	return []string{}, ctx
 }
 
 // GetLineCount returns number of stored program lines

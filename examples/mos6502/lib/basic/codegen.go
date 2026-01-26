@@ -69,16 +69,16 @@ func genPrint(args string, cursorRow int, cursorCol int) []string {
 	// Calculate base address
 	baseAddr := ScreenBase + (cursorRow * TextCols) + cursorCol
 
-	// Generate LDA/STA for each character
+	// Generate LDA/STA for each character using indexed addressing
 	i := 0
 	for {
 		if i >= len(text) {
 			break
 		}
 		charCode := int(text[i])
-		addr := baseAddr + i
 		lines = append(lines, "LDA #"+toHex(charCode))
-		lines = append(lines, "STA "+toHex(addr))
+		lines = append(lines, "STA "+toHex(baseAddr)+",X")
+		lines = append(lines, "INX")
 		i = i + 1
 	}
 
@@ -227,4 +227,420 @@ func digitToChar(d int) string {
 		return "9"
 	}
 	return "0"
+}
+
+// genSimpleValue generates assembly to load a simple value (number or variable) into A
+func genSimpleValue(valType int, valNum int, valVar string) []string {
+	lines := []string{}
+	if valType == ExprNumber {
+		lines = append(lines, "LDA #"+toHex(valNum&0xFF))
+	} else if valType == ExprVariable {
+		addr := GetVariableAddress(valVar)
+		if addr >= 0 {
+			lines = append(lines, "LDA "+toHex(addr))
+		}
+	}
+	return lines
+}
+
+// genExpression generates assembly to evaluate an expression
+// Result is left in the A register
+func genExpression(expr Expression) []string {
+	lines := []string{}
+
+	if expr.Type == ExprNumber {
+		// Load immediate value
+		lines = append(lines, "LDA #"+toHex(expr.Value&0xFF))
+	} else if expr.Type == ExprVariable {
+		// Load from variable address
+		addr := GetVariableAddress(expr.VarName)
+		if addr >= 0 {
+			lines = append(lines, "LDA "+toHex(addr))
+		}
+	} else if expr.Type == ExprBinaryOp {
+		// For binary operations with flat structure:
+		// 1. Load right operand, push to stack
+		// 2. Load left operand (stays in A)
+		// 3. Pop right from stack and perform operation
+
+		// Load right operand
+		rightLines := genSimpleValue(expr.RightType, expr.RightValue, expr.RightVar)
+		i := 0
+		for {
+			if i >= len(rightLines) {
+				break
+			}
+			lines = append(lines, rightLines[i])
+			i = i + 1
+		}
+		// Push right operand to stack
+		lines = append(lines, "PHA")
+
+		// Load left operand
+		leftLines := genSimpleValue(expr.LeftType, expr.LeftValue, expr.LeftVar)
+		i = 0
+		for {
+			if i >= len(leftLines) {
+				break
+			}
+			lines = append(lines, leftLines[i])
+			i = i + 1
+		}
+
+		// Pop right operand and perform operation
+		// Store A temporarily, pull right to A, then perform op
+		lines = append(lines, "STA $00") // Temp storage (left)
+		lines = append(lines, "PLA")     // Right operand now in A
+		lines = append(lines, "STA $01") // Store right in temp
+
+		if expr.Op == "+" {
+			lines = append(lines, "CLC")
+			lines = append(lines, "LDA $00") // Left operand
+			lines = append(lines, "ADC $01") // Add right
+		} else if expr.Op == "-" {
+			lines = append(lines, "SEC")
+			lines = append(lines, "LDA $00") // Left operand
+			lines = append(lines, "SBC $01") // Subtract right
+		} else if expr.Op == "*" {
+			// Simple multiplication using repeated addition
+			lines = append(lines, "LDA $00") // Left (multiplicand)
+			lines = append(lines, "STA $02")
+			lines = append(lines, "LDA $01") // Right (multiplier)
+			lines = append(lines, "STA $03")
+			lines = append(lines, "LDA #$00") // Result = 0
+			lines = append(lines, "STA $04")
+			lines = append(lines, "LDX $03")     // Counter
+			lines = append(lines, "BEQ mul_done") // If 0, skip
+			lines = append(lines, "mul_loop:")
+			lines = append(lines, "CLC")
+			lines = append(lines, "LDA $04")
+			lines = append(lines, "ADC $02")
+			lines = append(lines, "STA $04")
+			lines = append(lines, "DEX")
+			lines = append(lines, "BNE mul_loop")
+			lines = append(lines, "mul_done:")
+			lines = append(lines, "LDA $04")
+		} else if expr.Op == "/" {
+			// Simple division using repeated subtraction
+			lines = append(lines, "LDA $00") // Dividend
+			lines = append(lines, "STA $02")
+			lines = append(lines, "LDA $01") // Divisor
+			lines = append(lines, "STA $03")
+			lines = append(lines, "LDA #$00") // Quotient = 0
+			lines = append(lines, "STA $04")
+			lines = append(lines, "LDA $03")
+			lines = append(lines, "BEQ div_done") // Avoid div by 0
+			lines = append(lines, "div_loop:")
+			lines = append(lines, "LDA $02")
+			lines = append(lines, "CMP $03")
+			lines = append(lines, "BCC div_done") // If dividend < divisor, done
+			lines = append(lines, "SEC")
+			lines = append(lines, "SBC $03")
+			lines = append(lines, "STA $02")
+			lines = append(lines, "INC $04")
+			lines = append(lines, "JMP div_loop")
+			lines = append(lines, "div_done:")
+			lines = append(lines, "LDA $04")
+		}
+	}
+
+	return lines
+}
+
+// genLet generates assembly for a LET statement
+func genLet(varName string, expr Expression) []string {
+	lines := []string{}
+
+	// Generate code to evaluate expression (result in A)
+	exprLines := genExpression(expr)
+	i := 0
+	for {
+		if i >= len(exprLines) {
+			break
+		}
+		lines = append(lines, exprLines[i])
+		i = i + 1
+	}
+
+	// Store result in variable
+	addr := GetVariableAddress(varName)
+	if addr >= 0 {
+		lines = append(lines, "STA "+toHex(addr))
+	}
+
+	return lines
+}
+
+// genGoto generates a JMP instruction
+// The target address will be resolved in pass 2
+// For now, we use a placeholder label format: LINE_xxx
+func genGoto(lineNum int) []string {
+	lines := []string{}
+	lines = append(lines, "JMP LINE_"+intToString(lineNum))
+	return lines
+}
+
+// genGosub generates a JSR instruction
+func genGosub(lineNum int) []string {
+	lines := []string{}
+	lines = append(lines, "JSR LINE_"+intToString(lineNum))
+	return lines
+}
+
+// genReturn generates an RTS instruction
+func genReturn() []string {
+	lines := []string{}
+	lines = append(lines, "RTS")
+	return lines
+}
+
+// genEnd generates a BRK instruction to halt the program
+func genEnd() []string {
+	lines := []string{}
+	lines = append(lines, "BRK")
+	return lines
+}
+
+// CompileContext holds compilation state that needs to be passed between functions
+// (goany doesn't support package-level mutable variables)
+type CompileContext struct {
+	LabelCounter int
+	ForLoopStack []ForLoopInfo
+}
+
+// NewCompileContext creates a new compilation context
+func NewCompileContext() CompileContext {
+	return CompileContext{
+		LabelCounter: 0,
+		ForLoopStack: []ForLoopInfo{},
+	}
+}
+
+// nextLabel generates a unique label and returns updated context
+func nextLabel(ctx CompileContext) (string, CompileContext) {
+	ctx.LabelCounter = ctx.LabelCounter + 1
+	return "L" + intToString(ctx.LabelCounter), ctx
+}
+
+// genCondition generates code to evaluate a condition
+// After execution, the appropriate flags are set for branching
+func genCondition(cond Condition) []string {
+	lines := []string{}
+
+	// Evaluate right expression, push to stack
+	rightLines := genExpression(cond.Right)
+	i := 0
+	for {
+		if i >= len(rightLines) {
+			break
+		}
+		lines = append(lines, rightLines[i])
+		i = i + 1
+	}
+	lines = append(lines, "PHA")
+
+	// Evaluate left expression
+	leftLines := genExpression(cond.Left)
+	i = 0
+	for {
+		if i >= len(leftLines) {
+			break
+		}
+		lines = append(lines, leftLines[i])
+		i = i + 1
+	}
+
+	// Pop right and compare
+	lines = append(lines, "STA $00") // Store left
+	lines = append(lines, "PLA")     // Right in A
+	lines = append(lines, "STA $01") // Store right
+	lines = append(lines, "LDA $00") // Load left
+	lines = append(lines, "CMP $01") // Compare with right
+
+	return lines
+}
+
+// genIf generates code for an IF/THEN statement
+func genIf(cond Condition, thenStmt string, ctx CompileContext) ([]string, CompileContext) {
+	lines := []string{}
+
+	// Generate condition evaluation
+	condLines := genCondition(cond)
+	i := 0
+	for {
+		if i >= len(condLines) {
+			break
+		}
+		lines = append(lines, condLines[i])
+		i = i + 1
+	}
+
+	// Generate conditional branch
+	// CMP sets: Z flag if equal, C flag if A >= operand
+	skipLabel := ""
+	skipLabel, ctx = nextLabel(ctx)
+
+	if cond.Op == CondEq {
+		// If NOT equal, skip the THEN part
+		lines = append(lines, "BNE "+skipLabel)
+	} else if cond.Op == CondNe {
+		// If equal, skip the THEN part
+		lines = append(lines, "BEQ "+skipLabel)
+	} else if cond.Op == CondLt {
+		// If >= (C set), skip
+		lines = append(lines, "BCS "+skipLabel)
+	} else if cond.Op == CondGe {
+		// If < (C clear), skip
+		lines = append(lines, "BCC "+skipLabel)
+	} else if cond.Op == CondGt {
+		// If <= (Z set OR C clear), skip
+		lines = append(lines, "BEQ "+skipLabel)
+		lines = append(lines, "BCC "+skipLabel)
+	} else if cond.Op == CondLe {
+		// If > (Z clear AND C set), skip
+		// This is tricky - need to check both conditions
+		gtLabel := ""
+		gtLabel, ctx = nextLabel(ctx)
+		lines = append(lines, "BEQ "+gtLabel) // If equal, don't skip (LE includes equal)
+		lines = append(lines, "BCS "+skipLabel) // If C set and not equal, it's greater, skip
+		lines = append(lines, gtLabel+":")
+	}
+
+	// Generate the THEN statement
+	thenLines := []string{}
+	thenLines, ctx = compileLine(thenStmt, 0, 0, ctx) // Row/col not used for non-PRINT
+	i = 0
+	for {
+		if i >= len(thenLines) {
+			break
+		}
+		lines = append(lines, thenLines[i])
+		i = i + 1
+	}
+
+	// Skip label
+	lines = append(lines, skipLabel+":")
+
+	return lines, ctx
+}
+
+// genFor generates code for a FOR statement
+func genFor(varName string, startVal int, endVal int, ctx CompileContext) ([]string, CompileContext) {
+	lines := []string{}
+
+	// Initialize loop variable
+	addr := GetVariableAddress(varName)
+	if addr >= 0 {
+		lines = append(lines, "LDA #"+toHex(startVal&0xFF))
+		lines = append(lines, "STA "+toHex(addr))
+	}
+
+	// Generate loop start label (build the full label with colon directly)
+	loopLabelWithColon := "FOR_"
+	loopLabelWithColon = loopLabelWithColon + varName
+	loopLabelWithColon = loopLabelWithColon + "_"
+	loopLabelWithColon = loopLabelWithColon + intToString(ctx.LabelCounter)
+	loopLabelWithColon = loopLabelWithColon + ":"
+	ctx.LabelCounter = ctx.LabelCounter + 1
+	lines = append(lines, loopLabelWithColon)
+
+	// Push loop info onto stack
+	info := ForLoopInfo{
+		VarName:  varName,
+		StartVal: startVal,
+		EndVal:   endVal,
+		LoopAddr: 0, // Will be set during assembly
+	}
+	ctx.ForLoopStack = append(ctx.ForLoopStack, info)
+
+	return lines, ctx
+}
+
+// genNext generates code for a NEXT statement
+func genNext(varName string, ctx CompileContext) ([]string, CompileContext) {
+	lines := []string{}
+
+	// Find the matching FOR loop
+	loopIdx := -1
+	i := len(ctx.ForLoopStack) - 1
+	for {
+		if i < 0 {
+			break
+		}
+		if ctx.ForLoopStack[i].VarName == varName {
+			loopIdx = i
+			break
+		}
+		i = i - 1
+	}
+
+	if loopIdx < 0 {
+		// No matching FOR found
+		return lines, ctx
+	}
+
+	info := ctx.ForLoopStack[loopIdx]
+	addr := GetVariableAddress(varName)
+
+	if addr >= 0 {
+		// Increment the loop variable
+		lines = append(lines, "INC "+toHex(addr))
+
+		// Load and compare with end value + 1
+		lines = append(lines, "LDA "+toHex(addr))
+		endPlusOne := (info.EndVal + 1) & 0xFF
+		lines = append(lines, "CMP #"+toHex(endPlusOne))
+
+		// If less than end+1, loop back (build label using +=)
+		branchInstr := "BCC FOR_"
+		branchInstr = branchInstr + varName
+		branchInstr = branchInstr + "_"
+		branchInstr = branchInstr + intToString(ctx.LabelCounter-1)
+		lines = append(lines, branchInstr)
+	}
+
+	// Pop from stack (rebuild without last element to avoid slice syntax issues)
+	if loopIdx == len(ctx.ForLoopStack)-1 {
+		newStack := []ForLoopInfo{}
+		stackIdx := 0
+		for {
+			if stackIdx >= len(ctx.ForLoopStack)-1 {
+				break
+			}
+			newStack = append(newStack, ctx.ForLoopStack[stackIdx])
+			stackIdx = stackIdx + 1
+		}
+		ctx.ForLoopStack = newStack
+	}
+
+	return lines, ctx
+}
+
+// genPrintVar generates assembly to print a variable's value
+func genPrintVar(varName string, cursorRow int, cursorCol int) []string {
+	lines := []string{}
+
+	addr := GetVariableAddress(varName)
+	if addr < 0 {
+		return lines
+	}
+
+	// Calculate base address at compile time
+	baseAddr := ScreenBase + (cursorRow * TextCols) + cursorCol
+
+	// Load variable value
+	lines = append(lines, "LDA "+toHex(addr))
+
+	// Convert to ASCII digit (works for 0-9)
+	// Add '0' (0x30) to get ASCII
+	lines = append(lines, "CLC")
+	lines = append(lines, "ADC #$30")
+
+	// Store to screen using indexed addressing (X register holds cursor offset)
+	lines = append(lines, "STA "+toHex(baseAddr)+",X")
+
+	// Increment X register for next character
+	lines = append(lines, "INX")
+
+	return lines
 }
