@@ -136,14 +136,14 @@ func main() {
 		Code: `package main
 
 func main() {
-	slice := []int{1, 2, 3, 4, 5}
+	slice := []string{"a", "b", "c", "d", "e"}
 	i := 0
 	j := 1
 	slice[i] = slice[j]
 	_ = slice
 }
 `,
-		ExpectedError: "slice self-assignment pattern",
+		ExpectedError: "slice self-reference pattern",
 	},
 	{
 		Name: "multiple_closures_capture_same_var",
