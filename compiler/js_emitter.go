@@ -76,6 +76,8 @@ type JSEmitter struct {
 	inFuncLit             bool
 	// Integer division handling
 	intDivision           bool
+	// String indexing - use charCodeAt for string[i] to return number like Go
+	isStringIndex         bool
 }
 
 func (*JSEmitter) lowerToBuiltins(selector string) string {
@@ -1174,6 +1176,18 @@ func (jse *JSEmitter) PreVisitIndexExprIndex(node *ast.IndexExpr, indent int) {
 	if jse.forwardDecl {
 		return
 	}
+	// Check if indexing a string - need to use charCodeAt() to get byte value like Go
+	jse.isStringIndex = false
+	if jse.pkg != nil && jse.pkg.TypesInfo != nil {
+		tv := jse.pkg.TypesInfo.Types[node.X]
+		if tv.Type != nil {
+			if basic, ok := tv.Type.(*types.Basic); ok && basic.Kind() == types.String {
+				jse.isStringIndex = true
+				jse.emitToFile(".charCodeAt(")
+				return
+			}
+		}
+	}
 	jse.emitToFile("[")
 }
 
@@ -1181,7 +1195,12 @@ func (jse *JSEmitter) PostVisitIndexExpr(node *ast.IndexExpr, indent int) {
 	if jse.forwardDecl {
 		return
 	}
-	jse.emitToFile("]")
+	if jse.isStringIndex {
+		jse.emitToFile(")")
+		jse.isStringIndex = false
+	} else {
+		jse.emitToFile("]")
+	}
 }
 
 // Composite literals (arrays, objects)
