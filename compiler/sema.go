@@ -10,18 +10,40 @@ import (
 )
 
 // SemaChecker performs semantic analysis to detect unsupported Go constructs.
-// Unsupported constructs (checked at compile time):
-// 1. iota - constant enumeration
-// 2. for _, x := range []T{...} - range over inline composite literal
-// 3. if slice == nil / if slice != nil - nil comparison for slices
-// 4. type switch statements
-// 5. string variable reuse after concatenation (Rust move semantics)
-// 6. struct field initialization out of declaration order (C++ designated initializers)
-// 7. same variable multiple times in expression (Rust ownership)
-// 8. slice self-assignment (Rust borrow checker)
-// 9. multiple closures capturing same variable (Rust borrow checker)
 //
-// Supported (with limitations):
+// ============================================
+// SECTION 1: Unsupported Go Features (Errors)
+// ============================================
+// - Pointers (*T, &x)
+// - Maps (map[K]V)
+// - Defer statements
+// - Goroutines (go keyword)
+// - Channels (chan T)
+// - Select statements
+// - Goto and labels
+// - Method receivers
+// - Variadic functions (...T)
+// - Non-empty interfaces
+// - Struct embedding (anonymous fields)
+// - Init functions
+// - Named return values
+// - iota constant enumeration
+// - Type switch statements
+//
+// ============================================
+// SECTION 2: Backend-Specific Constraints
+// ============================================
+// - Range over inline composite literals
+// - Nil comparisons (== nil, != nil)
+// - String variable reuse after concatenation (Rust move semantics)
+// - Same variable multiple times in expression (Rust ownership)
+// - Slice self-assignment (Rust borrow checker)
+// - Multiple closures capturing same variable (Rust borrow checker)
+// - Struct field initialization order (C++ designated initializers)
+//
+// ============================================
+// SECTION 3: Supported with Limitations
+// ============================================
 // - interface{} / any - maps to std::any (C++), Box<dyn Any> (Rust), object (C#)
 //   Note: type assertions x.(T) supported in C++ only for now
 type SemaChecker struct {
@@ -42,11 +64,164 @@ func (sema *SemaChecker) PreVisitPackage(pkg *packages.Package, indent int) {
 	sema.closureVars = make(map[string]token.Pos)
 }
 
-// PreVisitFuncDecl resets closure tracking for each function
+// ============================================
+// SECTION 1: Unsupported Go Features
+// ============================================
+
+// PreVisitStarExpr checks for pointer types (*T) which are not supported
+func (sema *SemaChecker) PreVisitStarExpr(node *ast.StarExpr, indent int) {
+	fmt.Println("\033[31m\033[1mCompilation error: pointer types are not supported\033[0m")
+	fmt.Println("  Pointer types (*T) and pointer dereferencing are not allowed.")
+	fmt.Println("  goany targets languages with different memory models (Rust, C#, JS).")
+	fmt.Println()
+	fmt.Println("  \033[32mUse value types or slices instead.\033[0m")
+	os.Exit(-1)
+}
+
+// PreVisitUnaryExpr checks for address-of operator (&x) which is not supported
+func (sema *SemaChecker) PreVisitUnaryExpr(node *ast.UnaryExpr, indent int) {
+	if node.Op == token.AND {
+		fmt.Println("\033[31m\033[1mCompilation error: address-of operator is not supported\033[0m")
+		fmt.Println("  The address-of operator (&x) is not allowed.")
+		fmt.Println("  goany targets languages with different memory models.")
+		fmt.Println()
+		fmt.Println("  \033[32mUse value types or redesign without pointers.\033[0m")
+		os.Exit(-1)
+	}
+}
+
+// PreVisitMapType checks for map types which are not supported
+func (sema *SemaChecker) PreVisitMapType(node *ast.MapType, indent int) {
+	fmt.Println("\033[31m\033[1mCompilation error: map types are not supported\033[0m")
+	fmt.Println("  Map types (map[K]V) are not allowed.")
+	fmt.Println("  Maps have different semantics across target languages.")
+	fmt.Println()
+	fmt.Println("  \033[32mUse slices with linear search or struct arrays instead.\033[0m")
+	os.Exit(-1)
+}
+
+// PreVisitDeferStmt checks for defer statements which are not supported
+func (sema *SemaChecker) PreVisitDeferStmt(node *ast.DeferStmt, indent int) {
+	fmt.Println("\033[31m\033[1mCompilation error: defer statements are not supported\033[0m")
+	fmt.Println("  The defer keyword is not allowed.")
+	fmt.Println("  Defer has no direct equivalent in C++, Rust, or JavaScript.")
+	fmt.Println()
+	fmt.Println("  \033[32mCall cleanup code explicitly at each return point.\033[0m")
+	os.Exit(-1)
+}
+
+// PreVisitGoStmt checks for go statements (goroutines) which are not supported
+func (sema *SemaChecker) PreVisitGoStmt(node *ast.GoStmt, indent int) {
+	fmt.Println("\033[31m\033[1mCompilation error: goroutines are not supported\033[0m")
+	fmt.Println("  The go keyword for launching goroutines is not allowed.")
+	fmt.Println("  Concurrency models differ significantly across target languages.")
+	fmt.Println()
+	fmt.Println("  \033[32mUse sequential code or platform-specific concurrency.\033[0m")
+	os.Exit(-1)
+}
+
+// PreVisitChanType checks for channel types which are not supported
+func (sema *SemaChecker) PreVisitChanType(node *ast.ChanType, indent int) {
+	fmt.Println("\033[31m\033[1mCompilation error: channel types are not supported\033[0m")
+	fmt.Println("  Channel types (chan T) are not allowed.")
+	fmt.Println("  Channels are Go-specific and have no direct equivalent in target languages.")
+	fmt.Println()
+	fmt.Println("  \033[32mUse other communication patterns suitable for your target.\033[0m")
+	os.Exit(-1)
+}
+
+// PreVisitSelectStmt checks for select statements which are not supported
+func (sema *SemaChecker) PreVisitSelectStmt(node *ast.SelectStmt, indent int) {
+	fmt.Println("\033[31m\033[1mCompilation error: select statements are not supported\033[0m")
+	fmt.Println("  Select statements for channel operations are not allowed.")
+	fmt.Println("  Select is Go-specific and has no direct equivalent in target languages.")
+	os.Exit(-1)
+}
+
+// PreVisitLabeledStmt checks for labeled statements which are not supported
+func (sema *SemaChecker) PreVisitLabeledStmt(node *ast.LabeledStmt, indent int) {
+	fmt.Println("\033[31m\033[1mCompilation error: labeled statements are not supported\033[0m")
+	fmt.Printf("  Label '%s:' is not allowed.\n", node.Label.Name)
+	fmt.Println("  Labels and goto have limited support in target languages.")
+	fmt.Println()
+	fmt.Println("  \033[32mUse structured control flow (functions, loops with break).\033[0m")
+	os.Exit(-1)
+}
+
+// PreVisitBranchStmt checks for goto statements which are not supported
+func (sema *SemaChecker) PreVisitBranchStmt(node *ast.BranchStmt, indent int) {
+	if node.Tok == token.GOTO {
+		fmt.Println("\033[31m\033[1mCompilation error: goto statements are not supported\033[0m")
+		fmt.Printf("  goto %s is not allowed.\n", node.Label.Name)
+		fmt.Println("  Goto has limited support in target languages like Rust and JavaScript.")
+		fmt.Println()
+		fmt.Println("  \033[32mUse structured control flow (functions, loops with break).\033[0m")
+		os.Exit(-1)
+	}
+}
+
+// PreVisitFuncDecl checks for method receivers, init functions, variadic params, and named returns
 func (sema *SemaChecker) PreVisitFuncDecl(node *ast.FuncDecl, indent int) {
 	// Reset closure variables for each function to avoid false positives
 	// between closures in different functions
 	sema.closureVars = make(map[string]token.Pos)
+
+	// Check for method receivers
+	if node.Recv != nil && len(node.Recv.List) > 0 {
+		fmt.Println("\033[31m\033[1mCompilation error: method receivers are not supported\033[0m")
+		fmt.Printf("  Function '%s' has a receiver, making it a method.\n", node.Name.Name)
+		fmt.Println("  Methods are not allowed; use standalone functions instead.")
+		fmt.Println()
+		fmt.Println("  \033[33mInstead of:\033[0m")
+		fmt.Println("    func (t *Type) Method() { ... }")
+		fmt.Println()
+		fmt.Println("  \033[32mUse:\033[0m")
+		fmt.Println("    func TypeMethod(t Type) Type { ... }")
+		os.Exit(-1)
+	}
+
+	// Check for init functions
+	if node.Name.Name == "init" {
+		fmt.Println("\033[31m\033[1mCompilation error: init functions are not supported\033[0m")
+		fmt.Println("  Package init() functions are not allowed.")
+		fmt.Println("  Init functions have no direct equivalent in target languages.")
+		fmt.Println()
+		fmt.Println("  \033[32mCall initialization explicitly from main() or use constructors.\033[0m")
+		os.Exit(-1)
+	}
+
+	// Check for variadic parameters
+	if node.Type != nil && node.Type.Params != nil {
+		for _, field := range node.Type.Params.List {
+			if _, ok := field.Type.(*ast.Ellipsis); ok {
+				fmt.Println("\033[31m\033[1mCompilation error: variadic functions are not supported\033[0m")
+				fmt.Printf("  Function '%s' has variadic parameter (...T).\n", node.Name.Name)
+				fmt.Println("  Variadic functions have different semantics across target languages.")
+				fmt.Println()
+				fmt.Println("  \033[32mUse a slice parameter instead:\033[0m")
+				fmt.Println("    func foo(args []T) { ... }")
+				os.Exit(-1)
+			}
+		}
+	}
+
+	// Check for named return values
+	if node.Type != nil && node.Type.Results != nil {
+		for _, field := range node.Type.Results.List {
+			if len(field.Names) > 0 {
+				fmt.Println("\033[31m\033[1mCompilation error: named return values are not supported\033[0m")
+				fmt.Printf("  Function '%s' has named return values.\n", node.Name.Name)
+				fmt.Println("  Named returns have no equivalent in C++, Rust, or JavaScript.")
+				fmt.Println()
+				fmt.Println("  \033[33mInstead of:\033[0m")
+				fmt.Println("    func foo() (result int) { ... }")
+				fmt.Println()
+				fmt.Println("  \033[32mUse:\033[0m")
+				fmt.Println("    func foo() int { ... }")
+				os.Exit(-1)
+			}
+		}
+	}
 }
 
 func (sema *SemaChecker) PreVisitGenDeclConstName(node *ast.Ident, indent int) {
@@ -254,10 +429,49 @@ func (sema *SemaChecker) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 	}
 }
 
-// PreVisitInterfaceType checks for interface{} / any type usage
+// PreVisitInterfaceType checks for interface types - only empty interface{} is supported
 func (sema *SemaChecker) PreVisitInterfaceType(node *ast.InterfaceType, indent int) {
-	// Empty interface (interface{} / any) is now supported
+	// Empty interface (interface{} / any) is supported
 	// Maps to: C++ std::any, Rust Box<dyn Any>, C# object
+	// Non-empty interfaces are NOT supported
+	if node.Methods != nil && len(node.Methods.List) > 0 {
+		fmt.Println("\033[31m\033[1mCompilation error: non-empty interfaces are not supported\033[0m")
+		fmt.Println("  Only empty interface (interface{} / any) is allowed.")
+		fmt.Println("  Interfaces with methods have no direct equivalent in all target languages.")
+		fmt.Println()
+		fmt.Println("  \033[32mUse concrete types or interface{} with type assertions.\033[0m")
+		os.Exit(-1)
+	}
+}
+
+// PreVisitStructType checks for struct embedding (anonymous fields) which is not supported
+func (sema *SemaChecker) PreVisitStructType(node *ast.StructType, indent int) {
+	if node.Fields == nil {
+		return
+	}
+	for _, field := range node.Fields.List {
+		// Anonymous field (embedding) has no names
+		if len(field.Names) == 0 {
+			// Get the embedded type name for the error message
+			typeName := "unknown"
+			switch t := field.Type.(type) {
+			case *ast.Ident:
+				typeName = t.Name
+			case *ast.SelectorExpr:
+				typeName = t.Sel.Name
+			}
+			fmt.Println("\033[31m\033[1mCompilation error: struct embedding is not supported\033[0m")
+			fmt.Printf("  Embedded field '%s' (anonymous field) is not allowed.\n", typeName)
+			fmt.Println("  Struct embedding has different semantics in target languages.")
+			fmt.Println()
+			fmt.Println("  \033[33mInstead of:\033[0m")
+			fmt.Printf("    type MyStruct struct { %s }\n", typeName)
+			fmt.Println()
+			fmt.Println("  \033[32mUse named field:\033[0m")
+			fmt.Printf("    type MyStruct struct { field %s }\n", typeName)
+			os.Exit(-1)
+		}
+	}
 }
 
 // PreVisitTypeSwitchStmt checks for type switch statements (not supported)
