@@ -158,8 +158,8 @@ func Tokenize(text string) []Token {
 			continue
 		}
 
-		// Number (hex or decimal - treat all as hex since hex includes 0-9)
-		if IsHexDigit(b) {
+		// Number - must start with 0-9 (hex letters A-F only valid after initial digit)
+		if IsDigit(b) {
 			repr := []int8{}
 			for {
 				if i >= len(bytes) {
@@ -1027,8 +1027,8 @@ func TokenizeBytes(bytes []int8) []Token {
 			continue
 		}
 
-		// Number (hex or decimal - treat all as hex since hex includes 0-9)
-		if IsHexDigit(b) {
+		// Number - must start with 0-9 (hex letters A-F only valid after initial digit)
+		if IsDigit(b) {
 			repr := []int8{}
 			for {
 				if i >= len(bytes) {
@@ -1087,4 +1087,50 @@ func AssembleLines(lines []string) []uint8 {
 	tokens := TokenizeBytes(allBytes)
 	instructions := Parse(tokens)
 	return Assemble(instructions)
+}
+
+// AssembleLinesWithCount assembles and returns instruction count for debugging
+func AssembleLinesWithCount(lines []string) ([]uint8, int) {
+	allBytes := []int8{}
+	i := 0
+	for {
+		if i >= len(lines) {
+			break
+		}
+		lineBytes := StringToBytes(lines[i])
+		allBytes = AppendLineBytes(allBytes, lineBytes)
+		if i < len(lines)-1 {
+			allBytes = append(allBytes, int8(10))
+		}
+		i = i + 1
+	}
+	tokens := TokenizeBytes(allBytes)
+	instructions := Parse(tokens)
+	return Assemble(instructions), len(instructions)
+}
+
+// GetLastInstrFirstByte returns the first byte of the last instruction's opcode for debugging
+func GetLastInstrFirstByte(lines []string) int {
+	allBytes := []int8{}
+	i := 0
+	for {
+		if i >= len(lines) {
+			break
+		}
+		lineBytes := StringToBytes(lines[i])
+		allBytes = AppendLineBytes(allBytes, lineBytes)
+		if i < len(lines)-1 {
+			allBytes = append(allBytes, int8(10))
+		}
+		i = i + 1
+	}
+	tokens := TokenizeBytes(allBytes)
+	instructions := Parse(tokens)
+	if len(instructions) > 0 {
+		lastInstr := instructions[len(instructions)-1]
+		if len(lastInstr.OpcodeBytes) > 0 {
+			return int(lastInstr.OpcodeBytes[0])
+		}
+	}
+	return -1
 }

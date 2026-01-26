@@ -2,6 +2,7 @@ package main
 
 import (
 	"mos6502lib/assembler"
+	"mos6502lib/basic"
 	"mos6502lib/cpu"
 	"mos6502lib/font"
 	"runtime/graphics"
@@ -108,6 +109,308 @@ func clearScreen(lines []string) []string {
 	return lines
 }
 
+// charFromCodeMain converts a character code to a single-character string (goany compatible)
+func charFromCodeMain(ch int) string {
+	if ch == 32 {
+		return " "
+	} else if ch == 33 {
+		return "!"
+	} else if ch == 34 {
+		return "\""
+	} else if ch == 35 {
+		return "#"
+	} else if ch == 36 {
+		return "$"
+	} else if ch == 37 {
+		return "%"
+	} else if ch == 38 {
+		return "&"
+	} else if ch == 39 {
+		return "'"
+	} else if ch == 40 {
+		return "("
+	} else if ch == 41 {
+		return ")"
+	} else if ch == 42 {
+		return "*"
+	} else if ch == 43 {
+		return "+"
+	} else if ch == 44 {
+		return ","
+	} else if ch == 45 {
+		return "-"
+	} else if ch == 46 {
+		return "."
+	} else if ch == 47 {
+		return "/"
+	} else if ch == 48 {
+		return "0"
+	} else if ch == 49 {
+		return "1"
+	} else if ch == 50 {
+		return "2"
+	} else if ch == 51 {
+		return "3"
+	} else if ch == 52 {
+		return "4"
+	} else if ch == 53 {
+		return "5"
+	} else if ch == 54 {
+		return "6"
+	} else if ch == 55 {
+		return "7"
+	} else if ch == 56 {
+		return "8"
+	} else if ch == 57 {
+		return "9"
+	} else if ch == 58 {
+		return ":"
+	} else if ch == 59 {
+		return ";"
+	} else if ch == 60 {
+		return "<"
+	} else if ch == 61 {
+		return "="
+	} else if ch == 62 {
+		return ">"
+	} else if ch == 63 {
+		return "?"
+	} else if ch == 64 {
+		return "@"
+	} else if ch == 65 {
+		return "A"
+	} else if ch == 66 {
+		return "B"
+	} else if ch == 67 {
+		return "C"
+	} else if ch == 68 {
+		return "D"
+	} else if ch == 69 {
+		return "E"
+	} else if ch == 70 {
+		return "F"
+	} else if ch == 71 {
+		return "G"
+	} else if ch == 72 {
+		return "H"
+	} else if ch == 73 {
+		return "I"
+	} else if ch == 74 {
+		return "J"
+	} else if ch == 75 {
+		return "K"
+	} else if ch == 76 {
+		return "L"
+	} else if ch == 77 {
+		return "M"
+	} else if ch == 78 {
+		return "N"
+	} else if ch == 79 {
+		return "O"
+	} else if ch == 80 {
+		return "P"
+	} else if ch == 81 {
+		return "Q"
+	} else if ch == 82 {
+		return "R"
+	} else if ch == 83 {
+		return "S"
+	} else if ch == 84 {
+		return "T"
+	} else if ch == 85 {
+		return "U"
+	} else if ch == 86 {
+		return "V"
+	} else if ch == 87 {
+		return "W"
+	} else if ch == 88 {
+		return "X"
+	} else if ch == 89 {
+		return "Y"
+	} else if ch == 90 {
+		return "Z"
+	} else if ch == 91 {
+		return "["
+	} else if ch == 93 {
+		return "]"
+	} else if ch == 94 {
+		return "^"
+	} else if ch == 95 {
+		return "_"
+	} else if ch == 96 {
+		return "`"
+	} else if ch == 97 {
+		return "a"
+	} else if ch == 98 {
+		return "b"
+	} else if ch == 99 {
+		return "c"
+	} else if ch == 100 {
+		return "d"
+	} else if ch == 101 {
+		return "e"
+	} else if ch == 102 {
+		return "f"
+	} else if ch == 103 {
+		return "g"
+	} else if ch == 104 {
+		return "h"
+	} else if ch == 105 {
+		return "i"
+	} else if ch == 106 {
+		return "j"
+	} else if ch == 107 {
+		return "k"
+	} else if ch == 108 {
+		return "l"
+	} else if ch == 109 {
+		return "m"
+	} else if ch == 110 {
+		return "n"
+	} else if ch == 111 {
+		return "o"
+	} else if ch == 112 {
+		return "p"
+	} else if ch == 113 {
+		return "q"
+	} else if ch == 114 {
+		return "r"
+	} else if ch == 115 {
+		return "s"
+	} else if ch == 116 {
+		return "t"
+	} else if ch == 117 {
+		return "u"
+	} else if ch == 118 {
+		return "v"
+	} else if ch == 119 {
+		return "w"
+	} else if ch == 120 {
+		return "x"
+	} else if ch == 121 {
+		return "y"
+	} else if ch == 122 {
+		return "z"
+	} else if ch == 123 {
+		return "{"
+	} else if ch == 124 {
+		return "|"
+	} else if ch == 125 {
+		return "}"
+	} else if ch == 126 {
+		return "~"
+	}
+	return ""
+}
+
+// digitToCharMain converts a digit 0-9 to its character
+func digitToCharMain(d int) string {
+	if d == 0 {
+		return "0"
+	} else if d == 1 {
+		return "1"
+	} else if d == 2 {
+		return "2"
+	} else if d == 3 {
+		return "3"
+	} else if d == 4 {
+		return "4"
+	} else if d == 5 {
+		return "5"
+	} else if d == 6 {
+		return "6"
+	} else if d == 7 {
+		return "7"
+	} else if d == 8 {
+		return "8"
+	} else if d == 9 {
+		return "9"
+	}
+	return "0"
+}
+
+// intToString converts an integer to a string (goany compatible)
+func intToString(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	neg := false
+	if n < 0 {
+		neg = true
+		n = -n
+	}
+	digits := ""
+	for {
+		if n == 0 {
+			break
+		}
+		digit := n % 10
+		digits = digitToCharMain(digit) + digits
+		n = n / 10
+	}
+	if neg {
+		digits = "-" + digits
+	}
+	return digits
+}
+
+// readLineFromScreen reads a line of text from screen memory
+func readLineFromScreen(c cpu.CPU, row int) string {
+	result := ""
+	baseAddr := TextScreenBase + (row * TextCols)
+	col := 0
+	for {
+		if col >= TextCols {
+			break
+		}
+		ch := int(c.Memory[baseAddr+col])
+		if ch >= 32 && ch <= 126 {
+			result = result + charFromCodeMain(ch)
+		}
+		col = col + 1
+	}
+	// Trim trailing spaces
+	end := len(result)
+	for {
+		if end <= 0 {
+			break
+		}
+		if result[end-1] != ' ' {
+			break
+		}
+		end = end - 1
+	}
+	if end <= 0 {
+		return ""
+	}
+	// Build trimmed result manually (avoid string slicing)
+	trimmed := ""
+	i := 0
+	for {
+		if i >= end {
+			break
+		}
+		trimmed = trimmed + charFromCodeMain(int(result[i]))
+		i = i + 1
+	}
+	return trimmed
+}
+
+// printReady displays "READY." on the screen at the given row
+func printReady(c cpu.CPU, row int) cpu.CPU {
+	text := "READY."
+	baseAddr := TextScreenBase + (row * TextCols)
+	i := 0
+	for {
+		if i >= len(text) {
+			break
+		}
+		c.Memory[baseAddr+i] = uint8(text[i])
+		i = i + 1
+	}
+	return c
+}
+
 // createC64WelcomeScreen creates the classic C64 boot screen
 func createC64WelcomeScreen() []uint8 {
 	lines := []string{}
@@ -161,6 +464,7 @@ func main() {
 	// Load and run program
 	c = cpu.LoadProgram(c, program, 0x0600)
 	c = cpu.SetPC(c, 0x0600)
+	c = cpu.ClearHalted(c)
 	c = cpu.Run(c, 100000)
 
 	// C64 colors: light blue text on dark blue background
@@ -170,6 +474,13 @@ func main() {
 	// Cursor position (starts on row 7, after blank line below READY.)
 	cursorRow := 7
 	cursorCol := 0
+
+	// Initialize BASIC interpreter state
+	basicState := basic.NewBasicState()
+	basicState = basic.SetCursor(basicState, cursorRow, cursorCol)
+
+	// Track the row where the user started typing (for reading the command)
+	inputStartRow := cursorRow
 
 	// Main display loop
 	graphics.RunLoop(w, func(w graphics.Window) bool {
@@ -183,12 +494,138 @@ func main() {
 			}
 
 			if key == 13 {
-				// Enter - move to next line
+				// Enter - process the command
+				line := readLineFromScreen(c, inputStartRow)
+
+				// Move cursor to next line first
 				cursorCol = 0
 				cursorRow = cursorRow + 1
 				if cursorRow >= TextRows {
 					cursorRow = TextRows - 1
 				}
+
+				// Process the line if not empty
+				if len(line) > 0 {
+					// Check if it has a line number (store program line)
+					if basic.HasLineNumber(line) {
+						lineNum, rest := basic.ExtractLineNumber(line)
+						basicState = basic.StoreLine(basicState, lineNum, rest)
+					} else if basic.IsCommand(line, "RUN") {
+						// Execute stored program
+						lineCount := basic.GetLineCount(basicState)
+						if lineCount > 0 {
+							basicState = basic.SetCursor(basicState, cursorRow, 0)
+							code := basic.CompileProgram(basicState)
+							cursorRow = cursorRow + 1
+							if cursorRow >= TextRows {
+								cursorRow = TextRows - 1
+							}
+							// Execute the program
+							c = cpu.LoadProgram(c, code, 0xC000)
+							c = cpu.SetPC(c, 0xC000)
+							c = cpu.ClearHalted(c)
+							c = cpu.Run(c, 100000)
+						}
+						// Move cursor after program output
+						cursorRow = cursorRow + lineCount
+						if cursorRow >= TextRows {
+							cursorRow = TextRows - 1
+						}
+						// Print READY.
+						c = printReady(c, cursorRow)
+						cursorRow = cursorRow + 1
+						if cursorRow >= TextRows {
+							cursorRow = TextRows - 1
+						}
+					} else if basic.IsCommand(line, "LIST") {
+						// List stored program
+						i := 0
+						listRow := cursorRow
+						for {
+							if i >= basic.GetLineCount(basicState) {
+								break
+							}
+							if listRow >= TextRows {
+								break
+							}
+							pl := basic.GetLine(basicState, i)
+							// Format line number
+							numStr := intToString(pl.LineNum)
+							listLine := numStr + " " + pl.Text
+							// Write to screen
+							baseAddr := TextScreenBase + (listRow * TextCols)
+							j := 0
+							for {
+								if j >= len(listLine) {
+									break
+								}
+								if j >= TextCols {
+									break
+								}
+								c.Memory[baseAddr+j] = uint8(listLine[j])
+								j = j + 1
+							}
+							listRow = listRow + 1
+							i = i + 1
+						}
+						cursorRow = listRow
+						// Print READY.
+						c = printReady(c, cursorRow)
+						cursorRow = cursorRow + 1
+						if cursorRow >= TextRows {
+							cursorRow = TextRows - 1
+						}
+					} else if basic.IsCommand(line, "NEW") {
+						// Clear program
+						basicState = basic.ClearProgram(basicState)
+						// Print READY.
+						c = printReady(c, cursorRow)
+						cursorRow = cursorRow + 1
+						if cursorRow >= TextRows {
+							cursorRow = TextRows - 1
+						}
+					} else if basic.IsCommand(line, "CLR") {
+						// Clear screen and reset cursor to top-left
+						basicState = basic.SetCursor(basicState, 0, 0)
+						code := basic.CompileImmediate(basicState, line)
+						c = cpu.LoadProgram(c, code, 0xC000)
+						c = cpu.SetPC(c, 0xC000)
+						c = cpu.ClearHalted(c)
+						c = cpu.Run(c, 100000)
+						// Reset cursor to top of screen
+						cursorRow = 0
+						cursorCol = 0
+						// Print READY. at top
+						c = printReady(c, cursorRow)
+						cursorRow = cursorRow + 1
+					} else {
+						// Immediate execution (PRINT, POKE, etc.)
+						basicState = basic.SetCursor(basicState, cursorRow, 0)
+						code := basic.CompileImmediate(basicState, line)
+						if len(code) > 1 { // More than just BRK
+							c = cpu.LoadProgram(c, code, 0xC000)
+							c = cpu.SetPC(c, 0xC000)
+							c = cpu.ClearHalted(c)
+							c = cpu.Run(c, 10000)
+						}
+						// For PRINT, move cursor down
+						if basic.IsCommand(line, "PRINT") {
+							cursorRow = cursorRow + 1
+							if cursorRow >= TextRows {
+								cursorRow = TextRows - 1
+							}
+						}
+						// Print READY. after command execution
+						c = printReady(c, cursorRow)
+						cursorRow = cursorRow + 1
+						if cursorRow >= TextRows {
+							cursorRow = TextRows - 1
+						}
+					}
+				}
+
+				// Update input start row for next command
+				inputStartRow = cursorRow
 			} else if key == 8 {
 				// Backspace - move back and clear
 				if cursorCol > 0 {

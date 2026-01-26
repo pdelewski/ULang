@@ -118,6 +118,8 @@ type RustEmitter struct {
 	currentFuncBody              *ast.BlockStmt    // Current function body being processed
 	currentStmtIndex             int               // Index of current statement in function body
 	stmtVarUsages                []map[string]bool // Variable usages per statement
+	// Parameter mutation tracking
+	mutatedParams                map[string]bool   // Parameters that are assigned to in the function body
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -364,6 +366,103 @@ func (re *RustEmitter) collectIdentifiersInStmt(stmt ast.Stmt) map[string]bool {
 	return result
 }
 
+// collectMutatedVarsInExpr recursively collects variables that are assigned to in an expression
+func (re *RustEmitter) collectMutatedVarsInExpr(expr ast.Expr, result map[string]bool) {
+	if expr == nil {
+		return
+	}
+	switch e := expr.(type) {
+	case *ast.Ident:
+		result[e.Name] = true
+	case *ast.IndexExpr:
+		// For index expressions like arr[i], check the base
+		re.collectMutatedVarsInExpr(e.X, result)
+	case *ast.SelectorExpr:
+		// For selector expressions like obj.field, check the base
+		re.collectMutatedVarsInExpr(e.X, result)
+	}
+}
+
+// collectMutatedVarsInStmt recursively collects variables that are assigned to (mutated) in a statement
+func (re *RustEmitter) collectMutatedVarsInStmt(stmt ast.Stmt, result map[string]bool) {
+	if stmt == nil {
+		return
+	}
+	switch s := stmt.(type) {
+	case *ast.AssignStmt:
+		// Only count assignments (=), not declarations (:=) which create new variables
+		if s.Tok == token.ASSIGN || s.Tok == token.ADD_ASSIGN || s.Tok == token.SUB_ASSIGN ||
+			s.Tok == token.MUL_ASSIGN || s.Tok == token.QUO_ASSIGN || s.Tok == token.REM_ASSIGN {
+			for _, lhs := range s.Lhs {
+				re.collectMutatedVarsInExpr(lhs, result)
+			}
+		}
+	case *ast.IncDecStmt:
+		re.collectMutatedVarsInExpr(s.X, result)
+	case *ast.IfStmt:
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				re.collectMutatedVarsInStmt(bodyStmt, result)
+			}
+		}
+		if s.Else != nil {
+			re.collectMutatedVarsInStmt(s.Else, result)
+		}
+	case *ast.ForStmt:
+		if s.Post != nil {
+			re.collectMutatedVarsInStmt(s.Post, result)
+		}
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				re.collectMutatedVarsInStmt(bodyStmt, result)
+			}
+		}
+	case *ast.RangeStmt:
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				re.collectMutatedVarsInStmt(bodyStmt, result)
+			}
+		}
+	case *ast.BlockStmt:
+		for _, bodyStmt := range s.List {
+			re.collectMutatedVarsInStmt(bodyStmt, result)
+		}
+	case *ast.SwitchStmt:
+		if s.Body != nil {
+			for _, bodyStmt := range s.Body.List {
+				re.collectMutatedVarsInStmt(bodyStmt, result)
+			}
+		}
+	case *ast.CaseClause:
+		for _, bodyStmt := range s.Body {
+			re.collectMutatedVarsInStmt(bodyStmt, result)
+		}
+	}
+}
+
+// analyzeParamMutations analyzes a function body to find which parameters are mutated (assigned to)
+func (re *RustEmitter) analyzeParamMutations(params []*ast.Field, body *ast.BlockStmt) {
+	re.mutatedParams = make(map[string]bool)
+	if body == nil || params == nil {
+		return
+	}
+
+	// Collect all mutated variables in the function body
+	mutatedVars := make(map[string]bool)
+	for _, stmt := range body.List {
+		re.collectMutatedVarsInStmt(stmt, mutatedVars)
+	}
+
+	// Check which parameters are in the mutated set
+	for _, field := range params {
+		for _, name := range field.Names {
+			if mutatedVars[name.Name] {
+				re.mutatedParams[name.Name] = true
+			}
+		}
+	}
+}
+
 // analyzeVariableLiveness performs liveness analysis for a function body
 // It builds stmtVarUsages which maps each statement index to the set of variables used in that statement
 func (re *RustEmitter) analyzeVariableLiveness(body *ast.BlockStmt) {
@@ -608,6 +707,12 @@ func (re *RustEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
 func (re *RustEmitter) PreVisitFuncDeclSignatureTypeParams(node *ast.FuncDecl, indent int) {
 	if re.forwardDecls {
 		return
+	}
+	// Analyze which parameters are mutated in the function body
+	if node.Type != nil && node.Type.Params != nil {
+		re.analyzeParamMutations(node.Type.Params.List, node.Body)
+	} else {
+		re.mutatedParams = make(map[string]bool)
 	}
 	re.shouldGenerate = true
 	re.inFuncParam = true // Track that we're in function parameters
@@ -924,9 +1029,14 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 	var str string
 	if e.Kind == token.STRING {
 		// Use a local copy to avoid mutating the AST (which affects other emitters)
-		value := strings.Replace(e.Value, "\"", "", -1)
-		if len(value) > 0 && value[0] == '`' {
-			value = strings.Replace(value, "`", "", -1)
+		value := e.Value
+		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+			// Remove only the outer quotes, keep escaped content intact
+			value = value[1 : len(value)-1]
+			str = (re.emitAsString(fmt.Sprintf("\"%s\"", value), 0))
+		} else if len(value) >= 2 && value[0] == '`' && value[len(value)-1] == '`' {
+			// Raw string literal - use Rust raw string
+			value = value[1 : len(value)-1]
 			str = (re.emitAsString(fmt.Sprintf("r#\"%s\"#", value), 0))
 		} else {
 			str = (re.emitAsString(fmt.Sprintf("\"%s\"", value), 0))
@@ -3219,13 +3329,13 @@ func (re *RustEmitter) PreVisitKeyValueExprValue(node ast.Expr, indent int) {
 func (re *RustEmitter) PostVisitKeyValueExprValue(node ast.Expr, indent int) {
 	// Add .clone() for non-Copy types in struct field assignments
 	// This is needed because Rust closures that move values become FnOnce, not Fn
-	// For slices (Vec in Rust), we need to clone to avoid moving the captured variable
+	// For slices (Vec in Rust) and strings, we need to clone to avoid moving the captured variable
 	if node != nil {
 		tv := re.pkg.TypesInfo.Types[node]
 		if tv.Type != nil {
 			typeStr := tv.Type.String()
-			// Check if it's a slice type (will become Vec in Rust)
-			if strings.HasPrefix(typeStr, "[]") {
+			// Check if it's a slice type (will become Vec in Rust) or string type
+			if strings.HasPrefix(typeStr, "[]") || typeStr == "string" {
 				re.gir.emitToFileBuffer(".clone()", EmptyVisitMethod)
 			}
 		}
@@ -3560,12 +3670,14 @@ func (re *RustEmitter) PostVisitFuncDeclSignatureTypeParamsList(node *ast.Field,
 		}
 		newTokens := []string{}
 		// Add mut for non-primitive types (struct parameters are often modified in Go)
+		// OR if the parameter is reassigned in the function body
 		typeStr := strings.TrimSpace(strings.Join(tokensToStrings(typeStrRepr), ""))
 		isPrimitive := typeStr == "i8" || typeStr == "i16" || typeStr == "i32" || typeStr == "i64" ||
 			typeStr == "u8" || typeStr == "u16" || typeStr == "u32" || typeStr == "u64" ||
 			typeStr == "bool" || typeStr == "f32" || typeStr == "f64" || typeStr == "String" ||
 			typeStr == "&str" || typeStr == "usize" || typeStr == "isize"
-		if !isPrimitive {
+		isMutated := re.mutatedParams != nil && re.mutatedParams[nameStr]
+		if !isPrimitive || isMutated {
 			newTokens = append(newTokens, "mut ")
 		}
 		newTokens = append(newTokens, nameStr)

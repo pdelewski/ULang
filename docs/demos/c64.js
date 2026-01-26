@@ -514,6 +514,11 @@ const cpu = {
     c.PC = addr;
     return c;
   },
+  ClearHalted: function (c) {
+    c.Halted = false;
+    c.Cycles = 0;
+    return c;
+  },
   ReadByte: function (c, addr) {
     return c.Memory[addr];
   },
@@ -1511,7 +1516,7 @@ const assembler = {
       if (i >= len(s)) {
         break;
       }
-      result = append(result, int8(s[i]));
+      result = append(result, int8(s.charCodeAt(i)));
       i = i + 1;
     }
     return result;
@@ -1587,7 +1592,7 @@ const assembler = {
         i = i + 1;
         continue;
       }
-      if (this.IsHexDigit(b)) {
+      if (this.IsDigit(b)) {
         let repr = [];
         while (true) {
           if (i >= len(bytes)) {
@@ -1669,7 +1674,10 @@ const assembler = {
       if (i >= len(s)) {
         break;
       }
-      if (this.ToUpper(token.Representation[i]) != this.ToUpper(int8(s[i]))) {
+      if (
+        this.ToUpper(token.Representation[i]) !=
+        this.ToUpper(int8(s.charCodeAt(i)))
+      ) {
         return false;
       }
       i = i + 1;
@@ -1817,7 +1825,7 @@ const assembler = {
       if (ob >= 97 && ob <= 122) {
         ob = ob - 32;
       }
-      let nb = int8(name[i]);
+      let nb = int8(name.charCodeAt(i));
       if (ob != nb) {
         return false;
       }
@@ -2391,7 +2399,7 @@ const assembler = {
         i = i + 1;
         continue;
       }
-      if (this.IsHexDigit(b)) {
+      if (this.IsDigit(b)) {
         let repr = [];
         while (true) {
           if (i >= len(bytes)) {
@@ -2448,6 +2456,908 @@ const assembler = {
     let tokens = this.TokenizeBytes(allBytes);
     let instructions = this.Parse(tokens);
     return this.Assemble(instructions);
+  },
+  AssembleLinesWithCount: function (lines) {
+    let allBytes = [];
+    let i = 0;
+    while (true) {
+      if (i >= len(lines)) {
+        break;
+      }
+      let lineBytes = this.StringToBytes(lines[i]);
+      allBytes = this.AppendLineBytes(allBytes, lineBytes);
+      if (i < len(lines) - 1) {
+        allBytes = append(allBytes, int8(10));
+      }
+      i = i + 1;
+    }
+    let tokens = this.TokenizeBytes(allBytes);
+    let instructions = this.Parse(tokens);
+    return [this.Assemble(instructions), len(instructions)];
+  },
+  GetLastInstrFirstByte: function (lines) {
+    let allBytes = [];
+    let i = 0;
+    while (true) {
+      if (i >= len(lines)) {
+        break;
+      }
+      let lineBytes = this.StringToBytes(lines[i]);
+      allBytes = this.AppendLineBytes(allBytes, lineBytes);
+      if (i < len(lines) - 1) {
+        allBytes = append(allBytes, int8(10));
+      }
+      i = i + 1;
+    }
+    let tokens = this.TokenizeBytes(allBytes);
+    let instructions = this.Parse(tokens);
+    if (len(instructions) > 0) {
+      let lastInstr = instructions[len(instructions) - 1];
+      if (len(lastInstr.OpcodeBytes) > 0) {
+        return int(lastInstr.OpcodeBytes[0]);
+      }
+    }
+    return -1;
+  },
+};
+
+const basic = {
+  TextCols: 40,
+  TextRows: 25,
+  ScreenBase: 0x0400,
+  CodeBase: 0xc000,
+
+  NewBasicState: function () {
+    return { Lines: [], CursorRow: 0, CursorCol: 0 };
+  },
+  SetCursor: function (state, row, col) {
+    state.CursorRow = row;
+    state.CursorCol = col;
+    return state;
+  },
+  GetCursorAddr: function (state) {
+    return this.ScreenBase + state.CursorRow * this.TextCols + state.CursorCol;
+  },
+  StoreLine: function (state, lineNum, text) {
+    let newLines = [];
+    let found = false;
+    let i = 0;
+    while (true) {
+      if (i >= len(state.Lines)) {
+        break;
+      }
+      if (state.Lines[i].LineNum == lineNum) {
+        newLines = append(newLines, { LineNum: lineNum, Text: text });
+        found = true;
+      } else {
+        newLines = append(newLines, state.Lines[i]);
+      }
+      i = i + 1;
+    }
+    if (!found) {
+      newLines = append(newLines, { LineNum: lineNum, Text: text });
+    }
+    state.Lines = newLines;
+    state = this.sortLines(state);
+    return state;
+  },
+  sortLines: function (state) {
+    let n = len(state.Lines);
+    let i = 0;
+    while (true) {
+      if (i >= n - 1) {
+        break;
+      }
+      let j = 0;
+      while (true) {
+        if (j >= n - i - 1) {
+          break;
+        }
+        if (state.Lines[j].LineNum > state.Lines[j + 1].LineNum) {
+          let temp = state.Lines[j];
+          state.Lines[j] = state.Lines[j + 1];
+          state.Lines[j + 1] = temp;
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    return state;
+  },
+  DeleteLine: function (state, lineNum) {
+    let newLines = [];
+    let i = 0;
+    while (true) {
+      if (i >= len(state.Lines)) {
+        break;
+      }
+      if (state.Lines[i].LineNum != lineNum) {
+        newLines = append(newLines, state.Lines[i]);
+      }
+      i = i + 1;
+    }
+    state.Lines = newLines;
+    return state;
+  },
+  ClearProgram: function (state) {
+    state.Lines = [];
+    return state;
+  },
+  CompileImmediate: function (state, line) {
+    let asmLines = this.compileLine(line, state.CursorRow, state.CursorCol);
+    asmLines = append(asmLines, "BRK");
+    return assembler.AssembleLines(asmLines);
+  },
+  CompileProgram: function (state) {
+    let asmLines = [];
+    let row = state.CursorRow;
+    let col = 0;
+    let i = 0;
+    while (true) {
+      if (i >= len(state.Lines)) {
+        break;
+      }
+      let lineAsm = this.compileLine(state.Lines[i].Text, row, col);
+      let j = 0;
+      while (true) {
+        if (j >= len(lineAsm)) {
+          break;
+        }
+        asmLines = append(asmLines, lineAsm[j]);
+        j = j + 1;
+      }
+      row = row + 1;
+      if (row >= this.TextRows) {
+        row = this.TextRows - 1;
+      }
+      i = i + 1;
+    }
+    asmLines = append(asmLines, "BRK");
+    return assembler.AssembleLines(asmLines);
+  },
+  CompileProgramDebug: function (state) {
+    let asmLines = [];
+    let row = state.CursorRow;
+    let col = 0;
+    let i = 0;
+    while (true) {
+      if (i >= len(state.Lines)) {
+        break;
+      }
+      let lineAsm = this.compileLine(state.Lines[i].Text, row, col);
+      let j = 0;
+      while (true) {
+        if (j >= len(lineAsm)) {
+          break;
+        }
+        asmLines = append(asmLines, lineAsm[j]);
+        j = j + 1;
+      }
+      row = row + 1;
+      if (row >= this.TextRows) {
+        row = this.TextRows - 1;
+      }
+      i = i + 1;
+    }
+    asmLines = append(asmLines, "BRK");
+    let [code, instrCount] = assembler.AssembleLinesWithCount(asmLines);
+    let lastByte = assembler.GetLastInstrFirstByte(asmLines);
+    return [code, len(asmLines), instrCount, lastByte];
+  },
+  compileLine: function (line, cursorRow, cursorCol) {
+    let [cmd, args] = this.parseLine(line);
+    if (cmd == "PRINT") {
+      return this.genPrint(args, cursorRow, cursorCol);
+    } else if (cmd == "POKE") {
+      let [addr, value] = this.parsePoke(args);
+      return this.genPoke(addr, value);
+    } else if (cmd == "CLR") {
+      return this.genClear();
+    }
+    return [];
+  },
+  GetLineCount: function (state) {
+    return len(state.Lines);
+  },
+  GetLine: function (state, index) {
+    if (index >= 0 && index < len(state.Lines)) {
+      return state.Lines[index];
+    }
+    return { LineNum: 0, Text: "" };
+  },
+  hexDigit: function (n) {
+    if (n == 0) {
+      return "0";
+    } else if (n == 1) {
+      return "1";
+    } else if (n == 2) {
+      return "2";
+    } else if (n == 3) {
+      return "3";
+    } else if (n == 4) {
+      return "4";
+    } else if (n == 5) {
+      return "5";
+    } else if (n == 6) {
+      return "6";
+    } else if (n == 7) {
+      return "7";
+    } else if (n == 8) {
+      return "8";
+    } else if (n == 9) {
+      return "9";
+    } else if (n == 10) {
+      return "A";
+    } else if (n == 11) {
+      return "B";
+    } else if (n == 12) {
+      return "C";
+    } else if (n == 13) {
+      return "D";
+    } else if (n == 14) {
+      return "E";
+    } else if (n == 15) {
+      return "F";
+    }
+    return "0";
+  },
+  toHex2: function (n) {
+    let high = (n >> 4) & 0x0f;
+    let low = n & 0x0f;
+    return this.hexDigit(high) + this.hexDigit(low);
+  },
+  toHex4: function (n) {
+    return this.toHex2((n >> 8) & 0xff) + this.toHex2(n & 0xff);
+  },
+  toHex: function (n) {
+    if (n > 255) {
+      return "$" + this.toHex4(n);
+    }
+    return "$" + this.toHex2(n);
+  },
+  genPrint: function (args, cursorRow, cursorCol) {
+    let lines = [];
+    let text = this.parseString(args);
+    let baseAddr = this.ScreenBase + cursorRow * this.TextCols + cursorCol;
+    let i = 0;
+    while (true) {
+      if (i >= len(text)) {
+        break;
+      }
+      let charCode = int(text.charCodeAt(i));
+      let addr = baseAddr + i;
+      lines = append(lines, "LDA #" + this.toHex(charCode));
+      lines = append(lines, "STA " + this.toHex(addr));
+      i = i + 1;
+    }
+    return lines;
+  },
+  genPoke: function (addr, value) {
+    let lines = [];
+    if (value > 255) {
+      value = value & 0xff;
+    }
+    if (value < 0) {
+      value = 0;
+    }
+    lines = append(lines, "LDA #" + this.toHex(value));
+    lines = append(lines, "STA " + this.toHex(addr));
+    return lines;
+  },
+  genClear: function () {
+    let lines = [];
+    lines = append(lines, "LDA #$20");
+    let i = 0;
+    while (true) {
+      if (i >= this.TextCols * this.TextRows) {
+        break;
+      }
+      let addr = this.ScreenBase + i;
+      lines = append(lines, "STA " + this.toHex(addr));
+      i = i + 1;
+    }
+    return lines;
+  },
+  genList: function (state, startRow) {
+    let lines = [];
+    let row = startRow;
+    let i = 0;
+    while (true) {
+      if (i >= len(state.Lines)) {
+        break;
+      }
+      if (row >= this.TextRows) {
+        break;
+      }
+      let lineNum = state.Lines[i].LineNum;
+      let text = state.Lines[i].Text;
+      let numStr = this.intToString(lineNum);
+      let fullLine = numStr + " " + text;
+      let baseAddr = this.ScreenBase + row * this.TextCols;
+      let j = 0;
+      while (true) {
+        if (j >= len(fullLine)) {
+          break;
+        }
+        if (j >= this.TextCols) {
+          break;
+        }
+        let charCode = int(fullLine.charCodeAt(j));
+        let addr = baseAddr + j;
+        lines = append(lines, "LDA #" + this.toHex(charCode));
+        lines = append(lines, "STA " + this.toHex(addr));
+        j = j + 1;
+      }
+      row = row + 1;
+      i = i + 1;
+    }
+    return lines;
+  },
+  intToString: function (n) {
+    if (n == 0) {
+      return "0";
+    }
+    let neg = false;
+    if (n < 0) {
+      neg = true;
+      n = -n;
+    }
+    let digits = "";
+    while (true) {
+      if (n == 0) {
+        break;
+      }
+      let digit = n % 10;
+      digits = this.digitToChar(digit) + digits;
+      n = (n / 10) | 0;
+    }
+    if (neg) {
+      digits = "-" + digits;
+    }
+    return digits;
+  },
+  digitToChar: function (d) {
+    if (d == 0) {
+      return "0";
+    } else if (d == 1) {
+      return "1";
+    } else if (d == 2) {
+      return "2";
+    } else if (d == 3) {
+      return "3";
+    } else if (d == 4) {
+      return "4";
+    } else if (d == 5) {
+      return "5";
+    } else if (d == 6) {
+      return "6";
+    } else if (d == 7) {
+      return "7";
+    } else if (d == 8) {
+      return "8";
+    } else if (d == 9) {
+      return "9";
+    }
+    return "0";
+  },
+  parseLine: function (line) {
+    let pos = 0;
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      if (line.charCodeAt(pos) != 32 && line.charCodeAt(pos) != 9) {
+        break;
+      }
+      pos = pos + 1;
+    }
+    let cmd = "";
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      let ch = int(line.charCodeAt(pos));
+      if (!this.isLetterCode(ch)) {
+        break;
+      }
+      cmd = cmd + this.toUpperChar(ch);
+      pos = pos + 1;
+    }
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      if (line.charCodeAt(pos) != 32 && line.charCodeAt(pos) != 9) {
+        break;
+      }
+      pos = pos + 1;
+    }
+    let args = "";
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      args = args + this.charToString(int(line.charCodeAt(pos)));
+      pos = pos + 1;
+    }
+    return [cmd, args];
+  },
+  parseLineNumber: function (line) {
+    let pos = 0;
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      if (line.charCodeAt(pos) != 32 && line.charCodeAt(pos) != 9) {
+        break;
+      }
+      pos = pos + 1;
+    }
+    if (pos >= len(line) || !this.isDigitCode(int(line.charCodeAt(pos)))) {
+      return [0, line, false];
+    }
+    let lineNum = 0;
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      let ch = int(line.charCodeAt(pos));
+      if (!this.isDigitCode(ch)) {
+        break;
+      }
+      lineNum = lineNum * 10 + (ch - int(48));
+      pos = pos + 1;
+    }
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      if (line.charCodeAt(pos) != 32 && line.charCodeAt(pos) != 9) {
+        break;
+      }
+      pos = pos + 1;
+    }
+    let rest = "";
+    while (true) {
+      if (pos >= len(line)) {
+        break;
+      }
+      rest = rest + this.charToString(int(line.charCodeAt(pos)));
+      pos = pos + 1;
+    }
+    return [lineNum, rest, true];
+  },
+  parsePoke: function (args) {
+    let addr = 0;
+    let i = 0;
+    while (true) {
+      if (i >= len(args)) {
+        break;
+      }
+      if (args.charCodeAt(i) != 32 && args.charCodeAt(i) != 9) {
+        break;
+      }
+      i = i + 1;
+    }
+    while (true) {
+      if (i >= len(args)) {
+        break;
+      }
+      let ch = int(args.charCodeAt(i));
+      if (ch == int(44)) {
+        break;
+      }
+      if (ch == int(32) || ch == int(9)) {
+        i = i + 1;
+        continue;
+      }
+      if (this.isDigitCode(ch)) {
+        addr = addr * 10 + (ch - int(48));
+      }
+      i = i + 1;
+    }
+    if (i < len(args) && args.charCodeAt(i) == 44) {
+      i = i + 1;
+    }
+    while (true) {
+      if (i >= len(args)) {
+        break;
+      }
+      if (args.charCodeAt(i) != 32 && args.charCodeAt(i) != 9) {
+        break;
+      }
+      i = i + 1;
+    }
+    let value = 0;
+    while (true) {
+      if (i >= len(args)) {
+        break;
+      }
+      let ch = int(args.charCodeAt(i));
+      if (ch == int(32) || ch == int(9)) {
+        break;
+      }
+      if (this.isDigitCode(ch)) {
+        value = value * 10 + (ch - int(48));
+      }
+      i = i + 1;
+    }
+    return [addr, value];
+  },
+  parseString: function (args) {
+    let start = -1;
+    let i = 0;
+    while (true) {
+      if (i >= len(args)) {
+        break;
+      }
+      if (args.charCodeAt(i) == 34) {
+        start = i + 1;
+        break;
+      }
+      i = i + 1;
+    }
+    if (start < 0) {
+      return this.trimSpacesStr(args);
+    }
+    let result = "";
+    let j = start;
+    while (true) {
+      if (j >= len(args)) {
+        break;
+      }
+      if (args.charCodeAt(j) == 34) {
+        break;
+      }
+      result = result + this.charToString(int(args.charCodeAt(j)));
+      j = j + 1;
+    }
+    return result;
+  },
+  charToString: function (ch) {
+    if (ch >= 32 && ch <= 126) {
+      if (ch == 32) {
+        return " ";
+      } else if (ch == 33) {
+        return "!";
+      } else if (ch == 34) {
+        return '"';
+      } else if (ch == 35) {
+        return "#";
+      } else if (ch == 36) {
+        return "$";
+      } else if (ch == 37) {
+        return "%";
+      } else if (ch == 38) {
+        return "&";
+      } else if (ch == 39) {
+        return "'";
+      } else if (ch == 40) {
+        return "(";
+      } else if (ch == 41) {
+        return ")";
+      } else if (ch == 42) {
+        return "*";
+      } else if (ch == 43) {
+        return "+";
+      } else if (ch == 44) {
+        return ",";
+      } else if (ch == 45) {
+        return "-";
+      } else if (ch == 46) {
+        return ".";
+      } else if (ch == 47) {
+        return "/";
+      } else if (ch == 48) {
+        return "0";
+      } else if (ch == 49) {
+        return "1";
+      } else if (ch == 50) {
+        return "2";
+      } else if (ch == 51) {
+        return "3";
+      } else if (ch == 52) {
+        return "4";
+      } else if (ch == 53) {
+        return "5";
+      } else if (ch == 54) {
+        return "6";
+      } else if (ch == 55) {
+        return "7";
+      } else if (ch == 56) {
+        return "8";
+      } else if (ch == 57) {
+        return "9";
+      } else if (ch == 58) {
+        return ":";
+      } else if (ch == 59) {
+        return ";";
+      } else if (ch == 60) {
+        return "<";
+      } else if (ch == 61) {
+        return "=";
+      } else if (ch == 62) {
+        return ">";
+      } else if (ch == 63) {
+        return "?";
+      } else if (ch == 64) {
+        return "@";
+      } else if (ch == 65) {
+        return "A";
+      } else if (ch == 66) {
+        return "B";
+      } else if (ch == 67) {
+        return "C";
+      } else if (ch == 68) {
+        return "D";
+      } else if (ch == 69) {
+        return "E";
+      } else if (ch == 70) {
+        return "F";
+      } else if (ch == 71) {
+        return "G";
+      } else if (ch == 72) {
+        return "H";
+      } else if (ch == 73) {
+        return "I";
+      } else if (ch == 74) {
+        return "J";
+      } else if (ch == 75) {
+        return "K";
+      } else if (ch == 76) {
+        return "L";
+      } else if (ch == 77) {
+        return "M";
+      } else if (ch == 78) {
+        return "N";
+      } else if (ch == 79) {
+        return "O";
+      } else if (ch == 80) {
+        return "P";
+      } else if (ch == 81) {
+        return "Q";
+      } else if (ch == 82) {
+        return "R";
+      } else if (ch == 83) {
+        return "S";
+      } else if (ch == 84) {
+        return "T";
+      } else if (ch == 85) {
+        return "U";
+      } else if (ch == 86) {
+        return "V";
+      } else if (ch == 87) {
+        return "W";
+      } else if (ch == 88) {
+        return "X";
+      } else if (ch == 89) {
+        return "Y";
+      } else if (ch == 90) {
+        return "Z";
+      } else if (ch == 91) {
+        return "[";
+      } else if (ch == 92) {
+        return "";
+      } else if (ch == 93) {
+        return "]";
+      } else if (ch == 94) {
+        return "^";
+      } else if (ch == 95) {
+        return "_";
+      } else if (ch == 96) {
+        return "`";
+      } else if (ch == 97) {
+        return "a";
+      } else if (ch == 98) {
+        return "b";
+      } else if (ch == 99) {
+        return "c";
+      } else if (ch == 100) {
+        return "d";
+      } else if (ch == 101) {
+        return "e";
+      } else if (ch == 102) {
+        return "f";
+      } else if (ch == 103) {
+        return "g";
+      } else if (ch == 104) {
+        return "h";
+      } else if (ch == 105) {
+        return "i";
+      } else if (ch == 106) {
+        return "j";
+      } else if (ch == 107) {
+        return "k";
+      } else if (ch == 108) {
+        return "l";
+      } else if (ch == 109) {
+        return "m";
+      } else if (ch == 110) {
+        return "n";
+      } else if (ch == 111) {
+        return "o";
+      } else if (ch == 112) {
+        return "p";
+      } else if (ch == 113) {
+        return "q";
+      } else if (ch == 114) {
+        return "r";
+      } else if (ch == 115) {
+        return "s";
+      } else if (ch == 116) {
+        return "t";
+      } else if (ch == 117) {
+        return "u";
+      } else if (ch == 118) {
+        return "v";
+      } else if (ch == 119) {
+        return "w";
+      } else if (ch == 120) {
+        return "x";
+      } else if (ch == 121) {
+        return "y";
+      } else if (ch == 122) {
+        return "z";
+      } else if (ch == 123) {
+        return "{";
+      } else if (ch == 124) {
+        return "|";
+      } else if (ch == 125) {
+        return "}";
+      } else if (ch == 126) {
+        return "~";
+      }
+    }
+    return "";
+  },
+  isLetterCode: function (ch) {
+    return (
+      (ch >= int(97) && ch <= int(122)) || (ch >= int(65) && ch <= int(90))
+    );
+  },
+  isDigitCode: function (ch) {
+    return ch >= int(48) && ch <= int(57);
+  },
+  toUpperChar: function (ch) {
+    if (ch >= int(97) && ch <= int(122)) {
+      ch = ch - 32;
+    }
+    if (ch == 65) {
+      return "A";
+    } else if (ch == 66) {
+      return "B";
+    } else if (ch == 67) {
+      return "C";
+    } else if (ch == 68) {
+      return "D";
+    } else if (ch == 69) {
+      return "E";
+    } else if (ch == 70) {
+      return "F";
+    } else if (ch == 71) {
+      return "G";
+    } else if (ch == 72) {
+      return "H";
+    } else if (ch == 73) {
+      return "I";
+    } else if (ch == 74) {
+      return "J";
+    } else if (ch == 75) {
+      return "K";
+    } else if (ch == 76) {
+      return "L";
+    } else if (ch == 77) {
+      return "M";
+    } else if (ch == 78) {
+      return "N";
+    } else if (ch == 79) {
+      return "O";
+    } else if (ch == 80) {
+      return "P";
+    } else if (ch == 81) {
+      return "Q";
+    } else if (ch == 82) {
+      return "R";
+    } else if (ch == 83) {
+      return "S";
+    } else if (ch == 84) {
+      return "T";
+    } else if (ch == 85) {
+      return "U";
+    } else if (ch == 86) {
+      return "V";
+    } else if (ch == 87) {
+      return "W";
+    } else if (ch == 88) {
+      return "X";
+    } else if (ch == 89) {
+      return "Y";
+    } else if (ch == 90) {
+      return "Z";
+    }
+    return "";
+  },
+  toUpper: function (s) {
+    let result = "";
+    let i = 0;
+    while (true) {
+      if (i >= len(s)) {
+        break;
+      }
+      let ch = int(s.charCodeAt(i));
+      result = result + this.toUpperChar(ch);
+      i = i + 1;
+    }
+    return result;
+  },
+  parseNumber: function (s) {
+    let result = 0;
+    let i = 0;
+    while (true) {
+      if (i >= len(s)) {
+        break;
+      }
+      let ch = s.charCodeAt(i);
+      if (ch >= 48 && ch <= 57) {
+        result = result * 10 + int(ch - 48);
+      }
+      i = i + 1;
+    }
+    return result;
+  },
+  trimSpacesStr: function (s) {
+    let start = 0;
+    while (true) {
+      if (start >= len(s)) {
+        break;
+      }
+      if (s.charCodeAt(start) != 32 && s.charCodeAt(start) != 9) {
+        break;
+      }
+      start = start + 1;
+    }
+    let end = len(s);
+    while (true) {
+      if (end <= start) {
+        break;
+      }
+      if (s.charCodeAt(end - 1) != 32 && s.charCodeAt(end - 1) != 9) {
+        break;
+      }
+      end = end - 1;
+    }
+    if (start >= end) {
+      return "";
+    }
+    let result = "";
+    let i = start;
+    while (true) {
+      if (i >= end) {
+        break;
+      }
+      result = result + this.charToString(int(s.charCodeAt(i)));
+      i = i + 1;
+    }
+    return result;
+  },
+  HasLineNumber: function (line) {
+    let [lineNum, rest, found] = this.parseLineNumber(line);
+    if (lineNum > 0 && len(rest) >= 0) {
+    }
+    return found;
+  },
+  ExtractLineNumber: function (line) {
+    let [lineNum, rest, found] = this.parseLineNumber(line);
+    if (!found) {
+      return [0, line];
+    }
+    return [lineNum, rest];
+  },
+  IsCommand: function (line, cmdName) {
+    let [cmd, args] = this.parseLine(line);
+    if (len(args) >= 0) {
+    }
+    return cmd == this.toUpper(cmdName);
   },
 };
 
@@ -2622,7 +3532,7 @@ function addStringToScreen(lines, text, row, col) {
     if (i >= len(text)) {
       break;
     }
-    let charCode = int(text[i]);
+    let charCode = int(text.charCodeAt(i));
     let addr = baseAddr + i;
     lines = append(lines, "LDA #" + toHex(charCode));
     lines = append(lines, "STA " + toHex(addr));
@@ -2643,6 +3553,301 @@ function clearScreen(lines) {
     i = i + 1;
   }
   return lines;
+}
+
+function charFromCodeMain(ch) {
+  if (ch == 32) {
+    return " ";
+  } else if (ch == 33) {
+    return "!";
+  } else if (ch == 34) {
+    return '"';
+  } else if (ch == 35) {
+    return "#";
+  } else if (ch == 36) {
+    return "$";
+  } else if (ch == 37) {
+    return "%";
+  } else if (ch == 38) {
+    return "&";
+  } else if (ch == 39) {
+    return "'";
+  } else if (ch == 40) {
+    return "(";
+  } else if (ch == 41) {
+    return ")";
+  } else if (ch == 42) {
+    return "*";
+  } else if (ch == 43) {
+    return "+";
+  } else if (ch == 44) {
+    return ",";
+  } else if (ch == 45) {
+    return "-";
+  } else if (ch == 46) {
+    return ".";
+  } else if (ch == 47) {
+    return "/";
+  } else if (ch == 48) {
+    return "0";
+  } else if (ch == 49) {
+    return "1";
+  } else if (ch == 50) {
+    return "2";
+  } else if (ch == 51) {
+    return "3";
+  } else if (ch == 52) {
+    return "4";
+  } else if (ch == 53) {
+    return "5";
+  } else if (ch == 54) {
+    return "6";
+  } else if (ch == 55) {
+    return "7";
+  } else if (ch == 56) {
+    return "8";
+  } else if (ch == 57) {
+    return "9";
+  } else if (ch == 58) {
+    return ":";
+  } else if (ch == 59) {
+    return ";";
+  } else if (ch == 60) {
+    return "<";
+  } else if (ch == 61) {
+    return "=";
+  } else if (ch == 62) {
+    return ">";
+  } else if (ch == 63) {
+    return "?";
+  } else if (ch == 64) {
+    return "@";
+  } else if (ch == 65) {
+    return "A";
+  } else if (ch == 66) {
+    return "B";
+  } else if (ch == 67) {
+    return "C";
+  } else if (ch == 68) {
+    return "D";
+  } else if (ch == 69) {
+    return "E";
+  } else if (ch == 70) {
+    return "F";
+  } else if (ch == 71) {
+    return "G";
+  } else if (ch == 72) {
+    return "H";
+  } else if (ch == 73) {
+    return "I";
+  } else if (ch == 74) {
+    return "J";
+  } else if (ch == 75) {
+    return "K";
+  } else if (ch == 76) {
+    return "L";
+  } else if (ch == 77) {
+    return "M";
+  } else if (ch == 78) {
+    return "N";
+  } else if (ch == 79) {
+    return "O";
+  } else if (ch == 80) {
+    return "P";
+  } else if (ch == 81) {
+    return "Q";
+  } else if (ch == 82) {
+    return "R";
+  } else if (ch == 83) {
+    return "S";
+  } else if (ch == 84) {
+    return "T";
+  } else if (ch == 85) {
+    return "U";
+  } else if (ch == 86) {
+    return "V";
+  } else if (ch == 87) {
+    return "W";
+  } else if (ch == 88) {
+    return "X";
+  } else if (ch == 89) {
+    return "Y";
+  } else if (ch == 90) {
+    return "Z";
+  } else if (ch == 91) {
+    return "[";
+  } else if (ch == 93) {
+    return "]";
+  } else if (ch == 94) {
+    return "^";
+  } else if (ch == 95) {
+    return "_";
+  } else if (ch == 96) {
+    return "`";
+  } else if (ch == 97) {
+    return "a";
+  } else if (ch == 98) {
+    return "b";
+  } else if (ch == 99) {
+    return "c";
+  } else if (ch == 100) {
+    return "d";
+  } else if (ch == 101) {
+    return "e";
+  } else if (ch == 102) {
+    return "f";
+  } else if (ch == 103) {
+    return "g";
+  } else if (ch == 104) {
+    return "h";
+  } else if (ch == 105) {
+    return "i";
+  } else if (ch == 106) {
+    return "j";
+  } else if (ch == 107) {
+    return "k";
+  } else if (ch == 108) {
+    return "l";
+  } else if (ch == 109) {
+    return "m";
+  } else if (ch == 110) {
+    return "n";
+  } else if (ch == 111) {
+    return "o";
+  } else if (ch == 112) {
+    return "p";
+  } else if (ch == 113) {
+    return "q";
+  } else if (ch == 114) {
+    return "r";
+  } else if (ch == 115) {
+    return "s";
+  } else if (ch == 116) {
+    return "t";
+  } else if (ch == 117) {
+    return "u";
+  } else if (ch == 118) {
+    return "v";
+  } else if (ch == 119) {
+    return "w";
+  } else if (ch == 120) {
+    return "x";
+  } else if (ch == 121) {
+    return "y";
+  } else if (ch == 122) {
+    return "z";
+  } else if (ch == 123) {
+    return "{";
+  } else if (ch == 124) {
+    return "|";
+  } else if (ch == 125) {
+    return "}";
+  } else if (ch == 126) {
+    return "~";
+  }
+  return "";
+}
+
+function digitToCharMain(d) {
+  if (d == 0) {
+    return "0";
+  } else if (d == 1) {
+    return "1";
+  } else if (d == 2) {
+    return "2";
+  } else if (d == 3) {
+    return "3";
+  } else if (d == 4) {
+    return "4";
+  } else if (d == 5) {
+    return "5";
+  } else if (d == 6) {
+    return "6";
+  } else if (d == 7) {
+    return "7";
+  } else if (d == 8) {
+    return "8";
+  } else if (d == 9) {
+    return "9";
+  }
+  return "0";
+}
+
+function intToString(n) {
+  if (n == 0) {
+    return "0";
+  }
+  let neg = false;
+  if (n < 0) {
+    neg = true;
+    n = -n;
+  }
+  let digits = "";
+  while (true) {
+    if (n == 0) {
+      break;
+    }
+    let digit = n % 10;
+    digits = digitToCharMain(digit) + digits;
+    n = (n / 10) | 0;
+  }
+  if (neg) {
+    digits = "-" + digits;
+  }
+  return digits;
+}
+
+function readLineFromScreen(c, row) {
+  let result = "";
+  let baseAddr = TextScreenBase + row * TextCols;
+  let col = 0;
+  while (true) {
+    if (col >= TextCols) {
+      break;
+    }
+    let ch = int(c.Memory[baseAddr + col]);
+    if (ch >= 32 && ch <= 126) {
+      result = result + charFromCodeMain(ch);
+    }
+    col = col + 1;
+  }
+  let end = len(result);
+  while (true) {
+    if (end <= 0) {
+      break;
+    }
+    if (result.charCodeAt(end - 1) != 32) {
+      break;
+    }
+    end = end - 1;
+  }
+  if (end <= 0) {
+    return "";
+  }
+  let trimmed = "";
+  let i = 0;
+  while (true) {
+    if (i >= end) {
+      break;
+    }
+    trimmed = trimmed + charFromCodeMain(int(result.charCodeAt(i)));
+    i = i + 1;
+  }
+  return trimmed;
+}
+
+function printReady(c, row) {
+  let text = "READY.";
+  let baseAddr = TextScreenBase + row * TextCols;
+  let i = 0;
+  while (true) {
+    if (i >= len(text)) {
+      break;
+    }
+    c.Memory[baseAddr + i] = uint8(text.charCodeAt(i));
+    i = i + 1;
+  }
+  return c;
 }
 
 function createC64WelcomeScreen() {
@@ -2672,11 +3877,15 @@ function main() {
   let program = createC64WelcomeScreen();
   c = cpu.LoadProgram(c, program, 0x0600);
   c = cpu.SetPC(c, 0x0600);
+  c = cpu.ClearHalted(c);
   c = cpu.Run(c, 100000);
   let textColor = graphics.NewColor(134, 122, 222, 255);
   let bgColor = graphics.NewColor(64, 50, 133, 255);
   let cursorRow = 7;
   let cursorCol = 0;
+  let basicState = basic.NewBasicState();
+  basicState = basic.SetCursor(basicState, cursorRow, cursorCol);
+  let inputStartRow = cursorRow;
   graphics.RunLoop(w, function (w) {
     let key = graphics.GetLastKey();
     if (key != 0) {
@@ -2685,11 +3894,114 @@ function main() {
         c.Memory[oldCursorAddr] = 32;
       }
       if (key == 13) {
+        let line = readLineFromScreen(c, inputStartRow);
         cursorCol = 0;
         cursorRow = cursorRow + 1;
         if (cursorRow >= TextRows) {
           cursorRow = TextRows - 1;
         }
+        if (len(line) > 0) {
+          if (basic.HasLineNumber(line)) {
+            let [lineNum, rest] = basic.ExtractLineNumber(line);
+            basicState = basic.StoreLine(basicState, lineNum, rest);
+          } else if (basic.IsCommand(line, "RUN")) {
+            let lineCount = basic.GetLineCount(basicState);
+            if (lineCount > 0) {
+              basicState = basic.SetCursor(basicState, cursorRow, 0);
+              let code = basic.CompileProgram(basicState);
+              cursorRow = cursorRow + 1;
+              if (cursorRow >= TextRows) {
+                cursorRow = TextRows - 1;
+              }
+              c = cpu.LoadProgram(c, code, 0xc000);
+              c = cpu.SetPC(c, 0xc000);
+              c = cpu.ClearHalted(c);
+              c = cpu.Run(c, 100000);
+            }
+            cursorRow = cursorRow + lineCount;
+            if (cursorRow >= TextRows) {
+              cursorRow = TextRows - 1;
+            }
+            c = printReady(c, cursorRow);
+            cursorRow = cursorRow + 1;
+            if (cursorRow >= TextRows) {
+              cursorRow = TextRows - 1;
+            }
+          } else if (basic.IsCommand(line, "LIST")) {
+            let i = 0;
+            let listRow = cursorRow;
+            while (true) {
+              if (i >= basic.GetLineCount(basicState)) {
+                break;
+              }
+              if (listRow >= TextRows) {
+                break;
+              }
+              let pl = basic.GetLine(basicState, i);
+              let numStr = intToString(pl.LineNum);
+              let listLine = numStr + " " + pl.Text;
+              let baseAddr = TextScreenBase + listRow * TextCols;
+              let j = 0;
+              while (true) {
+                if (j >= len(listLine)) {
+                  break;
+                }
+                if (j >= TextCols) {
+                  break;
+                }
+                c.Memory[baseAddr + j] = uint8(listLine.charCodeAt(j));
+                j = j + 1;
+              }
+              listRow = listRow + 1;
+              i = i + 1;
+            }
+            cursorRow = listRow;
+            c = printReady(c, cursorRow);
+            cursorRow = cursorRow + 1;
+            if (cursorRow >= TextRows) {
+              cursorRow = TextRows - 1;
+            }
+          } else if (basic.IsCommand(line, "NEW")) {
+            basicState = basic.ClearProgram(basicState);
+            c = printReady(c, cursorRow);
+            cursorRow = cursorRow + 1;
+            if (cursorRow >= TextRows) {
+              cursorRow = TextRows - 1;
+            }
+          } else if (basic.IsCommand(line, "CLR")) {
+            basicState = basic.SetCursor(basicState, 0, 0);
+            let code = basic.CompileImmediate(basicState, line);
+            c = cpu.LoadProgram(c, code, 0xc000);
+            c = cpu.SetPC(c, 0xc000);
+            c = cpu.ClearHalted(c);
+            c = cpu.Run(c, 100000);
+            cursorRow = 0;
+            cursorCol = 0;
+            c = printReady(c, cursorRow);
+            cursorRow = cursorRow + 1;
+          } else {
+            basicState = basic.SetCursor(basicState, cursorRow, 0);
+            let code = basic.CompileImmediate(basicState, line);
+            if (len(code) > 1) {
+              c = cpu.LoadProgram(c, code, 0xc000);
+              c = cpu.SetPC(c, 0xc000);
+              c = cpu.ClearHalted(c);
+              c = cpu.Run(c, 10000);
+            }
+            if (basic.IsCommand(line, "PRINT")) {
+              cursorRow = cursorRow + 1;
+              if (cursorRow >= TextRows) {
+                cursorRow = TextRows - 1;
+              }
+            }
+            c = printReady(c, cursorRow);
+            cursorRow = cursorRow + 1;
+            if (cursorRow >= TextRows) {
+              cursorRow = TextRows - 1;
+            }
+          }
+        }
+        inputStartRow = cursorRow;
       } else if (key == 8) {
         if (cursorCol > 0) {
           cursorCol = cursorCol - 1;

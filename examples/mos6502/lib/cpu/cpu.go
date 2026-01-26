@@ -282,6 +282,13 @@ func SetPC(c CPU, addr int) CPU {
 	return c
 }
 
+// ClearHalted clears the halted flag and resets cycles so the CPU can run again
+func ClearHalted(c CPU) CPU {
+	c.Halted = false
+	c.Cycles = 0
+	return c
+}
+
 // ReadByte reads a byte from memory
 func ReadByte(c CPU, addr int) uint8 {
 	return c.Memory[addr]
