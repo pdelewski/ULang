@@ -516,6 +516,11 @@ func main() {
 						if lineCount > 0 {
 							basicState = basic.SetCursor(basicState, cursorRow, 0)
 							code := basic.CompileProgram(basicState)
+							cursorRow = cursorRow + 1
+							if cursorRow >= TextRows {
+								cursorRow = TextRows - 1
+							}
+							// Execute the program
 							c = cpu.LoadProgram(c, code, 0xC000)
 							c = cpu.SetPC(c, 0xC000)
 							c = cpu.ClearHalted(c)

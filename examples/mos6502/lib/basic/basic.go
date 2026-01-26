@@ -165,6 +165,39 @@ func CompileProgram(state BasicState) []uint8 {
 	return assembler.AssembleLines(asmLines)
 }
 
+// CompileProgramDebug compiles and returns asm line count, instruction count, and last opcode first byte
+func CompileProgramDebug(state BasicState) ([]uint8, int, int, int) {
+	asmLines := []string{}
+	row := state.CursorRow
+	col := 0
+
+	i := 0
+	for {
+		if i >= len(state.Lines) {
+			break
+		}
+		lineAsm := compileLine(state.Lines[i].Text, row, col)
+		j := 0
+		for {
+			if j >= len(lineAsm) {
+				break
+			}
+			asmLines = append(asmLines, lineAsm[j])
+			j = j + 1
+		}
+		row = row + 1
+		if row >= TextRows {
+			row = TextRows - 1
+		}
+		i = i + 1
+	}
+
+	asmLines = append(asmLines, "BRK")
+	code, instrCount := assembler.AssembleLinesWithCount(asmLines)
+	lastByte := assembler.GetLastInstrFirstByte(asmLines)
+	return code, len(asmLines), instrCount, lastByte
+}
+
 // compileLine compiles a single BASIC line to assembly
 func compileLine(line string, cursorRow int, cursorCol int) []string {
 	// Parse the line
