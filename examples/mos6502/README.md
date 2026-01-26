@@ -78,10 +78,104 @@ Commodore 64-style emulator with:
 - C64 color palette
 - Keyboard input support
 - Classic "READY." prompt
+- BASIC interpreter
 
 ```bash
 cd cmd/c64 && go run .
 ```
+
+## BASIC Interpreter
+
+The C64 emulator includes a BASIC interpreter that compiles BASIC code to native 6502 machine code for execution.
+
+### Supported Statements
+
+| Statement | Syntax | Description |
+|-----------|--------|-------------|
+| PRINT | `PRINT "text"` or `PRINT var` | Print string or variable to screen |
+| LET | `LET A = expr` or `A = expr` | Assign value to variable |
+| GOTO | `GOTO linenum` | Jump to line number |
+| GOSUB | `GOSUB linenum` | Call subroutine at line number |
+| RETURN | `RETURN` | Return from subroutine |
+| FOR/NEXT | `FOR I = 1 TO 10` ... `NEXT I` | Loop construct |
+| IF/THEN | `IF cond THEN statement` | Conditional execution |
+| POKE | `POKE addr, value` | Write byte to memory address |
+| CLR | `CLR` | Clear screen |
+| REM | `REM comment` | Comment (ignored) |
+| END | `END` | End program execution |
+
+### Variables
+
+- 26 single-letter variables: A-Z
+- 8-bit unsigned integers (0-255)
+- Stored in zero page addresses $10-$29
+
+### Expressions
+
+Supported operators in expressions:
+- Arithmetic: `+`, `-`, `*`, `/`
+- Example: `LET A = 5 + 3` or `LET B = A * 2`
+
+### Conditions (for IF/THEN)
+
+| Operator | Meaning |
+|----------|---------|
+| `=` | Equal |
+| `<>` | Not equal |
+| `<` | Less than |
+| `>` | Greater than |
+| `<=` | Less than or equal |
+| `>=` | Greater than or equal |
+
+### Example Programs
+
+**Hello World:**
+```basic
+10 PRINT "HELLO WORLD"
+RUN
+```
+
+**Counting Loop:**
+```basic
+10 FOR I = 1 TO 5
+20 PRINT I
+30 NEXT I
+RUN
+```
+
+**Conditional:**
+```basic
+10 LET A = 10
+20 IF A > 5 THEN PRINT "BIG"
+RUN
+```
+
+**Subroutine:**
+```basic
+10 GOSUB 100
+20 PRINT "BACK"
+30 END
+100 PRINT "IN SUB"
+110 RETURN
+RUN
+```
+
+**Nested Loop with POKE:**
+```basic
+10 FOR I = 0 TO 9
+20 POKE 1024 + I, 65 + I
+30 NEXT I
+RUN
+```
+
+### Memory Layout
+
+| Address | Usage |
+|---------|-------|
+| $0010-$0029 | Variables A-Z |
+| $0100-$01FF | 6502 Stack (for GOSUB/RETURN) |
+| $0400-$07E7 | Screen memory (40x25) |
+| $C000+ | Compiled BASIC program code |
 
 ## Building with goany
 
