@@ -2,6 +2,8 @@
 
 ![goany banner](docs/goany-banner.png)
 
+Copyright (c) 2024-2026 Przemyslaw Delewski
+
 A Go language transpiler that generates portable code for multiple target platforms. Write your code once in Go and transpile it to C++, C#, Rust, or JavaScript.
 
 [**▶ Try the C64 Emulator Demo WIP (runs in browser)**](https://pdelewski.github.io/goany/demos/c64.html)
