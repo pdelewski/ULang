@@ -69,16 +69,16 @@ func genPrint(args string, cursorRow int, cursorCol int) []string {
 	// Calculate base address
 	baseAddr := ScreenBase + (cursorRow * TextCols) + cursorCol
 
-	// Generate LDA/STA for each character
+	// Generate LDA/STA for each character using indexed addressing
 	i := 0
 	for {
 		if i >= len(text) {
 			break
 		}
 		charCode := int(text[i])
-		addr := baseAddr + i
 		lines = append(lines, "LDA #"+toHex(charCode))
-		lines = append(lines, "STA "+toHex(addr))
+		lines = append(lines, "STA "+toHex(baseAddr)+",X")
+		lines = append(lines, "INX")
 		i = i + 1
 	}
 

@@ -2950,9 +2950,9 @@ const basic = {
         break;
       }
       let charCode = int(text.charCodeAt(i));
-      let addr = baseAddr + i;
       lines = append(lines, "LDA #" + this.toHex(charCode));
-      lines = append(lines, "STA " + this.toHex(addr));
+      lines = append(lines, "STA " + this.toHex(baseAddr) + ",X");
+      lines = append(lines, "INX");
       i = i + 1;
     }
     return lines;
