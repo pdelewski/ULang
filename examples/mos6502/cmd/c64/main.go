@@ -116,8 +116,7 @@ func charFromCodeMain(ch int) string {
 	} else if ch == 33 {
 		return "!"
 	} else if ch == 34 {
-		// double quote - skip for now
-		return ""
+		return "\""
 	} else if ch == 35 {
 		return "#"
 	} else if ch == 36 {
@@ -465,6 +464,7 @@ func main() {
 	// Load and run program
 	c = cpu.LoadProgram(c, program, 0x0600)
 	c = cpu.SetPC(c, 0x0600)
+	c = cpu.ClearHalted(c)
 	c = cpu.Run(c, 100000)
 
 	// C64 colors: light blue text on dark blue background
@@ -510,15 +510,74 @@ func main() {
 					if basic.HasLineNumber(line) {
 						lineNum, rest := basic.ExtractLineNumber(line)
 						basicState = basic.StoreLine(basicState, lineNum, rest)
+						// Debug: show that line was stored and what text
+						debugAddr := TextScreenBase + (cursorRow * TextCols)
+						c.Memory[debugAddr] = uint8('S')
+						c.Memory[debugAddr+1] = uint8('=')
+						c.Memory[debugAddr+2] = uint8('0' + basic.GetLineCount(basicState))
+						c.Memory[debugAddr+3] = uint8(' ')
+						// Show first few chars of rest
+						if len(rest) > 0 {
+							c.Memory[debugAddr+4] = uint8(rest[0])
+						}
+						if len(rest) > 1 {
+							c.Memory[debugAddr+5] = uint8(rest[1])
+						}
+						if len(rest) > 2 {
+							c.Memory[debugAddr+6] = uint8(rest[2])
+						}
+						cursorRow = cursorRow + 1
+						if cursorRow >= TextRows {
+							cursorRow = TextRows - 1
+						}
 					} else if basic.IsCommand(line, "RUN") {
 						// Execute stored program
-						basicState = basic.SetCursor(basicState, cursorRow, 0)
-						code := basic.CompileProgram(basicState)
-						c = cpu.LoadProgram(c, code, 0xC000)
-						c = cpu.SetPC(c, 0xC000)
-						c = cpu.Run(c, 100000)
+						lineCount := basic.GetLineCount(basicState)
+						// Debug: show line count on screen
+						debugAddr := TextScreenBase + (cursorRow * TextCols)
+						c.Memory[debugAddr] = uint8('L')
+						c.Memory[debugAddr+1] = uint8('=')
+						c.Memory[debugAddr+2] = uint8('0' + lineCount)
+						// Show first stored line's text
+						if lineCount > 0 {
+							pl := basic.GetLine(basicState, 0)
+							c.Memory[debugAddr+3] = uint8(' ')
+							if len(pl.Text) > 0 {
+								c.Memory[debugAddr+4] = uint8(pl.Text[0])
+							}
+							if len(pl.Text) > 1 {
+								c.Memory[debugAddr+5] = uint8(pl.Text[1])
+							}
+							if len(pl.Text) > 2 {
+								c.Memory[debugAddr+6] = uint8(pl.Text[2])
+							}
+						}
+						cursorRow = cursorRow + 1
+						if cursorRow >= TextRows {
+							cursorRow = TextRows - 1
+						}
+						// Now execute if there are lines
+						if lineCount > 0 {
+							basicState = basic.SetCursor(basicState, cursorRow, 0)
+							code := basic.CompileProgram(basicState)
+							// Debug: show code length
+							codeDebugAddr := TextScreenBase + (cursorRow * TextCols)
+							c.Memory[codeDebugAddr] = uint8('C')
+							c.Memory[codeDebugAddr+1] = uint8('=')
+							codeLen := len(code)
+							c.Memory[codeDebugAddr+2] = uint8('0' + (codeLen / 10))
+							c.Memory[codeDebugAddr+3] = uint8('0' + (codeLen % 10))
+							cursorRow = cursorRow + 1
+							if cursorRow >= TextRows {
+								cursorRow = TextRows - 1
+							}
+							c = cpu.LoadProgram(c, code, 0xC000)
+							c = cpu.SetPC(c, 0xC000)
+							c = cpu.ClearHalted(c)
+							c = cpu.Run(c, 100000)
+						}
 						// Move cursor after program output
-						cursorRow = cursorRow + basic.GetLineCount(basicState)
+						cursorRow = cursorRow + lineCount
 						if cursorRow >= TextRows {
 							cursorRow = TextRows - 1
 						}
@@ -582,6 +641,7 @@ func main() {
 						if len(code) > 1 { // More than just BRK
 							c = cpu.LoadProgram(c, code, 0xC000)
 							c = cpu.SetPC(c, 0xC000)
+							c = cpu.ClearHalted(c)
 							c = cpu.Run(c, 10000)
 						}
 						// For PRINT, move cursor down
