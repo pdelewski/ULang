@@ -432,13 +432,13 @@ func scrollScreenUp(c cpu.CPU) cpu.CPU {
 	}
 	// Clear the last row
 	lastRowAddr := TextScreenBase + ((TextRows - 1) * TextCols)
-	col := 0
+	clearCol := 0
 	for {
-		if col >= TextCols {
+		if clearCol >= TextCols {
 			break
 		}
-		c.Memory[lastRowAddr+col] = 32 // space
-		col = col + 1
+		c.Memory[lastRowAddr+clearCol] = 32 // space
+		clearCol = clearCol + 1
 	}
 	return c
 }
