@@ -1,0 +1,48 @@
+# Simplified ULang/goany Development Environment
+# Uses official Go image which handles architecture automatically
+
+FROM golang:1.24-bookworm
+
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install C++, graphics libs
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    g++ \
+    pkg-config \
+    libgl1-mesa-dev \
+    libx11-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install .NET SDK 9.0 using official install script (works on ARM64 and AMD64)
+RUN wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh \
+    && chmod +x dotnet-install.sh \
+    && ./dotnet-install.sh --channel 9.0 --install-dir /usr/share/dotnet \
+    && rm dotnet-install.sh \
+    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+
+ENV DOTNET_ROOT=/usr/share/dotnet
+ENV PATH="${PATH}:/usr/share/dotnet"
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup component add rustfmt || true
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /ulang
+COPY . .
+
+# Build astyle library (required for CGO)
+RUN cd compiler/astyle && make -f Makefile.cgo clean && make -f Makefile.cgo
+
+# Build goany
+RUN cd cmd && go build -o goany .
+
+ENV PATH="/ulang/cmd:${PATH}"
+CMD ["goany", "--help"]
