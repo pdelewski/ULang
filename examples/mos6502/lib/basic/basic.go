@@ -172,6 +172,65 @@ func CompileProgram(state BasicState) []uint8 {
 
 	asmLines := []string{}
 
+	// Put scroll routine at the beginning (skip over it with JMP)
+	// This ensures JSR SCROLL_UP uses backward references
+	asmLines = append(asmLines, "JMP PROGRAM_START")
+
+	// Scroll routine - scrolls screen up by one line
+	asmLines = append(asmLines, "SCROLL_UP:")
+	// Set up source pointer at $40:$41 = $0428 (row 1)
+	asmLines = append(asmLines, "LDA #$28")
+	asmLines = append(asmLines, "STA $40")
+	asmLines = append(asmLines, "LDA #$04")
+	asmLines = append(asmLines, "STA $41")
+	// Set up dest pointer at $42:$43 = $0400 (row 0)
+	asmLines = append(asmLines, "LDA #$00")
+	asmLines = append(asmLines, "STA $42")
+	asmLines = append(asmLines, "LDA #$04")
+	asmLines = append(asmLines, "STA $43")
+	// Counter for rows (24 rows to copy)
+	asmLines = append(asmLines, "LDA #$18")
+	asmLines = append(asmLines, "STA $44")
+	asmLines = append(asmLines, "SCROLL_ROW:")
+	asmLines = append(asmLines, "LDY #$27")
+	asmLines = append(asmLines, "SCROLL_BYTE:")
+	asmLines = append(asmLines, "LDA ($40),Y")
+	asmLines = append(asmLines, "STA ($42),Y")
+	asmLines = append(asmLines, "DEY")
+	asmLines = append(asmLines, "BPL SCROLL_BYTE")
+	// Advance source pointer by 40
+	asmLines = append(asmLines, "CLC")
+	asmLines = append(asmLines, "LDA $40")
+	asmLines = append(asmLines, "ADC #$28")
+	asmLines = append(asmLines, "STA $40")
+	asmLines = append(asmLines, "LDA $41")
+	asmLines = append(asmLines, "ADC #$00")
+	asmLines = append(asmLines, "STA $41")
+	// Advance dest pointer by 40
+	asmLines = append(asmLines, "CLC")
+	asmLines = append(asmLines, "LDA $42")
+	asmLines = append(asmLines, "ADC #$28")
+	asmLines = append(asmLines, "STA $42")
+	asmLines = append(asmLines, "LDA $43")
+	asmLines = append(asmLines, "ADC #$00")
+	asmLines = append(asmLines, "STA $43")
+	// Decrement row counter
+	asmLines = append(asmLines, "DEC $44")
+	asmLines = append(asmLines, "BNE SCROLL_ROW")
+	// Clear last row (row 24) at $07C0
+	asmLines = append(asmLines, "LDY #$27")
+	asmLines = append(asmLines, "LDA #$20")
+	asmLines = append(asmLines, "CLEAR_LAST:")
+	asmLines = append(asmLines, "STA $07C0,Y")
+	asmLines = append(asmLines, "DEY")
+	asmLines = append(asmLines, "BPL CLEAR_LAST")
+	// Set cursor row to 24
+	asmLines = append(asmLines, "LDA #$18")
+	asmLines = append(asmLines, "STA $30")
+	asmLines = append(asmLines, "RTS")
+
+	asmLines = append(asmLines, "PROGRAM_START:")
+
 	// Initialize X register to 0 for cursor offset
 	asmLines = append(asmLines, "LDX #$00")
 

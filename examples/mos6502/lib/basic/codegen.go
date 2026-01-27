@@ -115,13 +115,12 @@ func genPrint(args string, cursorRow int, cursorCol int, ctx CompileContext) ([]
 	// Increment cursor row in zero page
 	lines = append(lines, "INC $30")
 
-	// Clamp cursor row to max 24 to prevent writing outside screen memory
+	// Check if cursor row >= 25 (need to scroll)
 	lines = append(lines, "LDA $30")
-	lines = append(lines, "CMP #$19")       // Compare with 25
-	lines = append(lines, "BCC print_clamp_ok_"+intToString(ctx.LabelCounter))
-	lines = append(lines, "LDA #$18")       // Set to 24
-	lines = append(lines, "STA $30")
-	lines = append(lines, "print_clamp_ok_"+intToString(ctx.LabelCounter)+":")
+	lines = append(lines, "CMP #$19")
+	lines = append(lines, "BCC print_no_scroll_"+intToString(ctx.LabelCounter))
+	lines = append(lines, "JSR SCROLL_UP")
+	lines = append(lines, "print_no_scroll_"+intToString(ctx.LabelCounter)+":")
 	ctx.LabelCounter = ctx.LabelCounter + 1
 
 	return lines, ctx
@@ -714,13 +713,12 @@ func genPrintVar(varName string, cursorRow int, cursorCol int, ctx CompileContex
 	// Increment cursor row in zero page
 	lines = append(lines, "INC $30")
 
-	// Clamp cursor row to max 24 to prevent writing outside screen memory
+	// Check if cursor row >= 25 (need to scroll)
 	lines = append(lines, "LDA $30")
-	lines = append(lines, "CMP #$19")       // Compare with 25
-	lines = append(lines, "BCC printvar_clamp_ok_"+intToString(ctx.LabelCounter))
-	lines = append(lines, "LDA #$18")       // Set to 24
-	lines = append(lines, "STA $30")
-	lines = append(lines, "printvar_clamp_ok_"+intToString(ctx.LabelCounter)+":")
+	lines = append(lines, "CMP #$19")
+	lines = append(lines, "BCC printvar_no_scroll_"+intToString(ctx.LabelCounter))
+	lines = append(lines, "JSR SCROLL_UP")
+	lines = append(lines, "printvar_no_scroll_"+intToString(ctx.LabelCounter)+":")
 	ctx.LabelCounter = ctx.LabelCounter + 1
 
 	return lines, ctx
