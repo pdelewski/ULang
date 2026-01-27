@@ -411,6 +411,38 @@ func printReady(c cpu.CPU, row int) cpu.CPU {
 	return c
 }
 
+// scrollScreenUp scrolls the screen up by one row and clears the last row
+func scrollScreenUp(c cpu.CPU) cpu.CPU {
+	row := 0
+	for {
+		if row >= TextRows-1 {
+			break
+		}
+		srcAddr := TextScreenBase + ((row + 1) * TextCols)
+		dstAddr := TextScreenBase + (row * TextCols)
+		col := 0
+		for {
+			if col >= TextCols {
+				break
+			}
+			c.Memory[dstAddr+col] = c.Memory[srcAddr+col]
+			col = col + 1
+		}
+		row = row + 1
+	}
+	// Clear the last row
+	lastRowAddr := TextScreenBase + ((TextRows - 1) * TextCols)
+	clearCol := 0
+	for {
+		if clearCol >= TextCols {
+			break
+		}
+		c.Memory[lastRowAddr+clearCol] = 32 // space
+		clearCol = clearCol + 1
+	}
+	return c
+}
+
 // createC64WelcomeScreen creates the classic C64 boot screen
 func createC64WelcomeScreen() []uint8 {
 	lines := []string{}
@@ -501,7 +533,12 @@ func main() {
 				cursorCol = 0
 				cursorRow = cursorRow + 1
 				if cursorRow >= TextRows {
+					c = scrollScreenUp(c)
 					cursorRow = TextRows - 1
+					// Adjust inputStartRow if it was scrolled
+					if inputStartRow > 0 {
+						inputStartRow = inputStartRow - 1
+					}
 				}
 
 				// Process the line if not empty
@@ -520,17 +557,22 @@ func main() {
 							c = cpu.LoadProgram(c, code, 0xC000)
 							c = cpu.SetPC(c, 0xC000)
 							c = cpu.ClearHalted(c)
-							c = cpu.Run(c, 100000)
+							c = cpu.Run(c, 1000000)
 							// Read cursor row from zero page (set by PRINT statements)
 							cursorRow = int(c.Memory[basic.GetCursorRowAddr()])
-							if cursorRow >= TextRows {
-								cursorRow = TextRows - 1
+							for {
+								if cursorRow < TextRows {
+									break
+								}
+								c = scrollScreenUp(c)
+								cursorRow = cursorRow - 1
 							}
 						}
 						// Print READY.
 						c = printReady(c, cursorRow)
 						cursorRow = cursorRow + 1
 						if cursorRow >= TextRows {
+							c = scrollScreenUp(c)
 							cursorRow = TextRows - 1
 						}
 					} else if basic.IsCommand(line, "LIST") {
@@ -565,10 +607,15 @@ func main() {
 							i = i + 1
 						}
 						cursorRow = listRow
+						if cursorRow >= TextRows {
+							c = scrollScreenUp(c)
+							cursorRow = TextRows - 1
+						}
 						// Print READY.
 						c = printReady(c, cursorRow)
 						cursorRow = cursorRow + 1
 						if cursorRow >= TextRows {
+							c = scrollScreenUp(c)
 							cursorRow = TextRows - 1
 						}
 					} else if basic.IsCommand(line, "NEW") {
@@ -578,6 +625,7 @@ func main() {
 						c = printReady(c, cursorRow)
 						cursorRow = cursorRow + 1
 						if cursorRow >= TextRows {
+							c = scrollScreenUp(c)
 							cursorRow = TextRows - 1
 						}
 					} else if basic.IsCommand(line, "CLR") {
@@ -608,6 +656,7 @@ func main() {
 						if basic.IsCommand(line, "PRINT") {
 							cursorRow = cursorRow + 1
 							if cursorRow >= TextRows {
+								c = scrollScreenUp(c)
 								cursorRow = TextRows - 1
 							}
 						}
@@ -615,6 +664,7 @@ func main() {
 						c = printReady(c, cursorRow)
 						cursorRow = cursorRow + 1
 						if cursorRow >= TextRows {
+							c = scrollScreenUp(c)
 							cursorRow = TextRows - 1
 						}
 					}
@@ -643,6 +693,7 @@ func main() {
 					cursorCol = 0
 					cursorRow = cursorRow + 1
 					if cursorRow >= TextRows {
+						c = scrollScreenUp(c)
 						cursorRow = TextRows - 1
 					}
 				}

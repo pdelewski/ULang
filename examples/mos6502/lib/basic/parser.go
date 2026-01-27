@@ -1035,6 +1035,7 @@ type ForLoopInfo struct {
 	StartVal  int
 	EndVal    int
 	LoopAddr  int // Address of loop start for NEXT to jump back to
+	LabelNum  int // Label counter value at FOR creation time
 }
 
 // ParseFor parses a FOR statement: FOR var = start TO end

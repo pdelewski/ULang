@@ -115,6 +115,15 @@ func genPrint(args string, cursorRow int, cursorCol int, ctx CompileContext) ([]
 	// Increment cursor row in zero page
 	lines = append(lines, "INC $30")
 
+	// Check if cursor row >= 25 (need to scroll)
+	scrollLabelNum := intToString(ctx.LabelCounter)
+	lines = append(lines, "LDA $30")
+	lines = append(lines, "CMP #$19")
+	lines = append(lines, "BCC PSCR"+scrollLabelNum)
+	lines = append(lines, "JSR SCROLL_UP")
+	lines = append(lines, "PSCR"+scrollLabelNum+":")
+	ctx.LabelCounter = ctx.LabelCounter + 1
+
 	return lines, ctx
 }
 
@@ -569,20 +578,22 @@ func genFor(varName string, startVal int, endVal int, ctx CompileContext) ([]str
 	}
 
 	// Generate loop start label (build the full label with colon directly)
+	labelNum := ctx.LabelCounter
 	loopLabelWithColon := "FOR_"
 	loopLabelWithColon = loopLabelWithColon + varName
 	loopLabelWithColon = loopLabelWithColon + "_"
-	loopLabelWithColon = loopLabelWithColon + intToString(ctx.LabelCounter)
+	loopLabelWithColon = loopLabelWithColon + intToString(labelNum)
 	loopLabelWithColon = loopLabelWithColon + ":"
 	ctx.LabelCounter = ctx.LabelCounter + 1
 	lines = append(lines, loopLabelWithColon)
 
-	// Push loop info onto stack
+	// Push loop info onto stack with the label number
 	info := ForLoopInfo{
 		VarName:  varName,
 		StartVal: startVal,
 		EndVal:   endVal,
 		LoopAddr: 0, // Will be set during assembly
+		LabelNum: labelNum,
 	}
 	ctx.ForLoopStack = append(ctx.ForLoopStack, info)
 
@@ -624,12 +635,26 @@ func genNext(varName string, ctx CompileContext) ([]string, CompileContext) {
 		endPlusOne := (info.EndVal + 1) & 0xFF
 		lines = append(lines, "CMP #"+toHex(endPlusOne))
 
-		// If less than end+1, loop back (build label using +=)
-		branchInstr := "BCC FOR_"
-		branchInstr = branchInstr + varName
-		branchInstr = branchInstr + "_"
-		branchInstr = branchInstr + intToString(ctx.LabelCounter-1)
-		lines = append(lines, branchInstr)
+		// If >= end+1, exit loop; otherwise jump back
+		// Use BCS/JMP pattern because JMP has no distance limit
+		// (BCC can only branch -128 to +127 bytes)
+		labelNumStr := intToString(info.LabelNum)
+		bcsInstr := "BCS FOREXIT_"
+		bcsInstr = bcsInstr + varName
+		bcsInstr = bcsInstr + "_"
+		bcsInstr = bcsInstr + labelNumStr
+		lines = append(lines, bcsInstr)
+		jmpInstr := "JMP FOR_"
+		jmpInstr = jmpInstr + varName
+		jmpInstr = jmpInstr + "_"
+		jmpInstr = jmpInstr + labelNumStr
+		lines = append(lines, jmpInstr)
+		exitLabelLine := "FOREXIT_"
+		exitLabelLine = exitLabelLine + varName
+		exitLabelLine = exitLabelLine + "_"
+		exitLabelLine = exitLabelLine + labelNumStr
+		exitLabelLine = exitLabelLine + ":"
+		lines = append(lines, exitLabelLine)
 	}
 
 	// Pop from stack (rebuild without last element to avoid slice syntax issues)
@@ -703,5 +728,91 @@ func genPrintVar(varName string, cursorRow int, cursorCol int, ctx CompileContex
 	// Increment cursor row in zero page
 	lines = append(lines, "INC $30")
 
+	// Check if cursor row >= 25 (need to scroll)
+	scrollLabelNum := intToString(ctx.LabelCounter)
+	lines = append(lines, "LDA $30")
+	lines = append(lines, "CMP #$19")
+	lines = append(lines, "BCC VSCR"+scrollLabelNum)
+	lines = append(lines, "JSR SCROLL_UP")
+	lines = append(lines, "VSCR"+scrollLabelNum+":")
+	ctx.LabelCounter = ctx.LabelCounter + 1
+
 	return lines, ctx
+}
+
+// GenScrollRoutine generates the scroll subroutine that scrolls the screen up by one line
+// Uses zero page locations $40-$44 as temporary storage
+// This should be placed at the end of the compiled code before BRK
+func GenScrollRoutine() []string {
+	lines := []string{}
+
+	lines = append(lines, "JMP AFTER_SCROLL") // Skip over subroutine during normal execution
+
+	lines = append(lines, "SCROLL_UP:")
+
+	// Set up source pointer at $40:$41 = $0428 (row 1)
+	lines = append(lines, "LDA #$28")
+	lines = append(lines, "STA $40")
+	lines = append(lines, "LDA #$04")
+	lines = append(lines, "STA $41")
+
+	// Set up dest pointer at $42:$43 = $0400 (row 0)
+	lines = append(lines, "LDA #$00")
+	lines = append(lines, "STA $42")
+	lines = append(lines, "LDA #$04")
+	lines = append(lines, "STA $43")
+
+	// Counter for rows (24 rows to copy)
+	lines = append(lines, "LDA #$18") // 24 decimal
+	lines = append(lines, "STA $44")
+
+	lines = append(lines, "SCROLL_ROW:")
+	// Copy 40 bytes from source to dest
+	lines = append(lines, "LDY #$27") // 39 decimal
+	lines = append(lines, "SCROLL_BYTE:")
+	lines = append(lines, "LDA ($40),Y")
+	lines = append(lines, "STA ($42),Y")
+	lines = append(lines, "DEY")
+	lines = append(lines, "BPL SCROLL_BYTE")
+
+	// Advance source pointer by 40
+	lines = append(lines, "CLC")
+	lines = append(lines, "LDA $40")
+	lines = append(lines, "ADC #$28") // 40 decimal
+	lines = append(lines, "STA $40")
+	lines = append(lines, "LDA $41")
+	lines = append(lines, "ADC #$00")
+	lines = append(lines, "STA $41")
+
+	// Advance dest pointer by 40
+	lines = append(lines, "CLC")
+	lines = append(lines, "LDA $42")
+	lines = append(lines, "ADC #$28") // 40 decimal
+	lines = append(lines, "STA $42")
+	lines = append(lines, "LDA $43")
+	lines = append(lines, "ADC #$00")
+	lines = append(lines, "STA $43")
+
+	// Decrement row counter
+	lines = append(lines, "DEC $44")
+	lines = append(lines, "BNE SCROLL_ROW")
+
+	// Clear last row (row 24)
+	// Address = $0400 + 24*40 = $0400 + 960 = $07C0
+	lines = append(lines, "LDY #$27") // 39 decimal
+	lines = append(lines, "LDA #$20") // Space character
+	lines = append(lines, "CLEAR_LAST:")
+	lines = append(lines, "STA $07C0,Y")
+	lines = append(lines, "DEY")
+	lines = append(lines, "BPL CLEAR_LAST")
+
+	// Set cursor row to 24
+	lines = append(lines, "LDA #$18") // 24 decimal
+	lines = append(lines, "STA $30")
+
+	lines = append(lines, "RTS")
+
+	lines = append(lines, "AFTER_SCROLL:")
+
+	return lines
 }

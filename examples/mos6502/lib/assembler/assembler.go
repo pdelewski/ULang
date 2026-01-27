@@ -670,6 +670,9 @@ func Assemble(instructions []Instruction) []uint8 {
 				code = append(code, uint8(cpu.OpLDAAbsY))
 				code = append(code, uint8(instr.Operand&0xFF))
 				code = append(code, uint8((instr.Operand>>8)&0xFF))
+			} else if instr.Mode == ModeIndirectY {
+				code = append(code, uint8(cpu.OpLDAIndY))
+				code = append(code, uint8(instr.Operand))
 			}
 		} else if IsOpcode(opcodeBytes, "LDX") {
 			if instr.Mode == ModeImmediate {
