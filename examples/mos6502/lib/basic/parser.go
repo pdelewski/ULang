@@ -635,6 +635,7 @@ const (
 	ExprNumber   = 1
 	ExprVariable = 2
 	ExprBinaryOp = 3
+	ExprPeek     = 4
 )
 
 // Expression represents a parsed expression
@@ -651,6 +652,7 @@ type Expression struct {
 	RightType  int    // Type of right operand
 	RightValue int    // Value if right is number
 	RightVar   string // Variable name if right is variable
+	PeekAddr   int    // For ExprPeek: memory address to read
 }
 
 // parseSimpleValue parses a number or variable (no operators)
@@ -667,10 +669,86 @@ func parseSimpleValue(args string) (int, int, string) {
 	return ExprNumber, 0, ""
 }
 
+// parsePeekAddr parses PEEK(addr) and returns the address, or -1 if not a PEEK
+func parsePeekAddr(args string) int {
+	args = trimSpacesStr(args)
+	// Check if starts with PEEK (case insensitive)
+	// Need minimum 5 chars for "PEEK("
+	argsLen := len(args)
+	if argsLen < 5 {
+		return -1
+	}
+	// Check for PEEK
+	peekStr := ""
+	i := 0
+	for {
+		if i >= 4 {
+			break
+		}
+		ch := int(args[i])
+		if ch >= int('a') && ch <= int('z') {
+			ch = ch - 32
+		}
+		peekStr = peekStr + charToString(ch)
+		i = i + 1
+	}
+	if peekStr != "PEEK" {
+		return -1
+	}
+	// Skip whitespace after PEEK
+	for {
+		if i >= len(args) {
+			break
+		}
+		if args[i] != ' ' && args[i] != '\t' {
+			break
+		}
+		i = i + 1
+	}
+	// Expect (
+	if i >= len(args) || args[i] != '(' {
+		return -1
+	}
+	i = i + 1
+	// Skip whitespace
+	for {
+		if i >= len(args) {
+			break
+		}
+		if args[i] != ' ' && args[i] != '\t' {
+			break
+		}
+		i = i + 1
+	}
+	// Parse address number
+	addrStr := ""
+	for {
+		if i >= len(args) {
+			break
+		}
+		ch := args[i]
+		if ch == ')' || ch == ' ' || ch == '\t' {
+			break
+		}
+		addrStr = addrStr + charToString(int(ch))
+		i = i + 1
+	}
+	return parseNumber(addrStr)
+}
+
 // ParseExpression parses a simple expression (number, variable, or binary op)
 // Note: For goany compatibility, only supports simple binary expressions (no nesting)
 func ParseExpression(args string) Expression {
 	args = trimSpacesStr(args)
+
+	// Check for PEEK(addr)
+	peekAddr := parsePeekAddr(args)
+	if peekAddr >= 0 {
+		return Expression{
+			Type:     ExprPeek,
+			PeekAddr: peekAddr,
+		}
+	}
 
 	// Try to find a binary operator (scan from right for left-associativity)
 	// Handle + and - first (lower precedence)

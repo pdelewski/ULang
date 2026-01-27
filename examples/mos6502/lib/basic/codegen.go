@@ -299,6 +299,9 @@ func genExpression(expr Expression) []string {
 		if addr >= 0 {
 			lines = append(lines, "LDA "+toHex(addr))
 		}
+	} else if expr.Type == ExprPeek {
+		// PEEK - load from memory address
+		lines = append(lines, "LDA "+toHex(expr.PeekAddr))
 	} else if expr.Type == ExprBinaryOp {
 		// For binary operations with flat structure:
 		// 1. Load right operand, push to stack
