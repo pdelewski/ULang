@@ -44,14 +44,118 @@ This design allows you to develop and test your code using Go's excellent toolin
 
 ## Building
 
-To build the compiler:
+### Prerequisites
+
+| Requirement | Purpose | Installation |
+|-------------|---------|--------------|
+| **Go 1.24+** | Compiler core | [go.dev/dl](https://go.dev/dl/) |
+| **g++** | astyle library (CGO) | See platform instructions below |
+| **.NET 9 SDK** | C# backend tests | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0) (optional) |
+| **Rust** | Rust backend tests | [rustup.rs](https://rustup.rs/) (optional) |
+| **Node.js** | JavaScript backend tests | [nodejs.org](https://nodejs.org/) (optional) |
+| **SDL2** | Graphics with `-graphics-runtime=sdl2` | See below (optional) |
+
+### Linux / macOS
 
 ```bash
 cd cmd
 make
 ```
 
+This builds the astyle library and goany in one step.
+
+On macOS, install Xcode command line tools if needed:
+```bash
+xcode-select --install
+```
+
+On Linux (Debian/Ubuntu):
+```bash
+sudo apt install build-essential
+```
+
+For SDL2 graphics (optional):
+```bash
+# macOS
+brew install sdl2
+
+# Linux (Debian/Ubuntu)
+sudo apt install libsdl2-dev
+```
+
+### Windows
+
+**Step 1: Install MinGW-w64**
+
+Download from [github.com/niXman/mingw-builds-binaries/releases](https://github.com/niXman/mingw-builds-binaries/releases)
+
+Recommended: `x86_64-*-release-posix-seh-ucrt-*.7z`
+
+Extract to `C:\mingw64` and add `C:\mingw64\bin` to your PATH.
+
+Verify:
+```cmd
+g++ --version
+```
+
+For SDL2 graphics (optional), download development libraries from [libsdl.org](https://github.com/libsdl-org/SDL/releases) and add to your include/lib paths.
+
+**Step 2: Build**
+
+Use the build script:
+```cmd
+build.bat
+```
+
+Or manually:
+```cmd
+cd compiler\astyle
+g++ -c -Wall -O2 -DASTYLE_LIB -std=c++17 ASBeautifier.cpp -o ASBeautifier.o
+g++ -c -Wall -O2 -DASTYLE_LIB -std=c++17 ASEnhancer.cpp -o ASEnhancer.o
+g++ -c -Wall -O2 -DASTYLE_LIB -std=c++17 ASFormatter.cpp -o ASFormatter.o
+g++ -c -Wall -O2 -DASTYLE_LIB -std=c++17 ASResource.cpp -o ASResource.o
+g++ -c -Wall -O2 -DASTYLE_LIB -std=c++17 astyle_main.cpp -o astyle_main.o
+ar rcs libastyle.a ASBeautifier.o ASEnhancer.o ASFormatter.o ASResource.o astyle_main.o
+cd ..\..
+
+cd cmd
+set CGO_ENABLED=1
+set CC=gcc
+set CXX=g++
+go build -o goany.exe .
+```
+
+### Docker
+
+Build and run in a container with all dependencies:
+
+```bash
+# Build the image
+docker build -t goany .
+
+# Run tests
+docker run --rm goany bash -c "cd cmd && go test -v ./..."
+
+# Interactive shell
+docker run --rm -it goany bash
+
+# Transpile a project (mount local directory)
+docker run --rm -v $(pwd)/myproject:/work goany goany -source=/work -output=output
+```
+
+A simpler Dockerfile is also available:
+```bash
+docker build -f Dockerfile.simple -t goany .
+```
+
 ### Make Targets
+
+For development, you can also use the Makefile in `cmd/`:
+
+```bash
+cd cmd
+make
+```
 
 | Target | Description |
 |--------|-------------|
