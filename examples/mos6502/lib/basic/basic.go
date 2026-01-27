@@ -133,7 +133,30 @@ func ClearProgram(state BasicState) BasicState {
 func CompileImmediate(state BasicState, line string) []uint8 {
 	ctx := NewCompileContext()
 	asmLines := []string{}
-	asmLines, ctx = compileLine(line, state.CursorRow, state.CursorCol, ctx)
+
+	// Initialize cursor row in zero page (used by PRINT for runtime address calculation)
+	asmLines = append(asmLines, "LDA #$"+toHex2(state.CursorRow))
+	asmLines = append(asmLines, "STA $30")
+
+	// Initialize temporary zero-page locations used by PRINT
+	asmLines = append(asmLines, "LDA #$00")
+	asmLines = append(asmLines, "STA $35")
+	asmLines = append(asmLines, "STA $36")
+	asmLines = append(asmLines, "STA $37")
+	asmLines = append(asmLines, "STA $38")
+	asmLines = append(asmLines, "CLC")
+
+	lineAsm := []string{}
+	lineAsm, ctx = compileLine(line, state.CursorRow, state.CursorCol, ctx)
+	// Append all generated lines
+	j := 0
+	for {
+		if j >= len(lineAsm) {
+			break
+		}
+		asmLines = append(asmLines, lineAsm[j])
+		j = j + 1
+	}
 	// Use ctx.LabelCounter to avoid unused variable warning (goany compatible)
 	if ctx.LabelCounter < 0 {
 		ctx.LabelCounter = 0

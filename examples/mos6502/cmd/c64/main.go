@@ -596,8 +596,20 @@ func main() {
 						cursorRow = cursorRow + 1
 					} else {
 						// Immediate execution (PRINT, POKE, etc.)
+						// Debug: write '#' at row 0, col 38 to verify this branch is reached
+						c.Memory[0x0426] = 35 // '#' at row 0, col 38
+
+						// Debug: write first char of line at col 36
+						if len(line) > 0 {
+							c.Memory[0x0424] = uint8(line[0])
+						}
+
 						basicState = basic.SetCursor(basicState, cursorRow, 0)
 						code := basic.CompileImmediate(basicState, line)
+
+						// Debug: write code length indicator at row 0, col 37
+						c.Memory[0x0425] = uint8(48 + (len(code) % 10)) // digit showing code length mod 10
+
 						if len(code) > 1 { // More than just BRK
 							c = cpu.LoadProgram(c, code, 0xC000)
 							c = cpu.SetPC(c, 0xC000)
