@@ -557,7 +557,7 @@ func main() {
 							c = cpu.LoadProgram(c, code, 0xC000)
 							c = cpu.SetPC(c, 0xC000)
 							c = cpu.ClearHalted(c)
-							c = cpu.Run(c, 100000)
+							c = cpu.Run(c, 1000000)
 							// Read cursor row from zero page (set by PRINT statements)
 							cursorRow = int(c.Memory[basic.GetCursorRowAddr()])
 							for {
