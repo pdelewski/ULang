@@ -159,6 +159,39 @@ func main() {
 `,
 		ExpectedError: "multiple closures capture same variable",
 	},
+	{
+		Name: "variable_shadowing_in_nested_block",
+		Code: `package main
+
+func main() {
+	col := 0
+	for {
+		if col >= 10 {
+			break
+		}
+		col := 1
+		_ = col
+	}
+	_ = col
+}
+`,
+		ExpectedError: "variable shadowing is not supported",
+	},
+	{
+		Name: "variable_shadowing_in_if_block",
+		Code: `package main
+
+func main() {
+	x := 5
+	if true {
+		x := 10
+		_ = x
+	}
+	_ = x
+}
+`,
+		ExpectedError: "variable shadowing is not supported",
+	},
 }
 
 // SemaValidTestCase represents code that SHOULD compile successfully
@@ -258,6 +291,40 @@ func main() {
 	x := "hello"
 	fn := func() string { return x }
 	_ = fn
+}
+`,
+	},
+	{
+		Name: "variable_reassignment_ok",
+		Code: `package main
+
+func main() {
+	col := 0
+	for {
+		if col >= 10 {
+			break
+		}
+		col = col + 1
+	}
+	_ = col
+}
+`,
+	},
+	{
+		Name: "different_var_names_in_nested_scope_ok",
+		Code: `package main
+
+func main() {
+	col := 0
+	for {
+		if col >= 10 {
+			break
+		}
+		innerCol := 1
+		_ = innerCol
+		col = col + 1
+	}
+	_ = col
 }
 `,
 	},
