@@ -220,5 +220,60 @@ func sliceSelfAssignError() {
 	items = append(items, items[0]) // error: items borrowed and mutated simultaneously
 }
 
+// ============================================
+// C#-SPECIFIC PATTERNS
+// ============================================
+
+// ERROR: Variable shadowing (C# does not allow shadowing within same function)
+// In C#, you cannot declare a variable with the same name in a nested scope
+// if a variable with that name exists in an outer scope of the same function.
+func variableShadowingError() {
+	col := 0 // outer scope variable
+	for {
+		if col >= 10 {
+			break
+		}
+		col := 1 // error: shadows outer 'col' - C# doesn't allow this
+		_ = col
+	}
+	_ = col
+}
+
+// ERROR: Variable shadowing in if block
+func variableShadowingIfError() {
+	x := 5 // outer scope
+	if true {
+		x := 10 // error: shadows outer 'x'
+		_ = x
+	}
+	_ = x
+}
+
+// CORRECT: Use different variable names
+func variableShadowingFixed() {
+	col := 0
+	for {
+		if col >= 10 {
+			break
+		}
+		innerCol := 1 // different name - OK
+		_ = innerCol
+		col = col + 1
+	}
+	_ = col
+}
+
+// CORRECT: Reassignment (not redeclaration) is allowed
+func variableReassignmentOk() {
+	col := 0
+	for {
+		if col >= 10 {
+			break
+		}
+		col = col + 1 // reassignment with = is OK
+	}
+	_ = col
+}
+
 func main() {
 }

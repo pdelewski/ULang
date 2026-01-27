@@ -40,6 +40,7 @@ import (
 // - Slice self-assignment (Rust borrow checker)
 // - Multiple closures capturing same variable (Rust borrow checker)
 // - Struct field initialization order (C++ designated initializers)
+// - Variable shadowing (C# does not allow shadowing within same function)
 //
 // ============================================
 // SECTION 3: Supported with Limitations
@@ -61,6 +62,9 @@ type SemaChecker struct {
 	// Track current function's parameters for mutation+return detection
 	currentFuncParams map[string]bool
 	mutatedParams     map[string]bool
+	// Track variable declarations per scope for shadowing detection
+	// Each map in the slice represents a scope level (index 0 = outermost)
+	scopeStack []map[string]token.Pos
 }
 
 func (sema *SemaChecker) PreVisitPackage(pkg *packages.Package, indent int) {
@@ -183,6 +187,18 @@ func (sema *SemaChecker) PreVisitFuncDecl(node *ast.FuncDecl, indent int) {
 	// Track current function's parameters for mutation+return detection
 	sema.currentFuncParams = make(map[string]bool)
 	sema.mutatedParams = make(map[string]bool)
+	// Initialize scope stack for variable shadowing detection
+	sema.scopeStack = []map[string]token.Pos{}
+	// Push initial function scope and add parameters
+	funcScope := make(map[string]token.Pos)
+	if node.Type != nil && node.Type.Params != nil {
+		for _, field := range node.Type.Params.List {
+			for _, name := range field.Names {
+				funcScope[name.Name] = name.Pos()
+			}
+		}
+	}
+	sema.scopeStack = append(sema.scopeStack, funcScope)
 
 	// Collect parameter names for mutation tracking
 	if node.Type != nil && node.Type.Params != nil {
@@ -313,7 +329,46 @@ func (sema *SemaChecker) PostVisitGenDeclConstName(node *ast.Ident, indent int) 
 	sema.constCtx = false
 }
 
+// PostVisitFuncDecl clears the scope stack after function processing
+func (sema *SemaChecker) PostVisitFuncDecl(node *ast.FuncDecl, indent int) {
+	sema.scopeStack = nil
+}
+
+// PreVisitBlockStmt pushes a new scope for variable shadowing detection
+func (sema *SemaChecker) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	if sema.scopeStack != nil {
+		sema.scopeStack = append(sema.scopeStack, make(map[string]token.Pos))
+	}
+}
+
+// PostVisitBlockStmt pops the current scope
+func (sema *SemaChecker) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
+	if sema.scopeStack != nil && len(sema.scopeStack) > 0 {
+		sema.scopeStack = sema.scopeStack[:len(sema.scopeStack)-1]
+	}
+}
+
+// PreVisitForStmt pushes a scope for the for loop (to contain the init variable)
+// In Go, `for i := 0; ...` creates an implicit scope containing both Init and Body
+func (sema *SemaChecker) PreVisitForStmt(node *ast.ForStmt, indent int) {
+	if sema.scopeStack != nil {
+		sema.scopeStack = append(sema.scopeStack, make(map[string]token.Pos))
+	}
+}
+
+// PostVisitForStmt pops the for loop scope
+func (sema *SemaChecker) PostVisitForStmt(node *ast.ForStmt, indent int) {
+	if sema.scopeStack != nil && len(sema.scopeStack) > 0 {
+		sema.scopeStack = sema.scopeStack[:len(sema.scopeStack)-1]
+	}
+}
+
 func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
+	// Push scope for range loop variables (like for i, v := range ...)
+	if sema.scopeStack != nil {
+		sema.scopeStack = append(sema.scopeStack, make(map[string]token.Pos))
+	}
+
 	// Handle for _, v := range (value-only): set Key to nil so emitters work correctly
 	// for i, v := range (key-value) is now allowed and handled by emitters
 	// for i := range (index-only) is allowed (Value is nil)
@@ -343,12 +398,16 @@ func (sema *SemaChecker) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	}
 }
 
-// PostVisitRangeStmt clears the range target after the loop
+// PostVisitRangeStmt clears the range target after the loop and pops scope
 func (sema *SemaChecker) PostVisitRangeStmt(node *ast.RangeStmt, indent int) {
 	if ident, ok := node.X.(*ast.Ident); ok {
 		if sema.rangeTargets != nil {
 			delete(sema.rangeTargets, ident.Name)
 		}
+	}
+	// Pop scope for range loop variables
+	if sema.scopeStack != nil && len(sema.scopeStack) > 0 {
+		sema.scopeStack = sema.scopeStack[:len(sema.scopeStack)-1]
 	}
 }
 
@@ -441,7 +500,11 @@ func (sema *SemaChecker) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 // PreVisitAssignStmt checks for problematic patterns like: x += x + a
 // where x is both borrowed (for +=) and moved (in x + a) in the same statement
 // Also checks for slice self-assignment: slice[i] = slice[j]
+// Also checks for variable shadowing (C# compatibility)
 func (sema *SemaChecker) PreVisitAssignStmt(node *ast.AssignStmt, indent int) {
+	// Check for variable shadowing (C# does not allow shadowing within the same function)
+	sema.checkVariableShadowing(node)
+
 	// Note: Closure capture mutation check (checkClosureCaptureMutation) was too aggressive.
 	// The Rust emitter uses .clone() automatically for struct values, so mutation after
 	// capture is safe in practice. Disabled to avoid false positives.
@@ -517,6 +580,61 @@ func (sema *SemaChecker) PostVisitAssignStmt(node *ast.AssignStmt, indent int) {
 		if ident, ok := lhs.(*ast.Ident); ok {
 			delete(sema.consumedStringVars, ident.Name)
 		}
+	}
+}
+
+// checkVariableShadowing detects when a new variable declaration shadows an outer scope variable
+// C# does not allow variable shadowing within the same function/method
+func (sema *SemaChecker) checkVariableShadowing(node *ast.AssignStmt) {
+	// Only check short variable declarations (:=)
+	if node.Tok != token.DEFINE {
+		return
+	}
+
+	if sema.scopeStack == nil || len(sema.scopeStack) == 0 {
+		return
+	}
+
+	// Get the current scope (last element in the stack)
+	currentScopeIdx := len(sema.scopeStack) - 1
+
+	// Check each variable being declared
+	for _, lhs := range node.Lhs {
+		ident, ok := lhs.(*ast.Ident)
+		if !ok {
+			continue
+		}
+
+		// Skip blank identifier
+		if ident.Name == "_" {
+			continue
+		}
+
+		// Check if this variable exists in any outer scope (but not current scope)
+		for i := 0; i < currentScopeIdx; i++ {
+			if prevPos, exists := sema.scopeStack[i][ident.Name]; exists {
+				fmt.Println("\033[31m\033[1mCompilation error: variable shadowing is not supported\033[0m")
+				fmt.Printf("  Variable '%s' shadows a variable from an outer scope.\n", ident.Name)
+				fmt.Println("  C# does not allow variable shadowing within the same function.")
+				fmt.Println()
+				fmt.Println("  \033[33mInstead of:\033[0m")
+				fmt.Printf("    %s := ...  // outer scope\n", ident.Name)
+				fmt.Println("    {")
+				fmt.Printf("        %s := ...  // shadows outer %s\n", ident.Name, ident.Name)
+				fmt.Println("    }")
+				fmt.Println()
+				fmt.Println("  \033[32mUse a different variable name:\033[0m")
+				fmt.Printf("    %s := ...  // outer scope\n", ident.Name)
+				fmt.Println("    {")
+				fmt.Printf("        %s2 := ...  // or another descriptive name\n", ident.Name)
+				fmt.Println("    }")
+				_ = prevPos // suppress unused variable warning
+				os.Exit(-1)
+			}
+		}
+
+		// Add this variable to the current scope
+		sema.scopeStack[currentScopeIdx][ident.Name] = ident.Pos()
 	}
 }
 
