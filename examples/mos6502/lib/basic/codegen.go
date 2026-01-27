@@ -116,11 +116,12 @@ func genPrint(args string, cursorRow int, cursorCol int, ctx CompileContext) ([]
 	lines = append(lines, "INC $30")
 
 	// Check if cursor row >= 25 (need to scroll)
+	scrollLabelNum := intToString(ctx.LabelCounter)
 	lines = append(lines, "LDA $30")
 	lines = append(lines, "CMP #$19")
-	lines = append(lines, "BCC print_no_scroll_"+intToString(ctx.LabelCounter))
+	lines = append(lines, "BCC PSCR"+scrollLabelNum)
 	lines = append(lines, "JSR SCROLL_UP")
-	lines = append(lines, "print_no_scroll_"+intToString(ctx.LabelCounter)+":")
+	lines = append(lines, "PSCR"+scrollLabelNum+":")
 	ctx.LabelCounter = ctx.LabelCounter + 1
 
 	return lines, ctx
@@ -634,12 +635,26 @@ func genNext(varName string, ctx CompileContext) ([]string, CompileContext) {
 		endPlusOne := (info.EndVal + 1) & 0xFF
 		lines = append(lines, "CMP #"+toHex(endPlusOne))
 
-		// If less than end+1, loop back (build label using +=)
-		branchInstr := "BCC FOR_"
-		branchInstr = branchInstr + varName
-		branchInstr = branchInstr + "_"
-		branchInstr = branchInstr + intToString(info.LabelNum)
-		lines = append(lines, branchInstr)
+		// If >= end+1, exit loop; otherwise jump back
+		// Use BCS/JMP pattern because JMP has no distance limit
+		// (BCC can only branch -128 to +127 bytes)
+		labelNumStr := intToString(info.LabelNum)
+		bcsInstr := "BCS FOREXIT_"
+		bcsInstr = bcsInstr + varName
+		bcsInstr = bcsInstr + "_"
+		bcsInstr = bcsInstr + labelNumStr
+		lines = append(lines, bcsInstr)
+		jmpInstr := "JMP FOR_"
+		jmpInstr = jmpInstr + varName
+		jmpInstr = jmpInstr + "_"
+		jmpInstr = jmpInstr + labelNumStr
+		lines = append(lines, jmpInstr)
+		exitLabelLine := "FOREXIT_"
+		exitLabelLine = exitLabelLine + varName
+		exitLabelLine = exitLabelLine + "_"
+		exitLabelLine = exitLabelLine + labelNumStr
+		exitLabelLine = exitLabelLine + ":"
+		lines = append(lines, exitLabelLine)
 	}
 
 	// Pop from stack (rebuild without last element to avoid slice syntax issues)
@@ -714,11 +729,12 @@ func genPrintVar(varName string, cursorRow int, cursorCol int, ctx CompileContex
 	lines = append(lines, "INC $30")
 
 	// Check if cursor row >= 25 (need to scroll)
+	scrollLabelNum := intToString(ctx.LabelCounter)
 	lines = append(lines, "LDA $30")
 	lines = append(lines, "CMP #$19")
-	lines = append(lines, "BCC printvar_no_scroll_"+intToString(ctx.LabelCounter))
+	lines = append(lines, "BCC VSCR"+scrollLabelNum)
 	lines = append(lines, "JSR SCROLL_UP")
-	lines = append(lines, "printvar_no_scroll_"+intToString(ctx.LabelCounter)+":")
+	lines = append(lines, "VSCR"+scrollLabelNum+":")
 	ctx.LabelCounter = ctx.LabelCounter + 1
 
 	return lines, ctx
