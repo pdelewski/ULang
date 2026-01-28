@@ -1,72 +1,95 @@
 package main
 
 import (
+	"libs/gui"
 	"runtime/graphics"
-	"runtime/gui"
 )
 
 func main() {
-	w := graphics.CreateWindow("GUI Demo", 640, 480)
+	w := graphics.CreateWindow("ImGui-like Demo", 800, 600)
 	ctx := gui.NewContext()
 
 	// State variables
-	darkMode := false
+	showDemo := true
+	showAnother := false
+	enabled := true
 	volume := 0.5
 	brightness := 75.0
-	clickCount := 0
+	counter := 0
+
+	var clicked bool
 
 	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Update input first
-		gui.UpdateInput(&ctx, w)
+		ctx = gui.UpdateInput(ctx, w)
 
-		// Clear background
-		var bgColor graphics.Color
-		if darkMode {
-			bgColor = graphics.NewColor(20, 20, 30, 255)
-		} else {
-			bgColor = graphics.NewColor(60, 60, 70, 255)
+		// Clear with very dark background (like ImGui demo)
+		graphics.Clear(w, graphics.NewColor(30, 30, 30, 255))
+
+		// Main demo panel
+		gui.Panel(ctx, w, "Demo Window", 20, 20, 350, 400)
+
+		// Content inside panel
+		ctx = gui.BeginLayout(ctx, 30, 70, 6)
+
+		ctx = gui.AutoLabel(ctx, w, "Hello from goany GUI!")
+
+		gui.Separator(ctx, w, 30, ctx.CursorY-2, 330)
+		ctx.CursorY = ctx.CursorY + 4
+
+		// Buttons in a row
+		ctx, clicked = gui.Button(ctx, w, "Click", 30, ctx.CursorY, 80, 26)
+		if clicked {
+			counter = counter + 1
 		}
-		graphics.Clear(w, bgColor)
-
-		// Manual positioning example
-		gui.Label(&ctx, w, "GUI Demo - Manual Layout", 20, 20)
-
-		if gui.Button(&ctx, w, "Click Me", 20, 50, 120, 28) {
-			clickCount = clickCount + 1
-		}
-
-		// Show click count
-		countText := "Clicks: " + intToString(clickCount)
-		gui.Label(&ctx, w, countText, 160, 58)
-
-		darkMode = gui.Checkbox(&ctx, w, "Dark Mode", 20, 100, darkMode)
-
-		volume = gui.Slider(&ctx, w, "Volume", 20, 140, 200, 0.0, 1.0, volume)
-		brightness = gui.Slider(&ctx, w, "Brightness", 20, 200, 200, 0.0, 100.0, brightness)
-
-		// Auto-layout example
-		gui.BeginLayout(&ctx, 300, 50, 8)
-
-		gui.AutoLabel(&ctx, w, "Auto Layout Section")
-
-		if gui.AutoButton(&ctx, w, "Reset", 100, 28) {
+		// Same row button
+		ctx, clicked = gui.Button(ctx, w, "Reset", 120, ctx.CursorY, 80, 26)
+		if clicked {
+			counter = 0
 			volume = 0.5
 			brightness = 75.0
-			clickCount = 0
+		}
+		gui.Label(ctx, w, "Count: "+intToString(counter), 210, ctx.CursorY+4)
+		ctx = gui.NextRow(ctx, 26)
+
+		gui.Separator(ctx, w, 30, ctx.CursorY-2, 330)
+		ctx.CursorY = ctx.CursorY + 4
+
+		// Checkboxes
+		ctx, showDemo = gui.AutoCheckbox(ctx, w, "Show Demo Window", showDemo)
+		ctx, showAnother = gui.AutoCheckbox(ctx, w, "Show Another Window", showAnother)
+		ctx, enabled = gui.AutoCheckbox(ctx, w, "Enable Feature", enabled)
+
+		gui.Separator(ctx, w, 30, ctx.CursorY-2, 330)
+		ctx.CursorY = ctx.CursorY + 4
+
+		// Sliders
+		ctx, volume = gui.AutoSlider(ctx, w, "Volume", 320, 0.0, 1.0, volume)
+		ctx, brightness = gui.AutoSlider(ctx, w, "Bright", 320, 0.0, 100.0, brightness)
+
+		// Second panel if enabled
+		if showAnother {
+			gui.Panel(ctx, w, "Another Window", 400, 20, 350, 200)
+			gui.Label(ctx, w, "This is another panel!", 410, 70)
+			ctx, clicked = gui.Button(ctx, w, "Close", 410, 110, 100, 26)
+			if clicked {
+				showAnother = false
+			}
 		}
 
-		if gui.AutoButton(&ctx, w, "Quit", 100, 28) {
+		// Info panel
+		gui.Panel(ctx, w, "Info", 400, 250, 350, 170)
+		ctx = gui.BeginLayout(ctx, 410, 300, 4)
+		ctx = gui.AutoLabel(ctx, w, "Application Stats:")
+		ctx = gui.AutoLabel(ctx, w, "  Volume: "+floatToString(volume))
+		ctx = gui.AutoLabel(ctx, w, "  Brightness: "+floatToString(brightness))
+		ctx = gui.AutoLabel(ctx, w, "  Clicks: "+intToString(counter))
+
+		// Quit button at bottom
+		ctx, clicked = gui.Button(ctx, w, "Quit", 680, 550, 100, 30)
+		if clicked {
 			return false
 		}
-
-		// Draw some visual feedback
-		graphics.FillRect(w, graphics.NewRect(300, 200, int32(volume*200), 20), graphics.NewColor(100, 200, 100, 255))
-		graphics.DrawRect(w, graphics.NewRect(300, 200, 200, 20), graphics.White())
-		gui.Label(&ctx, w, "Volume Bar", 300, 225)
-
-		graphics.FillRect(w, graphics.NewRect(300, 260, int32(brightness*2), 20), graphics.NewColor(200, 200, 100, 255))
-		graphics.DrawRect(w, graphics.NewRect(300, 260, 200, 20), graphics.White())
-		gui.Label(&ctx, w, "Brightness Bar", 300, 285)
 
 		graphics.Present(w)
 		return true
@@ -75,8 +98,9 @@ func main() {
 	graphics.CloseWindow(w)
 }
 
-// intToString converts an integer to a string (simple implementation)
+// intToString converts an integer to a string
 func intToString(n int) string {
+	digitStrings := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 	if n == 0 {
 		return "0"
 	}
@@ -88,11 +112,27 @@ func intToString(n int) string {
 	result := ""
 	for n > 0 {
 		digit := n % 10
-		result = string(rune('0'+digit)) + result
+		result = digitStrings[digit] + result
 		n = n / 10
 	}
 	if negative {
 		result = "-" + result
 	}
 	return result
+}
+
+// floatToString converts a float to a string with 2 decimal places
+func floatToString(f float64) string {
+	// Integer part
+	intPart := int(f)
+	// Fractional part (2 decimals)
+	fracPart := int((f - float64(intPart)) * 100)
+	if fracPart < 0 {
+		fracPart = -fracPart
+	}
+	fracStr := intToString(fracPart)
+	if fracPart < 10 {
+		fracStr = "0" + fracStr
+	}
+	return intToString(intPart) + "." + fracStr
 }
