@@ -818,7 +818,6 @@ const gui = {
     return [ctx, state, isOpen];
   },
   BeginDropdown: function (ctx, w, state) {
-    let dropX = state.CurrentMenuX - state.CurrentMenuW;
     let dropY = state.MenuBarY + state.MenuBarH;
     return [ctx, dropY];
   },
