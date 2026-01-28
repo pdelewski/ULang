@@ -48,6 +48,22 @@ func NewWindowState(x int32, y int32, width int32, height int32) WindowState {
 	}
 }
 
+// MenuState holds state for menu bar and dropdowns
+type MenuState struct {
+	OpenMenuID   int32 // ID of currently open menu (0 = none)
+	MenuBarX     int32 // Menu bar position for dropdown alignment
+	MenuBarY     int32
+	MenuBarH     int32 // Menu bar height
+	CurrentMenuX int32 // X position of current menu header
+	CurrentMenuW int32 // Width of current menu header
+	ClickedOutside bool // Flag to close menu on outside click
+}
+
+// NewMenuState creates a new menu state
+func NewMenuState() MenuState {
+	return MenuState{}
+}
+
 // GuiStyle defines colors and dimensions for widgets
 type GuiStyle struct {
 	// Colors
@@ -468,6 +484,138 @@ func DraggablePanel(ctx GuiContext, w graphics.Window, title string, state Windo
 // Separator draws a horizontal separator line
 func Separator(ctx GuiContext, w graphics.Window, x int32, y int32, width int32) {
 	graphics.DrawLine(w, x, y, x+width, y, ctx.Style.BorderColor)
+}
+
+// --- Menu System ---
+
+// BeginMenuBar starts a menu bar at the given position
+func BeginMenuBar(ctx GuiContext, w graphics.Window, state MenuState, x int32, y int32, width int32) (GuiContext, MenuState) {
+	height := TextHeight(ctx.Style.FontSize) + ctx.Style.Padding*2
+
+	// Draw menu bar background
+	graphics.FillRect(w, graphics.NewRect(x, y, width, height), ctx.Style.TitleBgColor)
+	// Bottom border
+	graphics.DrawLine(w, x, y+height-1, x+width, y+height-1, ctx.Style.BorderColor)
+
+	// Store menu bar info for dropdown positioning
+	state.MenuBarX = x
+	state.MenuBarY = y
+	state.MenuBarH = height
+	state.CurrentMenuX = x + ctx.Style.Padding
+
+	// Check for click outside any menu to close
+	state.ClickedOutside = ctx.MouseClicked
+
+	return ctx, state
+}
+
+// EndMenuBar finishes the menu bar and handles click-outside-to-close
+func EndMenuBar(ctx GuiContext, state MenuState) (GuiContext, MenuState) {
+	// If clicked outside and no menu item was hit, close menu
+	if state.ClickedOutside && state.OpenMenuID != 0 {
+		state.OpenMenuID = 0
+	}
+	return ctx, state
+}
+
+// Menu draws a menu header and returns true if the dropdown should be shown
+func Menu(ctx GuiContext, w graphics.Window, state MenuState, label string) (GuiContext, MenuState, bool) {
+	id := GenID(label)
+	padding := ctx.Style.Padding
+	textW := TextWidth(label, ctx.Style.FontSize)
+	textH := TextHeight(ctx.Style.FontSize)
+	menuW := textW + padding*2
+	menuH := state.MenuBarH
+
+	x := state.CurrentMenuX
+	y := state.MenuBarY
+
+	// Hit test
+	hovered := pointInRect(ctx.MouseX, ctx.MouseY, x, y, menuW, menuH)
+
+	// Determine if this menu is open
+	isOpen := state.OpenMenuID == id
+
+	// Draw background if hovered or open
+	if hovered || isOpen {
+		graphics.FillRect(w, graphics.NewRect(x, y, menuW, menuH-1), ctx.Style.ButtonHoverColor)
+		// If clicked, toggle menu
+		if ctx.MouseClicked {
+			if isOpen {
+				state.OpenMenuID = 0
+				isOpen = false
+			} else {
+				state.OpenMenuID = id
+				isOpen = true
+			}
+			state.ClickedOutside = false // Click was on menu, not outside
+		}
+	}
+
+	// Draw label centered vertically
+	textY := y + (menuH-textH)/2
+	DrawText(w, label, x+padding, textY, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	// Store position for dropdown and advance for next menu
+	state.CurrentMenuW = menuW
+	state.CurrentMenuX = x + menuW
+
+	return ctx, state, isOpen
+}
+
+// BeginDropdown starts a dropdown menu area, returns the dropdown Y position
+func BeginDropdown(ctx GuiContext, w graphics.Window, state MenuState) (GuiContext, int32) {
+	// Dropdown appears below menu bar, aligned with current menu header
+	dropY := state.MenuBarY + state.MenuBarH
+	return ctx, dropY
+}
+
+// MenuItem draws a menu item and returns true if clicked
+func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, dropX int32, dropY int32, itemIndex int32) (GuiContext, MenuState, bool) {
+	padding := ctx.Style.Padding
+	textH := TextHeight(ctx.Style.FontSize)
+	itemH := textH + padding*2
+	itemW := int32(150) // Fixed width for menu items
+
+	y := dropY + itemIndex*itemH
+
+	// Draw item background
+	graphics.FillRect(w, graphics.NewRect(dropX, y, itemW, itemH), ctx.Style.BackgroundColor)
+
+	// Hit test
+	hovered := pointInRect(ctx.MouseX, ctx.MouseY, dropX, y, itemW, itemH)
+	clicked := false
+
+	if hovered {
+		graphics.FillRect(w, graphics.NewRect(dropX, y, itemW, itemH), ctx.Style.ButtonHoverColor)
+		state.ClickedOutside = false // Click is on menu item
+		if ctx.MouseClicked {
+			clicked = true
+			state.OpenMenuID = 0 // Close menu after click
+		}
+	}
+
+	// Draw label
+	textY := y + (itemH-textH)/2
+	DrawText(w, label, dropX+padding, textY, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	// Draw border
+	graphics.DrawRect(w, graphics.NewRect(dropX, dropY, itemW, (itemIndex+1)*itemH), ctx.Style.BorderColor)
+
+	return ctx, state, clicked
+}
+
+// MenuItemSeparator draws a separator line in a dropdown menu
+func MenuItemSeparator(ctx GuiContext, w graphics.Window, dropX int32, dropY int32, itemIndex int32) {
+	padding := ctx.Style.Padding
+	textH := TextHeight(ctx.Style.FontSize)
+	itemH := textH + padding*2
+	itemW := int32(150)
+
+	y := dropY + itemIndex*itemH + itemH/2
+
+	graphics.FillRect(w, graphics.NewRect(dropX, dropY+itemIndex*itemH, itemW, itemH), ctx.Style.BackgroundColor)
+	graphics.DrawLine(w, dropX+padding, y, dropX+itemW-padding, y, ctx.Style.BorderColor)
 }
 
 // --- Layout Helpers ---

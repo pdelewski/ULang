@@ -17,12 +17,18 @@ func main() {
 	brightness := 75.0
 	counter := 0
 
-	// Draggable window states
-	demoWin := gui.NewWindowState(20, 20, 350, 400)
-	anotherWin := gui.NewWindowState(400, 20, 350, 200)
-	infoWin := gui.NewWindowState(400, 250, 350, 170)
+	// Menu state
+	menuState := gui.NewMenuState()
+
+	// Draggable window states (offset by menu bar height ~20px)
+	demoWin := gui.NewWindowState(20, 45, 350, 400)
+	anotherWin := gui.NewWindowState(400, 45, 350, 200)
+	infoWin := gui.NewWindowState(400, 270, 350, 170)
 
 	var clicked bool
+	var menuOpen bool
+	var dropY int32
+	var dropX int32
 
 	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Update input first
@@ -30,6 +36,58 @@ func main() {
 
 		// Clear with very dark background (like ImGui demo)
 		graphics.Clear(w, graphics.NewColor(30, 30, 30, 255))
+
+		// Menu bar at top
+		ctx, menuState = gui.BeginMenuBar(ctx, w, menuState, 0, 0, 800)
+
+		// File menu
+		ctx, menuState, menuOpen = gui.Menu(ctx, w, menuState, "File")
+		if menuOpen {
+			dropX = menuState.CurrentMenuX - menuState.CurrentMenuW
+			ctx, dropY = gui.BeginDropdown(ctx, w, menuState)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "New", dropX, dropY, 0)
+			if clicked {
+				counter = 0
+			}
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Open", dropX, dropY, 1)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Save", dropX, dropY, 2)
+			gui.MenuItemSeparator(ctx, w, dropX, dropY, 3)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Exit", dropX, dropY, 4)
+			if clicked {
+				return false
+			}
+		}
+
+		// Edit menu
+		ctx, menuState, menuOpen = gui.Menu(ctx, w, menuState, "Edit")
+		if menuOpen {
+			dropX = menuState.CurrentMenuX - menuState.CurrentMenuW
+			ctx, dropY = gui.BeginDropdown(ctx, w, menuState)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Undo", dropX, dropY, 0)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Redo", dropX, dropY, 1)
+			gui.MenuItemSeparator(ctx, w, dropX, dropY, 2)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Cut", dropX, dropY, 3)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Copy", dropX, dropY, 4)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Paste", dropX, dropY, 5)
+		}
+
+		// View menu
+		ctx, menuState, menuOpen = gui.Menu(ctx, w, menuState, "View")
+		if menuOpen {
+			dropX = menuState.CurrentMenuX - menuState.CurrentMenuW
+			ctx, dropY = gui.BeginDropdown(ctx, w, menuState)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Demo Window", dropX, dropY, 0)
+			if clicked {
+				showDemo = !showDemo
+			}
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Another Window", dropX, dropY, 1)
+			if clicked {
+				showAnother = !showAnother
+			}
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Info Panel", dropX, dropY, 2)
+		}
+
+		ctx, menuState = gui.EndMenuBar(ctx, menuState)
 
 		// Main demo panel (draggable)
 		ctx, demoWin = gui.DraggablePanel(ctx, w, "Demo Window", demoWin)

@@ -334,6 +334,17 @@ const gui = {
       DragOffsetY: 0,
     };
   },
+  NewMenuState: function () {
+    return {
+      OpenMenuID: 0,
+      MenuBarX: 0,
+      MenuBarY: 0,
+      MenuBarH: 0,
+      CurrentMenuX: 0,
+      CurrentMenuW: 0,
+      ClickedOutside: false,
+    };
+  },
   DefaultStyle: function () {
     return {
       BackgroundColor: graphics.NewColor(15, 15, 15, 240),
@@ -737,6 +748,148 @@ const gui = {
   Separator: function (ctx, w, x, y, width) {
     graphics.DrawLine(w, x, y, x + width, y, ctx.Style.BorderColor);
   },
+  BeginMenuBar: function (ctx, w, state, x, y, width) {
+    let height = this.TextHeight(ctx.Style.FontSize) + ctx.Style.Padding * 2;
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x, y, width, height),
+      ctx.Style.TitleBgColor,
+    );
+    graphics.DrawLine(
+      w,
+      x,
+      y + height - 1,
+      x + width,
+      y + height - 1,
+      ctx.Style.BorderColor,
+    );
+    state.MenuBarX = x;
+    state.MenuBarY = y;
+    state.MenuBarH = height;
+    state.CurrentMenuX = x + ctx.Style.Padding;
+    state.ClickedOutside = ctx.MouseClicked;
+    return [ctx, state];
+  },
+  EndMenuBar: function (ctx, state) {
+    if (state.ClickedOutside && state.OpenMenuID != 0) {
+      state.OpenMenuID = 0;
+    }
+    return [ctx, state];
+  },
+  Menu: function (ctx, w, state, label) {
+    let id = this.GenID(label);
+    let padding = ctx.Style.Padding;
+    let textW = this.TextWidth(label, ctx.Style.FontSize);
+    let textH = this.TextHeight(ctx.Style.FontSize);
+    let menuW = textW + padding * 2;
+    let menuH = state.MenuBarH;
+    let x = state.CurrentMenuX;
+    let y = state.MenuBarY;
+    let hovered = this.pointInRect(ctx.MouseX, ctx.MouseY, x, y, menuW, menuH);
+    let isOpen = state.OpenMenuID == id;
+    if (hovered || isOpen) {
+      graphics.FillRect(
+        w,
+        graphics.NewRect(x, y, menuW, menuH - 1),
+        ctx.Style.ButtonHoverColor,
+      );
+      if (ctx.MouseClicked) {
+        if (isOpen) {
+          state.OpenMenuID = 0;
+          isOpen = false;
+        } else {
+          state.OpenMenuID = id;
+          isOpen = true;
+        }
+        state.ClickedOutside = false;
+      }
+    }
+    let textY = y + (((menuH - textH) / 2) | 0);
+    this.DrawText(
+      w,
+      label,
+      x + padding,
+      textY,
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+    state.CurrentMenuW = menuW;
+    state.CurrentMenuX = x + menuW;
+    return [ctx, state, isOpen];
+  },
+  BeginDropdown: function (ctx, w, state) {
+    let dropX = state.CurrentMenuX - state.CurrentMenuW;
+    let dropY = state.MenuBarY + state.MenuBarH;
+    return [ctx, dropY];
+  },
+  MenuItem: function (ctx, w, state, label, dropX, dropY, itemIndex) {
+    let padding = ctx.Style.Padding;
+    let textH = this.TextHeight(ctx.Style.FontSize);
+    let itemH = textH + padding * 2;
+    let itemW = int32(150);
+    let y = dropY + itemIndex * itemH;
+    graphics.FillRect(
+      w,
+      graphics.NewRect(dropX, y, itemW, itemH),
+      ctx.Style.BackgroundColor,
+    );
+    let hovered = this.pointInRect(
+      ctx.MouseX,
+      ctx.MouseY,
+      dropX,
+      y,
+      itemW,
+      itemH,
+    );
+    let clicked = false;
+    if (hovered) {
+      graphics.FillRect(
+        w,
+        graphics.NewRect(dropX, y, itemW, itemH),
+        ctx.Style.ButtonHoverColor,
+      );
+      state.ClickedOutside = false;
+      if (ctx.MouseClicked) {
+        clicked = true;
+        state.OpenMenuID = 0;
+      }
+    }
+    let textY = y + (((itemH - textH) / 2) | 0);
+    this.DrawText(
+      w,
+      label,
+      dropX + padding,
+      textY,
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(dropX, dropY, itemW, (itemIndex + 1) * itemH),
+      ctx.Style.BorderColor,
+    );
+    return [ctx, state, clicked];
+  },
+  MenuItemSeparator: function (ctx, w, dropX, dropY, itemIndex) {
+    let padding = ctx.Style.Padding;
+    let textH = this.TextHeight(ctx.Style.FontSize);
+    let itemH = textH + padding * 2;
+    let itemW = int32(150);
+    let y = dropY + itemIndex * itemH + ((itemH / 2) | 0);
+    graphics.FillRect(
+      w,
+      graphics.NewRect(dropX, dropY + itemIndex * itemH, itemW, itemH),
+      ctx.Style.BackgroundColor,
+    );
+    graphics.DrawLine(
+      w,
+      dropX + padding,
+      y,
+      dropX + itemW - padding,
+      y,
+      ctx.Style.BorderColor,
+    );
+  },
   BeginLayout: function (ctx, x, y, spacing) {
     ctx.CursorX = x;
     ctx.CursorY = y;
@@ -874,13 +1027,156 @@ function main() {
   let volume = 0.5;
   let brightness = 75.0;
   let counter = 0;
-  let demoWin = gui.NewWindowState(20, 20, 350, 400);
-  let anotherWin = gui.NewWindowState(400, 20, 350, 200);
-  let infoWin = gui.NewWindowState(400, 250, 350, 170);
+  let menuState = gui.NewMenuState();
+  let demoWin = gui.NewWindowState(20, 45, 350, 400);
+  let anotherWin = gui.NewWindowState(400, 45, 350, 200);
+  let infoWin = gui.NewWindowState(400, 270, 350, 170);
   let clicked = false;
+  let menuOpen = false;
+  let dropY = 0;
+  let dropX = 0;
   graphics.RunLoop(w, function (w) {
     ctx = gui.UpdateInput(ctx, w);
     graphics.Clear(w, graphics.NewColor(30, 30, 30, 255));
+    [ctx, menuState] = gui.BeginMenuBar(ctx, w, menuState, 0, 0, 800);
+    [ctx, menuState, menuOpen] = gui.Menu(ctx, w, menuState, "File");
+    if (menuOpen) {
+      dropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
+      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState);
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "New",
+        dropX,
+        dropY,
+        0,
+      );
+      if (clicked) {
+        counter = 0;
+      }
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Open",
+        dropX,
+        dropY,
+        1,
+      );
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Save",
+        dropX,
+        dropY,
+        2,
+      );
+      gui.MenuItemSeparator(ctx, w, dropX, dropY, 3);
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Exit",
+        dropX,
+        dropY,
+        4,
+      );
+      if (clicked) {
+        return false;
+      }
+    }
+    [ctx, menuState, menuOpen] = gui.Menu(ctx, w, menuState, "Edit");
+    if (menuOpen) {
+      dropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
+      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState);
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Undo",
+        dropX,
+        dropY,
+        0,
+      );
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Redo",
+        dropX,
+        dropY,
+        1,
+      );
+      gui.MenuItemSeparator(ctx, w, dropX, dropY, 2);
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Cut",
+        dropX,
+        dropY,
+        3,
+      );
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Copy",
+        dropX,
+        dropY,
+        4,
+      );
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Paste",
+        dropX,
+        dropY,
+        5,
+      );
+    }
+    [ctx, menuState, menuOpen] = gui.Menu(ctx, w, menuState, "View");
+    if (menuOpen) {
+      dropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
+      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState);
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Demo Window",
+        dropX,
+        dropY,
+        0,
+      );
+      if (clicked) {
+        showDemo = !showDemo;
+      }
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Another Window",
+        dropX,
+        dropY,
+        1,
+      );
+      if (clicked) {
+        showAnother = !showAnother;
+      }
+      [ctx, menuState, clicked] = gui.MenuItem(
+        ctx,
+        w,
+        menuState,
+        "Info Panel",
+        dropX,
+        dropY,
+        2,
+      );
+    }
+    [ctx, menuState] = gui.EndMenuBar(ctx, menuState);
     [ctx, demoWin] = gui.DraggablePanel(ctx, w, "Demo Window", demoWin);
     ctx = gui.BeginLayout(ctx, demoWin.X + 10, demoWin.Y + 50, 6);
     ctx = gui.AutoLabel(ctx, w, "Hello from goany GUI!");
