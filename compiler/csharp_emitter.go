@@ -13,17 +13,19 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var destTypes = []string{"sbyte", "short", "int", "long", "byte", "ushort", "object", "string"}
+var destTypes = []string{"sbyte", "short", "int", "long", "byte", "ushort", "object", "string", "float", "double"}
 
 var csTypesMap = map[string]string{
-	"int8":   destTypes[0],
-	"int16":  destTypes[1],
-	"int32":  destTypes[2],
-	"int64":  destTypes[3],
-	"uint8":  destTypes[4],
-	"uint16": destTypes[5],
-	"any":    destTypes[6],
-	"string": destTypes[7],
+	"int8":    destTypes[0],
+	"int16":   destTypes[1],
+	"int32":   destTypes[2],
+	"int64":   destTypes[3],
+	"uint8":   destTypes[4],
+	"uint16":  destTypes[5],
+	"any":     destTypes[6],
+	"string":  destTypes[7],
+	"float32": destTypes[8],
+	"float64": destTypes[9],
 }
 
 type AliasRepr struct {
@@ -511,6 +513,10 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		if cse.suppressRangeEmit {
 			return
 		}
+		// Skip emission of type name in type conversions (already emitted in PreVisitCallExprFun)
+		if csSuppressTypeCastIdent {
+			return
+		}
 		// Skip package name emission for type alias selector expressions
 		// (the X part, not the Sel part - Sel will be emitted with the underlying type)
 		if cse.suppressTypeAliasSelectorX {
@@ -541,6 +547,58 @@ func (cse *CSharpEmitter) PreVisitIdent(e *ast.Ident, indent int) {
 		}
 
 		cse.emitToken(str, Identifier, 0)
+	})
+}
+
+// isTypeConversion tracks if current call expression is a type conversion
+var csIsTypeConversion bool
+var csSuppressTypeCastIdent bool
+
+func (cse *CSharpEmitter) PreVisitCallExpr(node *ast.CallExpr, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		// Check if this is a type conversion (Fun is an Ident that's a type name)
+		if ident, ok := node.Fun.(*ast.Ident); ok {
+			// Check if it's a known type
+			if _, isType := csTypesMap[ident.Name]; isType {
+				csIsTypeConversion = true
+				return
+			}
+			// Also check destTypes directly (for "int", "string", etc.)
+			for _, t := range destTypes {
+				if ident.Name == t {
+					csIsTypeConversion = true
+					return
+				}
+			}
+		}
+		csIsTypeConversion = false
+	})
+}
+
+func (cse *CSharpEmitter) PreVisitCallExprFun(node ast.Expr, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		// If this is a type conversion, emit cast syntax: (type)
+		if csIsTypeConversion {
+			if ident, ok := node.(*ast.Ident); ok {
+				typeName := ident.Name
+				// Map Go type to C# type
+				if mapped, ok := csTypesMap[typeName]; ok {
+					typeName = mapped
+				}
+				cse.emitToken("(", LeftParen, 0)
+				cse.emitToken(typeName, Identifier, 0)
+				cse.emitToken(")", RightParen, 0)
+				// Suppress the normal Ident emission for the type name
+				csSuppressTypeCastIdent = true
+			}
+		}
+	})
+}
+
+func (cse *CSharpEmitter) PostVisitCallExprFun(node ast.Expr, indent int) {
+	cse.executeIfNotForwardDecls(func() {
+		// Clear the suppression flag after the Fun expression is traversed
+		csSuppressTypeCastIdent = false
 	})
 }
 

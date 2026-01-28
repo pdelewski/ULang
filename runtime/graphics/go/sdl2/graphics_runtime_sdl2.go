@@ -230,3 +230,23 @@ func FillCircle(renderer int64, centerX int32, centerY int32, radius int32, r ui
 	C.SDL_SetRenderDrawColor(rend, C.Uint8(r), C.Uint8(g), C.Uint8(b), C.Uint8(a))
 	C.fillCircle(rend, C.int(centerX), C.int(centerY), C.int(radius))
 }
+
+// GetMouse returns mouse position and button state.
+// Returns: x, y, buttons (bit 0=left, bit 1=right, bit 2=middle)
+func GetMouse(handle int64) (int32, int32, int32) {
+	var x, y C.int
+	buttons := C.SDL_GetMouseState(&x, &y)
+	// SDL2 button mask: SDL_BUTTON_LEFT=1, SDL_BUTTON_MIDDLE=2, SDL_BUTTON_RIGHT=4
+	// Convert to our format: left=1, right=2, middle=4
+	result := int32(0)
+	if buttons&C.SDL_BUTTON(1) != 0 {
+		result |= 1 // left
+	}
+	if buttons&C.SDL_BUTTON(3) != 0 {
+		result |= 2 // right
+	}
+	if buttons&C.SDL_BUTTON(2) != 0 {
+		result |= 4 // middle
+	}
+	return int32(x), int32(y), result
+}

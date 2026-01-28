@@ -8,6 +8,8 @@ A Go language transpiler that generates portable code for multiple target platfo
 
 [**▶ Try the C64 Emulator Demo WIP (runs in browser)**](https://pdelewski.github.io/goany/docs/demos/c64.html)
 
+[**▶ Immediate-Mode GUI Demo**](https://pdelewski.github.io/goany/docs/demos/gui.html)
+
 [**▶ MOS 6502 Text Sprites Demo**](https://pdelewski.github.io/goany/docs/demos/text.html) | [**▶ MOS 6502 Basic Graphics Shapes Demo**](https://pdelewski.github.io/goany/docs/demos/graphic.html) | [**▶ MOS 6502 Text Scroll Demo**](https://pdelewski.github.io/goany/docs/demos/textscroll.html)
 
 ## Overview

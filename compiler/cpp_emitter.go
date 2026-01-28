@@ -13,14 +13,18 @@ import (
 )
 
 var cppTypesMap = map[string]string{
-	"int8":   "std::int8_t",
-	"int16":  "std::int16_t",
-	"int32":  "std::int32_t",
-	"int64":  "std::int64_t",
-	"uint8":  "std::uint8_t",
-	"uint16": "std::uint16_t",
-	"any":    "std::any",
-	"string": "std::string",
+	"int8":    "std::int8_t",
+	"int16":   "std::int16_t",
+	"int32":   "std::int32_t",
+	"int64":   "std::int64_t",
+	"uint8":   "std::uint8_t",
+	"uint16":  "std::uint16_t",
+	"uint32":  "std::uint32_t",
+	"uint64":  "std::uint64_t",
+	"float32": "float",
+	"float64": "double",
+	"any":     "std::any",
+	"string":  "std::string",
 }
 
 type CPPEmitter struct {
@@ -136,6 +140,8 @@ using uint8 = uint8_t;
 using uint16 = uint16_t;
 using uint32 = uint32_t;
 using uint64 = uint64_t;
+using float32 = float;
+using float64 = double;
 
 std::string string_format(const std::string fmt, ...) {
   int size =

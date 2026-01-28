@@ -166,6 +166,15 @@ inline int GetLastKey() {
     return lastKeyPressed;
 }
 
+// GetMouse returns mouse position and button state
+// Returns: x, y, buttons (bit 0=left, bit 1=right, bit 2=middle)
+inline std::tuple<int32_t, int32_t, int32_t> GetMouse(Window w) {
+    Tigr* win = reinterpret_cast<Tigr*>(w.handle);
+    int x, y, buttons;
+    tigrMouse(win, &x, &y, &buttons);
+    return std::make_tuple(static_cast<int32_t>(x), static_cast<int32_t>(y), static_cast<int32_t>(buttons));
+}
+
 inline int32_t GetWidth(Window w) { return w.width; }
 inline int32_t GetHeight(Window w) { return w.height; }
 

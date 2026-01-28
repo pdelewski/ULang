@@ -105,6 +105,8 @@ type RustEmitter struct {
 	binaryNeedsLeftCastStack     []bool                  // Stack for nested binary expressions
 	binaryNeedsRightCast         string                  // Type to cast right operand of binary expr (e.g., "u8")
 	binaryNeedsRightCastStack    []string                // Stack for nested binary expressions
+	inFloatBinaryExpr            bool                    // Track if we're in a binary expr where operands should be float
+	inFloatBinaryExprStack       []bool                  // Stack for nested binary expressions
 	// Key-value range loop support
 	isKeyValueRange              bool
 	rangeKeyName                 string
@@ -1083,6 +1085,29 @@ func (re *RustEmitter) PreVisitBasicLit(e *ast.BasicLit, indent int) {
 			str = re.emitAsString(charVal, 0)
 		}
 		re.emitToken(str, CharLiteral, 0)
+	} else if e.Kind == token.INT {
+		// Check if the integer literal should be emitted as a float
+		// This happens when:
+		// 1. The expected type from context is float64 or float32
+		// 2. We're in a binary expression where one operand is float
+		tv := re.pkg.TypesInfo.Types[e]
+		value := e.Value
+		needsFloatSuffix := false
+		if tv.Type != nil {
+			typeStr := tv.Type.String()
+			if typeStr == "float64" || typeStr == "float32" || typeStr == "untyped float" {
+				needsFloatSuffix = true
+			}
+		}
+		// Also check if we're in a float binary expression
+		if re.inFloatBinaryExpr {
+			needsFloatSuffix = true
+		}
+		if needsFloatSuffix && !strings.Contains(value, ".") {
+			value = value + ".0"
+		}
+		str = (re.emitAsString(value, 0))
+		re.emitToken(str, NumberLiteral, 0)
 	} else {
 		str = (re.emitAsString(e.Value, 0))
 		re.emitToken(str, NumberLiteral, 0)
@@ -2339,15 +2364,25 @@ func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	// Save current state for nested expressions
 	re.binaryNeedsLeftCastStack = append(re.binaryNeedsLeftCastStack, re.binaryNeedsLeftCast)
 	re.binaryNeedsRightCastStack = append(re.binaryNeedsRightCastStack, re.binaryNeedsRightCast)
+	re.inFloatBinaryExprStack = append(re.inFloatBinaryExprStack, re.inFloatBinaryExpr)
 	re.binaryNeedsLeftCast = false
 	re.binaryNeedsRightCast = ""
+	re.inFloatBinaryExpr = false
+
+	// Check if either operand is float64 - integer literals need .0 suffix
+	leftType := re.pkg.TypesInfo.Types[node.X]
+	rightType := re.pkg.TypesInfo.Types[node.Y]
+	if leftType.Type != nil && (leftType.Type.String() == "float64" || leftType.Type.String() == "float32") {
+		re.inFloatBinaryExpr = true
+	}
+	if rightType.Type != nil && (rightType.Type.String() == "float64" || rightType.Type.String() == "float32") {
+		re.inFloatBinaryExpr = true
+	}
 
 	// Check for string concatenation - in Rust, String + &str is needed
 	if node.Op == token.ADD {
-		leftType := re.pkg.TypesInfo.Types[node.X]
 		if leftType.Type != nil && leftType.Type.String() == "string" {
 			// Check if right side is a function call or identifier returning string
-			rightType := re.pkg.TypesInfo.Types[node.Y]
 			if rightType.Type != nil && rightType.Type.String() == "string" {
 				// Mark that we need to add & before right operand
 				re.binaryNeedsRightCast = "&"
@@ -2363,7 +2398,6 @@ func (re *RustEmitter) PreVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 		node.Op == token.LEQ || node.Op == token.GEQ
 	isBitwiseOp := node.Op == token.AND || node.Op == token.OR || node.Op == token.XOR
 
-	leftType := re.pkg.TypesInfo.Types[node.X]
 	if leftType.Type != nil {
 		leftStr := leftType.Type.String()
 		// Check if left is a small integer type
@@ -2467,6 +2501,10 @@ func (re *RustEmitter) PostVisitBinaryExpr(node *ast.BinaryExpr, indent int) {
 	if len(re.binaryNeedsRightCastStack) > 0 {
 		re.binaryNeedsRightCast = re.binaryNeedsRightCastStack[len(re.binaryNeedsRightCastStack)-1]
 		re.binaryNeedsRightCastStack = re.binaryNeedsRightCastStack[:len(re.binaryNeedsRightCastStack)-1]
+	}
+	if len(re.inFloatBinaryExprStack) > 0 {
+		re.inFloatBinaryExpr = re.inFloatBinaryExprStack[len(re.inFloatBinaryExprStack)-1]
+		re.inFloatBinaryExprStack = re.inFloatBinaryExprStack[:len(re.inFloatBinaryExprStack)-1]
 	}
 	// Note: Do NOT set shouldGenerate = false here!
 	// This would prevent the right operand of nested binary expressions from being generated.
@@ -2709,7 +2747,20 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 		for i, tok := range initTokens {
 			if tok.Type == Assignment {
 				forVars = append(forVars, initTokens[i-1])
-				rangeTokens = append(rangeTokens, initTokens[i+1])
+				// Extract ALL tokens after the assignment as the start value
+				startTokens := initTokens[i+1:]
+				// Combine all start tokens into a single string
+				startStr := ""
+				for _, t := range startTokens {
+					if t.Content != ";" {
+						startStr += t.Content
+					}
+				}
+				startStr = strings.TrimSpace(startStr)
+				if startStr != "" {
+					rangeTokens = append(rangeTokens, CreateToken(Identifier, startStr))
+				}
+				break // Only process first assignment
 			}
 		}
 	}
@@ -2896,6 +2947,16 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 		// Rewrite the tokens from PreVisitForStmt to PostVisitForStmtPost
 		re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pFor.Index, p6.Index, newTokens)
 	}
+
+	// Remove used pointer entries to handle nested loops correctly
+	// After processing this for loop, its markers should not be found by parent loops
+	re.gir.pointerAndIndexVec = RemovePointerEntryReverse(re.gir.pointerAndIndexVec, PreVisitForStmt)
+	re.gir.pointerAndIndexVec = RemovePointerEntryReverse(re.gir.pointerAndIndexVec, PreVisitForStmtInit)
+	re.gir.pointerAndIndexVec = RemovePointerEntryReverse(re.gir.pointerAndIndexVec, PostVisitForStmtInit)
+	re.gir.pointerAndIndexVec = RemovePointerEntryReverse(re.gir.pointerAndIndexVec, PreVisitForStmtCond)
+	re.gir.pointerAndIndexVec = RemovePointerEntryReverse(re.gir.pointerAndIndexVec, PostVisitForStmtCond)
+	re.gir.pointerAndIndexVec = RemovePointerEntryReverse(re.gir.pointerAndIndexVec, PreVisitForStmtPost)
+	re.gir.pointerAndIndexVec = RemovePointerEntryReverse(re.gir.pointerAndIndexVec, PostVisitForStmtPost)
 }
 
 func (re *RustEmitter) PreVisitRangeStmt(node *ast.RangeStmt, indent int) {

@@ -29,6 +29,7 @@ import (
 // - Named return values
 // - iota constant enumeration
 // - Type switch statements
+// - Package-level variable declarations
 //
 // ============================================
 // SECTION 2: Backend-Specific Constraints
@@ -77,6 +78,40 @@ func (sema *SemaChecker) PreVisitPackage(pkg *packages.Package, indent int) {
 	sema.rangeTargets = make(map[string]token.Pos)
 	// Reset closure captures for each package
 	sema.closureCaptures = make(map[string]token.Pos)
+
+	// Check for package-level variable declarations (not supported by transpiler)
+	sema.checkPackageLevelVars(pkg)
+}
+
+// checkPackageLevelVars detects package-level variable declarations which are not supported
+// The transpiler does not handle var declarations at package scope
+func (sema *SemaChecker) checkPackageLevelVars(pkg *packages.Package) {
+	for _, file := range pkg.Syntax {
+		for _, decl := range file.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.VAR {
+				continue
+			}
+			// Found a package-level var declaration
+			for _, spec := range genDecl.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for _, name := range valueSpec.Names {
+					fmt.Println("\033[31m\033[1mCompilation error: package-level variables are not supported\033[0m")
+					fmt.Printf("  Variable '%s' is declared at package level.\n", name.Name)
+					fmt.Println("  Package-level variable declarations are not transpiled correctly.")
+					fmt.Println()
+					fmt.Println("  \033[32mMove the variable inside a function, or use a function that returns the value:\033[0m")
+					fmt.Println("    func getMyVar() T {")
+					fmt.Println("        return T{...}")
+					fmt.Println("    }")
+					os.Exit(-1)
+				}
+			}
+		}
+	}
 }
 
 // ============================================
