@@ -367,6 +367,11 @@ const graphics = {
     return [this.mouseX, this.mouseY];
   },
 
+  GetMouse: function(canvas) {
+    // Returns [x, y, buttons] like other backends
+    return [this.mouseX, this.mouseY, this.mouseDown ? 1 : 0];
+  },
+
   MouseDown: function(canvas) {
     return this.mouseDown;
   },
