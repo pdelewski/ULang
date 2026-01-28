@@ -179,8 +179,65 @@ public static class graphics
         return lastKeyPressed;
     }
 
+    // GetMouse returns mouse position and button state
+    public static (int, int, int) GetMouse(Window w)
+    {
+        int x, y;
+        uint buttons = SDL.SDL_GetMouseState(out x, out y);
+        int result = 0;
+        if ((buttons & SDL.SDL_BUTTON(SDL.SDL_BUTTON_LEFT)) != 0) result |= 1;
+        if ((buttons & SDL.SDL_BUTTON(SDL.SDL_BUTTON_RIGHT)) != 0) result |= 2;
+        if ((buttons & SDL.SDL_BUTTON(SDL.SDL_BUTTON_MIDDLE)) != 0) result |= 4;
+        return (x, y, result);
+    }
+
     public static int GetWidth(Window w) { return w.width; }
     public static int GetHeight(Window w) { return w.height; }
+
+    // GetScreenSize returns screen resolution (SDL2 cross-platform)
+    public static (int, int) GetScreenSize()
+    {
+        SDL.SDL_DisplayMode mode;
+        if (SDL.SDL_GetCurrentDisplayMode(0, out mode) == 0)
+        {
+            return (mode.w, mode.h);
+        }
+        return (1920, 1080);
+    }
+
+    // CreateWindowFullscreen creates a fullscreen window
+    public static Window CreateWindowFullscreen(string title, int width, int height)
+    {
+        if (SDL.SDL_Init(SDL.SDL_INIT_VIDEO) < 0)
+        {
+            return new Window { handle = 0, renderer = 0, width = width, height = height, running = false };
+        }
+
+        IntPtr window = SDL.SDL_CreateWindow(title,
+            SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED,
+            width, height, SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL.SDL_WindowFlags.SDL_WINDOW_FULLSCREEN_DESKTOP);
+        if (window == IntPtr.Zero)
+        {
+            return new Window { handle = 0, renderer = 0, width = width, height = height, running = false };
+        }
+
+        IntPtr renderer = SDL.SDL_CreateRenderer(window, -1,
+            SDL.SDL_RendererFlags.SDL_RENDERER_ACCELERATED | SDL.SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC);
+        if (renderer == IntPtr.Zero)
+        {
+            SDL.SDL_DestroyWindow(window);
+            return new Window { handle = 0, renderer = 0, width = width, height = height, running = false };
+        }
+
+        return new Window
+        {
+            handle = window.ToInt64(),
+            renderer = renderer.ToInt64(),
+            width = width,
+            height = height,
+            running = true
+        };
+    }
 
     // --- Rendering ---
 

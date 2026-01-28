@@ -85,6 +85,22 @@ inline Window CreateWindow(const std::string& title, int32_t width, int32_t heig
     };
 }
 
+inline Window CreateWindowFullscreen(const std::string& title, int32_t width, int32_t height) {
+    Tigr* win = tigrWindow(width, height, title.c_str(), TIGR_FULLSCREEN);
+
+    if (!win) {
+        return Window{0, 0, width, height, false};
+    }
+
+    return Window{
+        reinterpret_cast<int64_t>(win),
+        reinterpret_cast<int64_t>(win),  // renderer same as handle for tigr
+        width,
+        height,
+        true
+    };
+}
+
 inline void CloseWindow(Window w) {
     if (w.handle) {
         tigrFree(reinterpret_cast<Tigr*>(w.handle));
@@ -177,6 +193,11 @@ inline std::tuple<int32_t, int32_t, int32_t> GetMouse(Window w) {
 
 inline int32_t GetWidth(Window w) { return w.width; }
 inline int32_t GetHeight(Window w) { return w.height; }
+
+// GetScreenSize returns a safe default size for tigr (windowed mode)
+inline std::tuple<int32_t, int32_t> GetScreenSize() {
+    return {1024, 768};
+}
 
 // --- Rendering ---
 

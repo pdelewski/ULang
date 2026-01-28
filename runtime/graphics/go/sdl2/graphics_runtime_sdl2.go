@@ -236,17 +236,56 @@ func FillCircle(renderer int64, centerX int32, centerY int32, radius int32, r ui
 func GetMouse(handle int64) (int32, int32, int32) {
 	var x, y C.int
 	buttons := C.SDL_GetMouseState(&x, &y)
-	// SDL2 button mask: SDL_BUTTON_LEFT=1, SDL_BUTTON_MIDDLE=2, SDL_BUTTON_RIGHT=4
+	// SDL_BUTTON(X) = (1 << ((X)-1)), so:
+	// SDL_BUTTON(1) = 1 (left), SDL_BUTTON(2) = 2 (middle), SDL_BUTTON(3) = 4 (right)
 	// Convert to our format: left=1, right=2, middle=4
 	result := int32(0)
-	if buttons&C.SDL_BUTTON(1) != 0 {
-		result |= 1 // left
+	if buttons&1 != 0 { // SDL_BUTTON_LEFT
+		result |= 1
 	}
-	if buttons&C.SDL_BUTTON(3) != 0 {
-		result |= 2 // right
+	if buttons&4 != 0 { // SDL_BUTTON_RIGHT
+		result |= 2
 	}
-	if buttons&C.SDL_BUTTON(2) != 0 {
-		result |= 4 // middle
+	if buttons&2 != 0 { // SDL_BUTTON_MIDDLE
+		result |= 4
 	}
 	return int32(x), int32(y), result
+}
+
+// GetScreenSize returns the screen resolution using SDL2's cross-platform API.
+func GetScreenSize() (int32, int32) {
+	var mode C.SDL_DisplayMode
+	if C.SDL_GetCurrentDisplayMode(0, &mode) == 0 {
+		return int32(mode.w), int32(mode.h)
+	}
+	return 1920, 1080 // fallback
+}
+
+// CreateWindowFullscreen creates a fullscreen window.
+func CreateWindowFullscreen(title string, width int32, height int32) (int64, int64, bool) {
+	cTitle := C.CString(title)
+	defer C.free(unsafe.Pointer(cTitle))
+
+	if C.SDL_Init(C.SDL_INIT_VIDEO) < 0 {
+		return 0, 0, false
+	}
+
+	window := C.SDL_CreateWindow(cTitle,
+		C.SDL_WINDOWPOS_CENTERED, C.SDL_WINDOWPOS_CENTERED,
+		C.int(width), C.int(height),
+		C.SDL_WINDOW_SHOWN|C.SDL_WINDOW_FULLSCREEN_DESKTOP)
+	if window == nil {
+		return 0, 0, false
+	}
+
+	renderer := C.SDL_CreateRenderer(window, -1,
+		C.SDL_RENDERER_ACCELERATED|C.SDL_RENDERER_PRESENTVSYNC)
+	if renderer == nil {
+		C.SDL_DestroyWindow(window)
+		return 0, 0, false
+	}
+
+	return int64(uintptr(unsafe.Pointer(window))),
+		int64(uintptr(unsafe.Pointer(renderer))),
+		true
 }

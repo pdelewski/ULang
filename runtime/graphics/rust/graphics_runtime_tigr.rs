@@ -158,6 +158,33 @@ pub fn CreateWindow(title: String, width: i32, height: i32) -> Window {
     }
 }
 
+pub fn CreateWindowFullscreen(title: String, width: i32, height: i32) -> Window {
+    let c_title = CString::new(title).unwrap_or_else(|_| CString::new("Window").unwrap());
+
+    // TIGR_FULLSCREEN = 64
+    let win = unsafe {
+        tigrWindow(width as c_int, height as c_int, c_title.as_ptr(), 64)
+    };
+
+    if win.is_null() {
+        return Window {
+            handle: 0,
+            renderer: 0,
+            width,
+            height,
+            running: false,
+        };
+    }
+
+    Window {
+        handle: win as i64,
+        renderer: win as i64,
+        width,
+        height,
+        running: true,
+    }
+}
+
 pub fn CloseWindow(w: Window) {
     if w.handle != 0 {
         unsafe {
@@ -273,6 +300,11 @@ pub fn GetMouse(w: Window) -> (i32, i32, i32) {
 
 pub fn GetWidth(w: Window) -> i32 { w.width }
 pub fn GetHeight(w: Window) -> i32 { w.height }
+
+/// GetScreenSize returns a safe default size for tigr (windowed mode)
+pub fn GetScreenSize() -> (i32, i32) {
+    (1024, 768)
+}
 
 // --- Rendering ---
 

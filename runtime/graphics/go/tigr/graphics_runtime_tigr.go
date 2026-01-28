@@ -22,6 +22,17 @@ static Tigr* createTigrWindow(const char* title, int width, int height) {
     return tigrWindow(width, height, title, TIGR_FIXED);
 }
 
+// Helper to create fullscreen window
+static Tigr* createTigrWindowFullscreen(const char* title, int width, int height) {
+    return tigrWindow(width, height, title, TIGR_FULLSCREEN);
+}
+
+// GetScreenSize returns a safe default size for tigr (windowed mode)
+static void getScreenSize(int* width, int* height) {
+    *width = 1024;
+    *height = 768;
+}
+
 // Poll events and return 1 if quit requested
 static int pollTigrEvents(Tigr* win) {
     if (!win) return 1;
@@ -118,6 +129,21 @@ func CreateWindow(title string, width int32, height int32) (int64, int64, bool) 
 	return handle, handle, true
 }
 
+// CreateWindowFullscreen creates a fullscreen window with the specified buffer dimensions.
+// Returns handle, renderer (same as handle for tigr), success
+func CreateWindowFullscreen(title string, width int32, height int32) (int64, int64, bool) {
+	cTitle := C.CString(title)
+	defer C.free(unsafe.Pointer(cTitle))
+
+	win := C.createTigrWindowFullscreen(cTitle, C.int(width), C.int(height))
+	if win == nil {
+		return 0, 0, false
+	}
+
+	handle := int64(uintptr(unsafe.Pointer(win)))
+	return handle, handle, true
+}
+
 // CloseWindow closes the window and releases resources.
 func CloseWindow(handle int64, renderer int64) {
 	if handle != 0 {
@@ -202,4 +228,11 @@ func GetMouse(handle int64) (int32, int32, int32) {
 	var x, y, buttons C.int
 	C.tigrMouse(win, &x, &y, &buttons)
 	return int32(x), int32(y), int32(buttons)
+}
+
+// GetScreenSize returns the screen resolution.
+func GetScreenSize() (int32, int32) {
+	var w, h C.int
+	C.getScreenSize(&w, &h)
+	return int32(w), int32(h)
 }
