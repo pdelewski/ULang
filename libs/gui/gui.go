@@ -91,28 +91,28 @@ type GuiStyle struct {
 
 // --- Initialization ---
 
-// DefaultStyle returns an ImGui-like style
+// DefaultStyle returns a modern, polished dark theme style
 func DefaultStyle() GuiStyle {
 	return GuiStyle{
-		// ImGui Dark theme colors (from actual ImGui)
-		BackgroundColor:   graphics.NewColor(15, 15, 15, 240),    // Window body - very dark
-		TextColor:         graphics.NewColor(255, 255, 255, 255), // White text
-		ButtonColor:       graphics.NewColor(66, 150, 250, 102),  // Button normal
-		ButtonHoverColor:  graphics.NewColor(66, 150, 250, 200),  // Button hover
-		ButtonActiveColor: graphics.NewColor(15, 135, 250, 255),  // Button pressed
-		CheckboxColor:     graphics.NewColor(41, 74, 122, 255),   // Checkbox/frame bg
-		CheckmarkColor:    graphics.NewColor(66, 150, 250, 255),  // Checkmark color
-		SliderTrackColor:  graphics.NewColor(66, 150, 250, 171),  // Slider filled
-		SliderKnobColor:   graphics.NewColor(66, 150, 250, 200),  // Slider grab
-		BorderColor:       graphics.NewColor(80, 80, 80, 255),    // Borders
-		FrameBgColor:      graphics.NewColor(29, 47, 73, 138),    // Input field bg
-		TitleBgColor:      graphics.NewColor(41, 74, 137, 255),   // Title bar - blue!
-		FontSize:          1,                                     // 8px like classic ImGui
-		Padding:           6,
-		ButtonHeight:      20,
-		SliderHeight:      18,
-		CheckboxSize:      16,
-		FrameRounding:     2,
+		// Modern dark theme with better contrast and softer colors
+		BackgroundColor:   graphics.NewColor(45, 45, 48, 250),    // Window body - neutral gray
+		TextColor:         graphics.NewColor(240, 240, 245, 255), // Soft white text
+		ButtonColor:       graphics.NewColor(70, 130, 210, 180),  // Button normal - softer blue
+		ButtonHoverColor:  graphics.NewColor(90, 150, 230, 220),  // Button hover - brighter
+		ButtonActiveColor: graphics.NewColor(50, 110, 190, 255),  // Button pressed - deeper
+		CheckboxColor:     graphics.NewColor(55, 65, 85, 255),    // Checkbox/frame bg
+		CheckmarkColor:    graphics.NewColor(100, 180, 255, 255), // Checkmark - bright accent
+		SliderTrackColor:  graphics.NewColor(80, 160, 240, 200),  // Slider filled
+		SliderKnobColor:   graphics.NewColor(120, 180, 255, 255), // Slider grab - bright
+		BorderColor:       graphics.NewColor(60, 65, 75, 255),    // Subtle borders
+		FrameBgColor:      graphics.NewColor(45, 50, 60, 220),    // Input field bg
+		TitleBgColor:      graphics.NewColor(55, 95, 160, 255),   // Title bar - refined blue
+		FontSize:          1,
+		Padding:           8,
+		ButtonHeight:      24,
+		SliderHeight:      20,
+		CheckboxSize:      18,
+		FrameRounding:     3,
 	}
 }
 
@@ -255,17 +255,32 @@ func Button(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 		bgColor = ctx.Style.ButtonColor
 	}
 
-	// Draw button with ImGui-like frame
-	// Dark edge on top-left for depth
-	graphics.DrawLine(w, x, y+height-1, x, y, graphics.NewColor(0, 0, 0, 80))
-	graphics.DrawLine(w, x, y, x+width-1, y, graphics.NewColor(0, 0, 0, 80))
+	// Draw button shadow (offset dark rectangle for depth)
+	graphics.FillRect(w, graphics.NewRect(x+2, y+2, width, height), graphics.NewColor(0, 0, 0, 70))
 
 	// Main button fill
-	graphics.FillRect(w, graphics.NewRect(x+1, y+1, width-2, height-2), bgColor)
+	graphics.FillRect(w, graphics.NewRect(x, y, width, height), bgColor)
 
-	// Light edge on bottom-right for depth (subtle)
-	graphics.DrawLine(w, x+1, y+height-1, x+width-1, y+height-1, graphics.NewColor(255, 255, 255, 30))
-	graphics.DrawLine(w, x+width-1, y+1, x+width-1, y+height-1, graphics.NewColor(255, 255, 255, 30))
+	// Convex effect - bright top edge (multiple lines for gradient)
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 100))
+	graphics.DrawLine(w, x+1, y+2, x+width-2, y+2, graphics.NewColor(255, 255, 255, 60))
+	graphics.DrawLine(w, x+1, y+3, x+width-2, y+3, graphics.NewColor(255, 255, 255, 30))
+
+	// Convex effect - bright left edge
+	graphics.DrawLine(w, x+1, y+1, x+1, y+height-2, graphics.NewColor(255, 255, 255, 80))
+	graphics.DrawLine(w, x+2, y+2, x+2, y+height-3, graphics.NewColor(255, 255, 255, 40))
+
+	// Convex effect - dark bottom edge (multiple lines for gradient)
+	graphics.DrawLine(w, x+2, y+height-1, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, x+2, y+height-2, x+width-2, y+height-2, graphics.NewColor(0, 0, 0, 70))
+	graphics.DrawLine(w, x+2, y+height-3, x+width-2, y+height-3, graphics.NewColor(0, 0, 0, 30))
+
+	// Convex effect - dark right edge
+	graphics.DrawLine(w, x+width-1, y+2, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, x+width-2, y+3, x+width-2, y+height-2, graphics.NewColor(0, 0, 0, 60))
+
+	// Outer border
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(30, 30, 35, 255))
 
 	// Draw centered label with press offset
 	textW := TextWidth(label, ctx.Style.FontSize)
@@ -305,22 +320,39 @@ func Checkbox(ctx GuiContext, w graphics.Window, label string, x int32, y int32,
 		boxColor = ctx.Style.FrameBgColor
 	}
 
-	// Draw checkbox frame with depth
-	graphics.FillRect(w, graphics.NewRect(x, y, boxSize, boxSize), boxColor)
-	// Dark inner edge
-	graphics.DrawLine(w, x, y, x+boxSize-1, y, graphics.NewColor(0, 0, 0, 100))
-	graphics.DrawLine(w, x, y, x, y+boxSize-1, graphics.NewColor(0, 0, 0, 100))
+	// Draw checkbox shadow
+	graphics.FillRect(w, graphics.NewRect(x+1, y+1, boxSize, boxSize), graphics.NewColor(0, 0, 0, 60))
 
-	// Draw checkmark if checked (ImGui-style tick)
+	// Draw checkbox frame
+	graphics.FillRect(w, graphics.NewRect(x, y, boxSize, boxSize), boxColor)
+
+	// Convex effect - bright top-left edges
+	graphics.DrawLine(w, x+1, y+1, x+boxSize-2, y+1, graphics.NewColor(255, 255, 255, 90))
+	graphics.DrawLine(w, x+1, y+2, x+boxSize-3, y+2, graphics.NewColor(255, 255, 255, 50))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+boxSize-2, graphics.NewColor(255, 255, 255, 70))
+	graphics.DrawLine(w, x+2, y+2, x+2, y+boxSize-3, graphics.NewColor(255, 255, 255, 35))
+
+	// Convex effect - dark bottom-right edges
+	graphics.DrawLine(w, x+2, y+boxSize-1, x+boxSize-1, y+boxSize-1, graphics.NewColor(0, 0, 0, 100))
+	graphics.DrawLine(w, x+3, y+boxSize-2, x+boxSize-2, y+boxSize-2, graphics.NewColor(0, 0, 0, 50))
+	graphics.DrawLine(w, x+boxSize-1, y+2, x+boxSize-1, y+boxSize-1, graphics.NewColor(0, 0, 0, 100))
+	graphics.DrawLine(w, x+boxSize-2, y+3, x+boxSize-2, y+boxSize-2, graphics.NewColor(0, 0, 0, 50))
+
+	// Border
+	graphics.DrawRect(w, graphics.NewRect(x, y, boxSize, boxSize), graphics.NewColor(60, 65, 75, 255))
+
+	// Draw checkmark if checked
 	if value {
 		checkColor := ctx.Style.CheckmarkColor
-		// Draw a checkmark (tick shape)
+		// Draw a thicker, more visible checkmark
 		cx := x + boxSize/2
 		cy := y + boxSize/2
-		// Left part of tick (going down-right)
+		// Left part of tick (going down-right) - thicker
+		graphics.DrawLine(w, cx-5, cy-1, cx-2, cy+3, checkColor)
 		graphics.DrawLine(w, cx-5, cy, cx-2, cy+4, checkColor)
 		graphics.DrawLine(w, cx-4, cy, cx-1, cy+4, checkColor)
-		// Right part of tick (going up-right)
+		// Right part of tick (going up-right) - thicker
+		graphics.DrawLine(w, cx-2, cy+3, cx+5, cy-4, checkColor)
 		graphics.DrawLine(w, cx-2, cy+4, cx+5, cy-3, checkColor)
 		graphics.DrawLine(w, cx-1, cy+4, cx+6, cy-3, checkColor)
 	}
@@ -382,19 +414,28 @@ func Slider(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 		}
 	}
 
-	// Draw track background (full width, ImGui style)
-	graphics.FillRect(w, graphics.NewRect(trackX, y, trackW, height), ctx.Style.FrameBgColor)
-	// Dark inner edge for depth
-	graphics.DrawLine(w, trackX, y, trackX+trackW-1, y, graphics.NewColor(0, 0, 0, 100))
-	graphics.DrawLine(w, trackX, y, trackX, y+height-1, graphics.NewColor(0, 0, 0, 100))
+	// Draw track shadow (inset effect)
+	graphics.FillRect(w, graphics.NewRect(trackX+1, y+1, trackW, height), graphics.NewColor(0, 0, 0, 40))
 
-	// Draw filled portion (from start to grab)
+	// Draw track background
+	graphics.FillRect(w, graphics.NewRect(trackX, y, trackW, height), ctx.Style.FrameBgColor)
+
+	// Inner shadow for inset look
+	graphics.DrawLine(w, trackX+1, y+1, trackX+trackW-2, y+1, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawLine(w, trackX+1, y+1, trackX+1, y+height-2, graphics.NewColor(0, 0, 0, 60))
+
+	// Draw filled portion (from start to grab) with gradient effect
 	fillW := grabX - trackX + grabW/2
 	if fillW > 0 {
-		graphics.FillRect(w, graphics.NewRect(trackX+1, y+1, fillW, height-2), ctx.Style.SliderTrackColor)
+		graphics.FillRect(w, graphics.NewRect(trackX+2, y+2, fillW-2, height-4), ctx.Style.SliderTrackColor)
+		// Highlight on top of fill
+		graphics.DrawLine(w, trackX+2, y+2, trackX+fillW-1, y+2, graphics.NewColor(255, 255, 255, 40))
 	}
 
-	// Draw grab handle
+	// Track border
+	graphics.DrawRect(w, graphics.NewRect(trackX, y, trackW, height), graphics.NewColor(50, 55, 65, 255))
+
+	// Draw grab handle with better styling
 	var grabColor graphics.Color
 	if ctx.ActiveID == id {
 		grabColor = ctx.Style.ButtonActiveColor
@@ -403,7 +444,25 @@ func Slider(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 	} else {
 		grabColor = ctx.Style.SliderKnobColor
 	}
+	// Grab handle shadow
+	graphics.FillRect(w, graphics.NewRect(grabX+2, y+2, grabW, height), graphics.NewColor(0, 0, 0, 70))
+	// Grab handle fill
 	graphics.FillRect(w, graphics.NewRect(grabX, y, grabW, height), grabColor)
+
+	// Convex effect - bright top-left
+	graphics.DrawLine(w, grabX+1, y+1, grabX+grabW-2, y+1, graphics.NewColor(255, 255, 255, 100))
+	graphics.DrawLine(w, grabX+1, y+2, grabX+grabW-3, y+2, graphics.NewColor(255, 255, 255, 50))
+	graphics.DrawLine(w, grabX+1, y+1, grabX+1, y+height-2, graphics.NewColor(255, 255, 255, 80))
+	graphics.DrawLine(w, grabX+2, y+2, grabX+2, y+height-3, graphics.NewColor(255, 255, 255, 40))
+
+	// Convex effect - dark bottom-right
+	graphics.DrawLine(w, grabX+2, y+height-1, grabX+grabW-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, grabX+3, y+height-2, grabX+grabW-2, y+height-2, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawLine(w, grabX+grabW-1, y+2, grabX+grabW-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, grabX+grabW-2, y+3, grabX+grabW-2, y+height-2, graphics.NewColor(0, 0, 0, 60))
+
+	// Grab handle border
+	graphics.DrawRect(w, graphics.NewRect(grabX, y, grabW, height), graphics.NewColor(40, 45, 55, 255))
 
 	// Handle dragging
 	if ctx.ActiveID == id && ctx.MouseDown {
@@ -425,21 +484,39 @@ func Slider(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 
 // Panel draws a panel/window background with title
 func Panel(ctx GuiContext, w graphics.Window, title string, x int32, y int32, width int32, height int32) {
-	// Draw title bar with blue ImGui style
 	titleH := TextHeight(ctx.Style.FontSize) + ctx.Style.Padding*2
+
+	// Draw drop shadow (multiple layers for soft shadow effect)
+	graphics.FillRect(w, graphics.NewRect(x+4, y+4, width, height), graphics.NewColor(0, 0, 0, 40))
+	graphics.FillRect(w, graphics.NewRect(x+3, y+3, width, height), graphics.NewColor(0, 0, 0, 50))
+	graphics.FillRect(w, graphics.NewRect(x+2, y+2, width, height), graphics.NewColor(0, 0, 0, 60))
+
+	// Draw title bar background
 	graphics.FillRect(w, graphics.NewRect(x, y, width, titleH), ctx.Style.TitleBgColor)
+
+	// Convex effect - bright top edge
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 80))
+	graphics.DrawLine(w, x+1, y+2, x+width-2, y+2, graphics.NewColor(255, 255, 255, 40))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+titleH-2, graphics.NewColor(255, 255, 255, 50))
+
+	// Convex effect - darker bottom of title bar
+	graphics.DrawLine(w, x+1, y+titleH-2, x+width-2, y+titleH-2, graphics.NewColor(0, 0, 0, 50))
+	graphics.DrawLine(w, x+1, y+titleH-1, x+width-2, y+titleH-1, graphics.NewColor(0, 0, 0, 80))
 
 	// Title text centered vertically, left padded
 	DrawText(w, title, x+ctx.Style.Padding, y+(titleH-TextHeight(ctx.Style.FontSize))/2, ctx.Style.FontSize, ctx.Style.TextColor)
 
-	// Draw panel body - dark gray/black
+	// Draw panel body
 	graphics.FillRect(w, graphics.NewRect(x, y+titleH, width, height-titleH), ctx.Style.BackgroundColor)
 
-	// Outer border for the whole window
-	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), ctx.Style.BorderColor)
+	// Inner body highlight (top edge below title)
+	graphics.DrawLine(w, x+1, y+titleH, x+width-2, y+titleH, graphics.NewColor(255, 255, 255, 15))
 
-	// Subtle inner highlight on title bar bottom
-	graphics.DrawLine(w, x+1, y+titleH-1, x+width-2, y+titleH-1, graphics.NewColor(255, 255, 255, 20))
+	// Outer border for the whole window
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(40, 45, 55, 255))
+
+	// Inner border highlight (top-left edges)
+	graphics.DrawLine(w, x+1, y+titleH+1, x+1, y+height-2, graphics.NewColor(255, 255, 255, 10))
 }
 
 // DraggablePanel draws a draggable panel/window and returns updated context and window state
@@ -481,9 +558,10 @@ func DraggablePanel(ctx GuiContext, w graphics.Window, title string, state Windo
 	return ctx, state
 }
 
-// Separator draws a horizontal separator line
+// Separator draws a horizontal separator line with subtle 3D effect
 func Separator(ctx GuiContext, w graphics.Window, x int32, y int32, width int32) {
-	graphics.DrawLine(w, x, y, x+width, y, ctx.Style.BorderColor)
+	graphics.DrawLine(w, x, y, x+width, y, graphics.NewColor(25, 30, 40, 255))
+	graphics.DrawLine(w, x, y+1, x+width, y+1, graphics.NewColor(65, 70, 80, 255))
 }
 
 // --- Menu System ---
@@ -492,10 +570,13 @@ func Separator(ctx GuiContext, w graphics.Window, x int32, y int32, width int32)
 func BeginMenuBar(ctx GuiContext, w graphics.Window, state MenuState, x int32, y int32, width int32) (GuiContext, MenuState) {
 	height := TextHeight(ctx.Style.FontSize) + ctx.Style.Padding*2
 
-	// Draw menu bar background
+	// Draw menu bar background with gradient effect
 	graphics.FillRect(w, graphics.NewRect(x, y, width, height), ctx.Style.TitleBgColor)
-	// Bottom border
-	graphics.DrawLine(w, x, y+height-1, x+width, y+height-1, ctx.Style.BorderColor)
+	// Top highlight
+	graphics.DrawLine(w, x, y+1, x+width-1, y+1, graphics.NewColor(255, 255, 255, 30))
+	// Bottom shadow
+	graphics.DrawLine(w, x, y+height-1, x+width, y+height-1, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawLine(w, x, y+height, x+width, y+height, graphics.NewColor(0, 0, 0, 30))
 
 	// Store menu bar info for dropdown positioning
 	state.MenuBarX = x
@@ -538,7 +619,9 @@ func Menu(ctx GuiContext, w graphics.Window, state MenuState, label string) (Gui
 
 	// Draw background if hovered or open
 	if hovered || isOpen {
-		graphics.FillRect(w, graphics.NewRect(x, y, menuW, menuH-1), ctx.Style.ButtonHoverColor)
+		graphics.FillRect(w, graphics.NewRect(x, y+1, menuW, menuH-2), ctx.Style.ButtonHoverColor)
+		// Highlight effect
+		graphics.DrawLine(w, x+1, y+2, x+menuW-2, y+2, graphics.NewColor(255, 255, 255, 30))
 		// If clicked, toggle menu
 		if ctx.MouseClicked {
 			if isOpen {
@@ -564,9 +647,25 @@ func Menu(ctx GuiContext, w graphics.Window, state MenuState, label string) (Gui
 }
 
 // BeginDropdown starts a dropdown menu area, returns the dropdown Y position
-func BeginDropdown(ctx GuiContext, w graphics.Window, state MenuState) (GuiContext, int32) {
+// dropX is the X position of the dropdown, itemCount is the total number of items
+func BeginDropdown(ctx GuiContext, w graphics.Window, state MenuState, dropX int32, itemCount int32) (GuiContext, int32) {
 	// Dropdown appears below menu bar, aligned with current menu header
 	dropY := state.MenuBarY + state.MenuBarH
+
+	// Draw dropdown shadow and background
+	padding := ctx.Style.Padding
+	textH := TextHeight(ctx.Style.FontSize)
+	itemH := textH + padding*2
+	itemW := int32(160)
+	totalH := itemH * itemCount
+
+	// Shadow
+	graphics.FillRect(w, graphics.NewRect(dropX+3, dropY+3, itemW, totalH), graphics.NewColor(0, 0, 0, 50))
+	graphics.FillRect(w, graphics.NewRect(dropX+2, dropY+2, itemW, totalH), graphics.NewColor(0, 0, 0, 40))
+
+	// Solid opaque background for entire dropdown (prevents gaps between items)
+	graphics.FillRect(w, graphics.NewRect(dropX, dropY, itemW, totalH), graphics.NewColor(45, 45, 48, 255))
+
 	return ctx, dropY
 }
 
@@ -575,7 +674,7 @@ func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, 
 	padding := ctx.Style.Padding
 	textH := TextHeight(ctx.Style.FontSize)
 	itemH := textH + padding*2
-	itemW := int32(150) // Fixed width for menu items
+	itemW := int32(160) // Fixed width for menu items
 
 	y := dropY + itemIndex*itemH
 
@@ -587,7 +686,8 @@ func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, 
 	clicked := false
 
 	if hovered {
-		graphics.FillRect(w, graphics.NewRect(dropX, y, itemW, itemH), ctx.Style.ButtonHoverColor)
+		// Hover highlight with gradient effect
+		graphics.FillRect(w, graphics.NewRect(dropX+1, y+1, itemW-2, itemH-2), ctx.Style.ButtonHoverColor)
 		state.ClickedOutside = false // Click is on menu item
 		if ctx.MouseClicked {
 			clicked = true
@@ -599,8 +699,8 @@ func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, 
 	textY := y + (itemH-textH)/2
 	DrawText(w, label, dropX+padding, textY, ctx.Style.FontSize, ctx.Style.TextColor)
 
-	// Draw border
-	graphics.DrawRect(w, graphics.NewRect(dropX, dropY, itemW, (itemIndex+1)*itemH), ctx.Style.BorderColor)
+	// Draw border around dropdown (cleaner look)
+	graphics.DrawRect(w, graphics.NewRect(dropX, dropY, itemW, (itemIndex+1)*itemH), graphics.NewColor(50, 55, 65, 255))
 
 	return ctx, state, clicked
 }
@@ -610,12 +710,14 @@ func MenuItemSeparator(ctx GuiContext, w graphics.Window, dropX int32, dropY int
 	padding := ctx.Style.Padding
 	textH := TextHeight(ctx.Style.FontSize)
 	itemH := textH + padding*2
-	itemW := int32(150)
+	itemW := int32(160)
 
 	y := dropY + itemIndex*itemH + itemH/2
 
 	graphics.FillRect(w, graphics.NewRect(dropX, dropY+itemIndex*itemH, itemW, itemH), ctx.Style.BackgroundColor)
-	graphics.DrawLine(w, dropX+padding, y, dropX+itemW-padding, y, ctx.Style.BorderColor)
+	// Draw separator with subtle 3D effect
+	graphics.DrawLine(w, dropX+padding, y, dropX+itemW-padding, y, graphics.NewColor(30, 35, 45, 255))
+	graphics.DrawLine(w, dropX+padding, y+1, dropX+itemW-padding, y+1, graphics.NewColor(70, 75, 85, 255))
 }
 
 // --- Layout Helpers ---
@@ -663,6 +765,695 @@ func AutoSlider(ctx GuiContext, w graphics.Window, label string, width int32, mi
 	ctx, result = Slider(ctx, w, label, ctx.CursorX, ctx.CursorY, width, min, max, value)
 	ctx = NextRow(ctx, ctx.Style.SliderHeight)
 	return ctx, result
+}
+
+// --- Additional Widgets ---
+
+// TabState holds state for a tab bar
+type TabState struct {
+	ActiveTab int32
+}
+
+// NewTabState creates a new tab state
+func NewTabState() TabState {
+	return TabState{ActiveTab: 0}
+}
+
+// TabBar draws a tab bar and returns the active tab index
+func TabBar(ctx GuiContext, w graphics.Window, state TabState, labels []string, x int32, y int32) (GuiContext, TabState) {
+	padding := ctx.Style.Padding
+	tabH := TextHeight(ctx.Style.FontSize) + padding*2
+	tabX := x
+
+	for i := 0; i < len(labels); i++ {
+		label := labels[i]
+		tabW := TextWidth(label, ctx.Style.FontSize) + padding*3
+		isActive := int32(i) == state.ActiveTab
+
+		// Hit test
+		hovered := pointInRect(ctx.MouseX, ctx.MouseY, tabX, y, tabW, tabH)
+
+		// Determine colors
+		var bgColor graphics.Color
+		if isActive {
+			bgColor = ctx.Style.BackgroundColor
+		} else if hovered {
+			bgColor = ctx.Style.ButtonHoverColor
+		} else {
+			bgColor = graphics.NewColor(35, 40, 50, 255)
+		}
+
+		// Draw tab shadow (only for active)
+		if isActive {
+			graphics.FillRect(w, graphics.NewRect(tabX+1, y+1, tabW, tabH), graphics.NewColor(0, 0, 0, 40))
+		}
+
+		// Draw tab background
+		graphics.FillRect(w, graphics.NewRect(tabX, y, tabW, tabH), bgColor)
+
+		// Convex effect for active tab
+		if isActive {
+			graphics.DrawLine(w, tabX+1, y+1, tabX+tabW-2, y+1, graphics.NewColor(255, 255, 255, 80))
+			graphics.DrawLine(w, tabX+1, y+1, tabX+1, y+tabH-1, graphics.NewColor(255, 255, 255, 50))
+		}
+
+		// Draw border
+		graphics.DrawLine(w, tabX, y, tabX+tabW, y, graphics.NewColor(60, 65, 75, 255))
+		graphics.DrawLine(w, tabX, y, tabX, y+tabH, graphics.NewColor(60, 65, 75, 255))
+		graphics.DrawLine(w, tabX+tabW, y, tabX+tabW, y+tabH, graphics.NewColor(60, 65, 75, 255))
+
+		// Don't draw bottom border for active tab (connects to content)
+		if !isActive {
+			graphics.DrawLine(w, tabX, y+tabH, tabX+tabW, y+tabH, graphics.NewColor(60, 65, 75, 255))
+		}
+
+		// Draw label
+		textY := y + (tabH-TextHeight(ctx.Style.FontSize))/2
+		DrawText(w, label, tabX+padding, textY, ctx.Style.FontSize, ctx.Style.TextColor)
+
+		// Handle click
+		if hovered && ctx.MouseClicked {
+			state.ActiveTab = int32(i)
+		}
+
+		tabX = tabX + tabW
+	}
+
+	return ctx, state
+}
+
+// TreeNodeState holds expanded/collapsed state for tree nodes
+type TreeNodeState struct {
+	ExpandedIDs []int32 // List of expanded node IDs
+}
+
+// NewTreeNodeState creates a new tree node state
+func NewTreeNodeState() TreeNodeState {
+	return TreeNodeState{ExpandedIDs: []int32{}}
+}
+
+// isExpanded checks if a node ID is in the expanded list
+func isExpanded(state TreeNodeState, id int32) bool {
+	for i := 0; i < len(state.ExpandedIDs); i++ {
+		if state.ExpandedIDs[i] == id {
+			return true
+		}
+	}
+	return false
+}
+
+// toggleExpanded adds or removes an ID from the expanded list
+func toggleExpanded(state TreeNodeState, id int32) TreeNodeState {
+	// Check if already expanded
+	for i := 0; i < len(state.ExpandedIDs); i++ {
+		if state.ExpandedIDs[i] == id {
+			// Remove it (collapse)
+			newIDs := []int32{}
+			for j := 0; j < len(state.ExpandedIDs); j++ {
+				if state.ExpandedIDs[j] != id {
+					newIDs = append(newIDs, state.ExpandedIDs[j])
+				}
+			}
+			state.ExpandedIDs = newIDs
+			return state
+		}
+	}
+	// Not found, add it (expand)
+	state.ExpandedIDs = append(state.ExpandedIDs, id)
+	return state
+}
+
+// TreeNode draws a tree node with expand/collapse arrow, returns true if expanded
+func TreeNode(ctx GuiContext, w graphics.Window, state TreeNodeState, label string, x int32, y int32, indent int32) (GuiContext, TreeNodeState, bool) {
+	id := GenID(label)
+	padding := ctx.Style.Padding
+	nodeH := TextHeight(ctx.Style.FontSize) + padding
+	arrowSize := int32(8)
+
+	// Calculate actual x with indent
+	actualX := x + indent
+
+	// Hit test for arrow area
+	arrowHovered := pointInRect(ctx.MouseX, ctx.MouseY, actualX, y, arrowSize+padding, nodeH)
+	// Hit test for label area
+	labelHovered := pointInRect(ctx.MouseX, ctx.MouseY, actualX+arrowSize+padding, y, TextWidth(label, ctx.Style.FontSize)+padding, nodeH)
+
+	// Get expanded state
+	expanded := isExpanded(state, id)
+
+	// Draw hover highlight
+	if arrowHovered || labelHovered {
+		totalW := arrowSize + padding + TextWidth(label, ctx.Style.FontSize) + padding
+		graphics.FillRect(w, graphics.NewRect(actualX, y, totalW, nodeH), graphics.NewColor(255, 255, 255, 20))
+	}
+
+	// Draw expand/collapse arrow
+	arrowX := actualX + arrowSize/2
+	arrowY := y + nodeH/2
+	arrowColor := ctx.Style.TextColor
+	if expanded {
+		// Down arrow (expanded)
+		graphics.DrawLine(w, arrowX-3, arrowY-2, arrowX, arrowY+2, arrowColor)
+		graphics.DrawLine(w, arrowX, arrowY+2, arrowX+3, arrowY-2, arrowColor)
+		graphics.DrawLine(w, arrowX-2, arrowY-2, arrowX, arrowY+1, arrowColor)
+		graphics.DrawLine(w, arrowX, arrowY+1, arrowX+2, arrowY-2, arrowColor)
+	} else {
+		// Right arrow (collapsed)
+		graphics.DrawLine(w, arrowX-2, arrowY-3, arrowX+2, arrowY, arrowColor)
+		graphics.DrawLine(w, arrowX+2, arrowY, arrowX-2, arrowY+3, arrowColor)
+		graphics.DrawLine(w, arrowX-2, arrowY-2, arrowX+1, arrowY, arrowColor)
+		graphics.DrawLine(w, arrowX+1, arrowY, arrowX-2, arrowY+2, arrowColor)
+	}
+
+	// Draw label
+	DrawText(w, label, actualX+arrowSize+padding, y+(nodeH-TextHeight(ctx.Style.FontSize))/2, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	// Handle click on arrow to toggle
+	if arrowHovered && ctx.MouseClicked {
+		state = toggleExpanded(state, id)
+		expanded = !expanded
+	}
+
+	return ctx, state, expanded
+}
+
+// TreeLeaf draws a tree leaf (no expand arrow)
+func TreeLeaf(ctx GuiContext, w graphics.Window, label string, x int32, y int32, indent int32) (GuiContext, bool) {
+	padding := ctx.Style.Padding
+	nodeH := TextHeight(ctx.Style.FontSize) + padding
+	bulletSize := int32(4)
+
+	// Calculate actual x with indent
+	actualX := x + indent
+
+	// Hit test
+	hovered := pointInRect(ctx.MouseX, ctx.MouseY, actualX, y, TextWidth(label, ctx.Style.FontSize)+padding*2+bulletSize, nodeH)
+	clicked := false
+
+	// Draw hover highlight
+	if hovered {
+		totalW := bulletSize + padding + TextWidth(label, ctx.Style.FontSize) + padding
+		graphics.FillRect(w, graphics.NewRect(actualX, y, totalW, nodeH), graphics.NewColor(255, 255, 255, 20))
+		if ctx.MouseClicked {
+			clicked = true
+		}
+	}
+
+	// Draw bullet point
+	bulletX := actualX + bulletSize/2 + 2
+	bulletY := y + nodeH/2
+	graphics.FillCircle(w, bulletX, bulletY, 2, ctx.Style.TextColor)
+
+	// Draw label
+	DrawText(w, label, actualX+bulletSize+padding, y+(nodeH-TextHeight(ctx.Style.FontSize))/2, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	return ctx, clicked
+}
+
+// ProgressBar draws a horizontal progress bar
+func ProgressBar(ctx GuiContext, w graphics.Window, x int32, y int32, width int32, height int32, progress float64) {
+	// Clamp progress
+	if progress < 0 {
+		progress = 0
+	}
+	if progress > 1 {
+		progress = 1
+	}
+
+	// Draw shadow
+	graphics.FillRect(w, graphics.NewRect(x+1, y+1, width, height), graphics.NewColor(0, 0, 0, 50))
+
+	// Draw background (inset)
+	graphics.FillRect(w, graphics.NewRect(x, y, width, height), ctx.Style.FrameBgColor)
+
+	// Inner shadow for inset look
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+height-2, graphics.NewColor(0, 0, 0, 60))
+
+	// Draw filled portion
+	fillW := int32(float64(width-4) * progress)
+	if fillW > 0 {
+		fillColor := ctx.Style.SliderTrackColor
+		graphics.FillRect(w, graphics.NewRect(x+2, y+2, fillW, height-4), fillColor)
+
+		// Convex highlight on fill
+		graphics.DrawLine(w, x+2, y+2, x+fillW, y+2, graphics.NewColor(255, 255, 255, 60))
+		graphics.DrawLine(w, x+2, y+3, x+fillW, y+3, graphics.NewColor(255, 255, 255, 30))
+	}
+
+	// Border
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(50, 55, 65, 255))
+}
+
+// RadioButton draws a radio button and returns true if selected
+func RadioButton(ctx GuiContext, w graphics.Window, label string, x int32, y int32, selected bool) (GuiContext, bool) {
+	id := GenID(label)
+	radioSize := ctx.Style.CheckboxSize
+	radius := radioSize / 2
+
+	// Hit test
+	labelW := TextWidth(label, ctx.Style.FontSize)
+	totalW := radioSize + ctx.Style.Padding + labelW
+	hovered := pointInRect(ctx.MouseX, ctx.MouseY, x, y, totalW, radioSize)
+
+	// Update hot/active state
+	if hovered {
+		ctx.HotID = id
+		if ctx.MouseClicked {
+			ctx.ActiveID = id
+		}
+	}
+
+	// Draw radio button circle
+	centerX := x + radius
+	centerY := y + radius
+
+	// Outer circle shadow
+	graphics.DrawCircle(w, centerX+1, centerY+1, radius, graphics.NewColor(0, 0, 0, 60))
+
+	// Outer circle background
+	var bgColor graphics.Color
+	if hovered {
+		bgColor = ctx.Style.ButtonHoverColor
+	} else {
+		bgColor = ctx.Style.FrameBgColor
+	}
+	graphics.FillCircle(w, centerX, centerY, radius-1, bgColor)
+
+	// Convex highlight
+	graphics.DrawCircle(w, centerX-1, centerY-1, radius-2, graphics.NewColor(255, 255, 255, 50))
+
+	// Outer circle border
+	graphics.DrawCircle(w, centerX, centerY, radius, graphics.NewColor(60, 65, 75, 255))
+
+	// Draw inner dot if selected
+	if selected {
+		dotColor := ctx.Style.CheckmarkColor
+		graphics.FillCircle(w, centerX, centerY, radius-4, dotColor)
+		// Highlight on dot
+		graphics.DrawCircle(w, centerX-1, centerY-1, radius-5, graphics.NewColor(255, 255, 255, 60))
+	}
+
+	// Draw label
+	labelX := x + radioSize + ctx.Style.Padding
+	labelY := y + (radioSize-TextHeight(ctx.Style.FontSize))/2
+	DrawText(w, label, labelX, labelY, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	// Return true if clicked
+	clicked := ctx.ReleasedID == id && ctx.MouseReleased && hovered
+	return ctx, clicked
+}
+
+// TextInputState holds state for text input
+type TextInputState struct {
+	Text       string
+	CursorPos  int32
+	Active     bool
+	BlinkTimer int32
+}
+
+// NewTextInputState creates a new text input state
+func NewTextInputState(initialText string) TextInputState {
+	return TextInputState{
+		Text:      initialText,
+		CursorPos: int32(len(initialText)),
+	}
+}
+
+// TextInput draws a text input field and returns updated state
+func TextInput(ctx GuiContext, w graphics.Window, state TextInputState, x int32, y int32, width int32) (GuiContext, TextInputState) {
+	idStr := "textinput_"
+	// Use position as part of ID since we don't have a label
+	id := GenID(idStr) + x*1000 + y
+	height := ctx.Style.ButtonHeight
+	padding := ctx.Style.Padding
+
+	// Hit test
+	hovered := pointInRect(ctx.MouseX, ctx.MouseY, x, y, width, height)
+
+	// Handle click to activate
+	if hovered && ctx.MouseClicked {
+		state.Active = true
+		ctx.ActiveID = id
+	} else if ctx.MouseClicked && !hovered {
+		state.Active = false
+		if ctx.ActiveID == id {
+			ctx.ActiveID = 0
+		}
+	}
+
+	// Draw shadow
+	graphics.FillRect(w, graphics.NewRect(x+1, y+1, width, height), graphics.NewColor(0, 0, 0, 50))
+
+	// Draw background
+	var bgColor graphics.Color
+	if state.Active {
+		bgColor = graphics.NewColor(55, 60, 70, 255)
+	} else {
+		bgColor = ctx.Style.FrameBgColor
+	}
+	graphics.FillRect(w, graphics.NewRect(x, y, width, height), bgColor)
+
+	// Inset shadow
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(0, 0, 0, 80))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+height-2, graphics.NewColor(0, 0, 0, 80))
+
+	// Draw text
+	textY := y + (height-TextHeight(ctx.Style.FontSize))/2
+	DrawText(w, state.Text, x+padding, textY, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	// Draw cursor if active
+	if state.Active {
+		state.BlinkTimer = state.BlinkTimer + 1
+		if state.BlinkTimer > 60 {
+			state.BlinkTimer = 0
+		}
+		if state.BlinkTimer < 30 {
+			cursorX := x + padding + TextWidth(state.Text, ctx.Style.FontSize)
+			graphics.DrawLine(w, cursorX, y+4, cursorX, y+height-4, ctx.Style.TextColor)
+		}
+	}
+
+	// Border (highlight if active)
+	var borderColor graphics.Color
+	if state.Active {
+		borderColor = ctx.Style.CheckmarkColor
+	} else if hovered {
+		borderColor = graphics.NewColor(80, 90, 110, 255)
+	} else {
+		borderColor = graphics.NewColor(50, 55, 65, 255)
+	}
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), borderColor)
+
+	// Handle keyboard input when active
+	if state.Active {
+		key := graphics.GetLastKey()
+		if key > 0 {
+			if key == 8 { // Backspace
+				if len(state.Text) > 0 {
+					state.Text = removeLastChar(state.Text)
+				}
+			} else if key >= 32 && key < 127 { // Printable characters
+				state.Text = state.Text + asciiToString(key)
+			}
+		}
+	}
+
+	return ctx, state
+}
+
+// ListBox draws a scrollable list and returns the selected index
+func ListBox(ctx GuiContext, w graphics.Window, items []string, x int32, y int32, width int32, height int32, selectedIndex int32, scrollOffset int32) (GuiContext, int32, int32) {
+	padding := ctx.Style.Padding
+	itemH := TextHeight(ctx.Style.FontSize) + padding
+
+	// Draw shadow
+	graphics.FillRect(w, graphics.NewRect(x+2, y+2, width, height), graphics.NewColor(0, 0, 0, 50))
+
+	// Draw background
+	graphics.FillRect(w, graphics.NewRect(x, y, width, height), ctx.Style.FrameBgColor)
+
+	// Inset shadow
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(0, 0, 0, 80))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+height-2, graphics.NewColor(0, 0, 0, 80))
+
+	// Calculate visible items
+	visibleCount := (height - 4) / itemH
+	startIndex := scrollOffset / itemH
+	if startIndex < 0 {
+		startIndex = 0
+	}
+
+	// Draw items
+	for i := int32(0); i < visibleCount; i++ {
+		if int(startIndex+i) >= len(items) {
+			break
+		}
+		itemIndex := startIndex + i
+		item := items[itemIndex]
+		itemY := y + 2 + i*itemH
+
+		// Check if this item is selected
+		if itemIndex == selectedIndex {
+			graphics.FillRect(w, graphics.NewRect(x+2, itemY, width-4, itemH), ctx.Style.ButtonHoverColor)
+		}
+
+		// Hit test
+		if pointInRect(ctx.MouseX, ctx.MouseY, x+2, itemY, width-4, itemH) {
+			if itemIndex != selectedIndex {
+				graphics.FillRect(w, graphics.NewRect(x+2, itemY, width-4, itemH), graphics.NewColor(255, 255, 255, 20))
+			}
+			if ctx.MouseClicked {
+				selectedIndex = itemIndex
+			}
+		}
+
+		// Draw item text
+		textY := itemY + (itemH-TextHeight(ctx.Style.FontSize))/2
+		DrawText(w, item, x+padding, textY, ctx.Style.FontSize, ctx.Style.TextColor)
+	}
+
+	// Draw border
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(50, 55, 65, 255))
+
+	// Draw scrollbar if needed
+	totalHeight := int32(len(items)) * itemH
+	if totalHeight > height {
+		scrollbarW := int32(8)
+		scrollbarX := x + width - scrollbarW - 2
+		scrollbarH := height - 4
+		thumbH := (height * scrollbarH) / totalHeight
+		if thumbH < 20 {
+			thumbH = 20
+		}
+		maxScroll := totalHeight - height
+		thumbY := y + 2 + ((scrollbarH - thumbH) * scrollOffset) / maxScroll
+
+		// Scrollbar track
+		graphics.FillRect(w, graphics.NewRect(scrollbarX, y+2, scrollbarW, scrollbarH), graphics.NewColor(30, 35, 45, 255))
+
+		// Scrollbar thumb
+		graphics.FillRect(w, graphics.NewRect(scrollbarX, thumbY, scrollbarW, thumbH), graphics.NewColor(80, 90, 110, 255))
+		// Convex effect
+		graphics.DrawLine(w, scrollbarX+1, thumbY+1, scrollbarX+scrollbarW-2, thumbY+1, graphics.NewColor(255, 255, 255, 40))
+	}
+
+	return ctx, selectedIndex, scrollOffset
+}
+
+// --- Auto-layout versions of new widgets ---
+
+// AutoProgressBar draws a progress bar at cursor position
+func AutoProgressBar(ctx GuiContext, w graphics.Window, width int32, height int32, progress float64) GuiContext {
+	ProgressBar(ctx, w, ctx.CursorX, ctx.CursorY, width, height, progress)
+	ctx = NextRow(ctx, height)
+	return ctx
+}
+
+// AutoRadioButton draws a radio button at cursor position
+func AutoRadioButton(ctx GuiContext, w graphics.Window, label string, selected bool) (GuiContext, bool) {
+	var clicked bool
+	ctx, clicked = RadioButton(ctx, w, label, ctx.CursorX, ctx.CursorY, selected)
+	ctx = NextRow(ctx, ctx.Style.CheckboxSize)
+	return ctx, clicked
+}
+
+// Tooltip draws a tooltip at the given position
+func Tooltip(ctx GuiContext, w graphics.Window, text string, x int32, y int32) {
+	padding := ctx.Style.Padding
+	textW := TextWidth(text, ctx.Style.FontSize)
+	textH := TextHeight(ctx.Style.FontSize)
+	tipW := textW + padding*2
+	tipH := textH + padding*2
+
+	// Adjust position to stay on screen
+	tipX := x + 10
+	tipY := y + 10
+
+	// Draw shadow
+	graphics.FillRect(w, graphics.NewRect(tipX+2, tipY+2, tipW, tipH), graphics.NewColor(0, 0, 0, 80))
+
+	// Draw background
+	graphics.FillRect(w, graphics.NewRect(tipX, tipY, tipW, tipH), graphics.NewColor(60, 60, 65, 250))
+
+	// Convex highlight
+	graphics.DrawLine(w, tipX+1, tipY+1, tipX+tipW-2, tipY+1, graphics.NewColor(255, 255, 255, 50))
+	graphics.DrawLine(w, tipX+1, tipY+1, tipX+1, tipY+tipH-2, graphics.NewColor(255, 255, 255, 30))
+
+	// Border
+	graphics.DrawRect(w, graphics.NewRect(tipX, tipY, tipW, tipH), graphics.NewColor(80, 85, 95, 255))
+
+	// Draw text
+	DrawText(w, text, tipX+padding, tipY+padding, ctx.Style.FontSize, ctx.Style.TextColor)
+}
+
+// Spinner draws a numeric spinner with +/- buttons
+func Spinner(ctx GuiContext, w graphics.Window, label string, x int32, y int32, value int32, minVal int32, maxVal int32) (GuiContext, int32) {
+	padding := ctx.Style.Padding
+	height := ctx.Style.ButtonHeight
+	btnW := height
+	valueW := int32(50)
+	labelW := TextWidth(label, ctx.Style.FontSize)
+
+	// Draw label
+	labelY := y + (height-TextHeight(ctx.Style.FontSize))/2
+	DrawText(w, label, x, labelY, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	// Position for spinner controls
+	spinX := x + labelW + padding
+
+	// Minus button
+	minusHovered := pointInRect(ctx.MouseX, ctx.MouseY, spinX, y, btnW, height)
+	var minusBg graphics.Color
+	if minusHovered {
+		minusBg = ctx.Style.ButtonHoverColor
+	} else {
+		minusBg = ctx.Style.ButtonColor
+	}
+	graphics.FillRect(w, graphics.NewRect(spinX, y, btnW, height), minusBg)
+	// Convex effect
+	graphics.DrawLine(w, spinX+1, y+1, spinX+btnW-2, y+1, graphics.NewColor(255, 255, 255, 70))
+	graphics.DrawLine(w, spinX+1, y+height-1, spinX+btnW-1, y+height-1, graphics.NewColor(0, 0, 0, 80))
+	graphics.DrawRect(w, graphics.NewRect(spinX, y, btnW, height), graphics.NewColor(50, 55, 65, 255))
+	// Minus sign
+	graphics.DrawLine(w, spinX+4, y+height/2, spinX+btnW-4, y+height/2, ctx.Style.TextColor)
+	graphics.DrawLine(w, spinX+4, y+height/2+1, spinX+btnW-4, y+height/2+1, ctx.Style.TextColor)
+
+	if minusHovered && ctx.MouseClicked && value > minVal {
+		value = value - 1
+	}
+
+	// Value display
+	valueX := spinX + btnW
+	graphics.FillRect(w, graphics.NewRect(valueX, y, valueW, height), ctx.Style.FrameBgColor)
+	graphics.DrawLine(w, valueX+1, y+1, valueX+valueW-2, y+1, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawRect(w, graphics.NewRect(valueX, y, valueW, height), graphics.NewColor(50, 55, 65, 255))
+
+	// Draw value centered
+	valueStr := intToString(value)
+	valueTextW := TextWidth(valueStr, ctx.Style.FontSize)
+	valueTextX := valueX + (valueW-valueTextW)/2
+	DrawText(w, valueStr, valueTextX, labelY, ctx.Style.FontSize, ctx.Style.TextColor)
+
+	// Plus button
+	plusX := valueX + valueW
+	plusHovered := pointInRect(ctx.MouseX, ctx.MouseY, plusX, y, btnW, height)
+	var plusBg graphics.Color
+	if plusHovered {
+		plusBg = ctx.Style.ButtonHoverColor
+	} else {
+		plusBg = ctx.Style.ButtonColor
+	}
+	graphics.FillRect(w, graphics.NewRect(plusX, y, btnW, height), plusBg)
+	// Convex effect
+	graphics.DrawLine(w, plusX+1, y+1, plusX+btnW-2, y+1, graphics.NewColor(255, 255, 255, 70))
+	graphics.DrawLine(w, plusX+1, y+height-1, plusX+btnW-1, y+height-1, graphics.NewColor(0, 0, 0, 80))
+	graphics.DrawRect(w, graphics.NewRect(plusX, y, btnW, height), graphics.NewColor(50, 55, 65, 255))
+	// Plus sign
+	graphics.DrawLine(w, plusX+4, y+height/2, plusX+btnW-4, y+height/2, ctx.Style.TextColor)
+	graphics.DrawLine(w, plusX+4, y+height/2+1, plusX+btnW-4, y+height/2+1, ctx.Style.TextColor)
+	graphics.DrawLine(w, plusX+btnW/2, y+4, plusX+btnW/2, y+height-4, ctx.Style.TextColor)
+	graphics.DrawLine(w, plusX+btnW/2+1, y+4, plusX+btnW/2+1, y+height-4, ctx.Style.TextColor)
+
+	if plusHovered && ctx.MouseClicked && value < maxVal {
+		value = value + 1
+	}
+
+	return ctx, value
+}
+
+// Helper to convert int to string (simple implementation)
+func intToString(n int32) string {
+	digitChars := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+	if n == 0 {
+		return "0"
+	}
+	negative := false
+	if n < 0 {
+		negative = true
+		n = -n
+	}
+	result := ""
+	for n > 0 {
+		digit := n % 10
+		result = digitChars[digit] + result
+		n = n / 10
+	}
+	if negative {
+		result = "-" + result
+	}
+	return result
+}
+
+// removeLastChar removes the last character from a string
+func removeLastChar(s string) string {
+	slen := len(s)
+	if slen == 0 {
+		return s
+	}
+	// Build result by taking chars one at a time using asciiToString
+	result := ""
+	for i := 0; i < slen-1; i++ {
+		result = result + asciiToString(int(s[i]))
+	}
+	return result
+}
+
+// asciiToString converts an ASCII code (32-126) to a single-character string
+func asciiToString(code int) string {
+	// Printable ASCII characters
+	chars := []string{
+		" ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/",
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?",
+		"@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+		"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_",
+		"`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o",
+		"p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~",
+	}
+	if code >= 32 && code <= 126 {
+		return chars[code-32]
+	}
+	return ""
+}
+
+// ColorPicker draws a simple color picker with RGB sliders
+func ColorPicker(ctx GuiContext, w graphics.Window, label string, x int32, y int32, width int32, color graphics.Color) (GuiContext, graphics.Color) {
+	padding := ctx.Style.Padding
+	sliderH := ctx.Style.SliderHeight
+	previewSize := int32(40)
+
+	// Draw label
+	DrawText(w, label, x, y, ctx.Style.FontSize, ctx.Style.TextColor)
+	y = y + TextHeight(ctx.Style.FontSize) + padding
+
+	// Draw color preview
+	graphics.FillRect(w, graphics.NewRect(x+1, y+1, previewSize, previewSize), graphics.NewColor(0, 0, 0, 60))
+	graphics.FillRect(w, graphics.NewRect(x, y, previewSize, previewSize), color)
+	graphics.DrawRect(w, graphics.NewRect(x, y, previewSize, previewSize), graphics.NewColor(60, 65, 75, 255))
+
+	// RGB sliders
+	sliderX := x + previewSize + padding
+	sliderW := width - previewSize - padding
+
+	var rVal float64
+	var gVal float64
+	var bVal float64
+
+	// Red slider
+	ctx, rVal = Slider(ctx, w, "R", sliderX, y, sliderW, 0, 255, float64(color.R))
+	color.R = uint8(rVal)
+	y = y + sliderH + 2
+
+	// Green slider
+	ctx, gVal = Slider(ctx, w, "G", sliderX, y, sliderW, 0, 255, float64(color.G))
+	color.G = uint8(gVal)
+	y = y + sliderH + 2
+
+	// Blue slider
+	ctx, bVal = Slider(ctx, w, "B", sliderX, y, sliderW, 0, 255, float64(color.B))
+	color.B = uint8(bVal)
+
+	return ctx, color
 }
 
 // --- Embedded 8x8 Bitmap Font ---
