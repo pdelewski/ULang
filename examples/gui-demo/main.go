@@ -17,6 +17,11 @@ func main() {
 	brightness := 75.0
 	counter := 0
 
+	// Draggable window states
+	demoWin := gui.NewWindowState(20, 20, 350, 400)
+	anotherWin := gui.NewWindowState(400, 20, 350, 200)
+	infoWin := gui.NewWindowState(400, 250, 350, 170)
+
 	var clicked bool
 
 	graphics.RunLoop(w, func(w graphics.Window) bool {
@@ -26,33 +31,33 @@ func main() {
 		// Clear with very dark background (like ImGui demo)
 		graphics.Clear(w, graphics.NewColor(30, 30, 30, 255))
 
-		// Main demo panel
-		gui.Panel(ctx, w, "Demo Window", 20, 20, 350, 400)
+		// Main demo panel (draggable)
+		ctx, demoWin = gui.DraggablePanel(ctx, w, "Demo Window", demoWin)
 
-		// Content inside panel
-		ctx = gui.BeginLayout(ctx, 30, 70, 6)
+		// Content inside panel (relative to panel position)
+		ctx = gui.BeginLayout(ctx, demoWin.X+10, demoWin.Y+50, 6)
 
 		ctx = gui.AutoLabel(ctx, w, "Hello from goany GUI!")
 
-		gui.Separator(ctx, w, 30, ctx.CursorY-2, 330)
+		gui.Separator(ctx, w, demoWin.X+10, ctx.CursorY-2, 330)
 		ctx.CursorY = ctx.CursorY + 4
 
 		// Buttons in a row
-		ctx, clicked = gui.Button(ctx, w, "Click", 30, ctx.CursorY, 80, 26)
+		ctx, clicked = gui.Button(ctx, w, "Click", demoWin.X+10, ctx.CursorY, 80, 26)
 		if clicked {
 			counter = counter + 1
 		}
 		// Same row button
-		ctx, clicked = gui.Button(ctx, w, "Reset", 120, ctx.CursorY, 80, 26)
+		ctx, clicked = gui.Button(ctx, w, "Reset", demoWin.X+100, ctx.CursorY, 80, 26)
 		if clicked {
 			counter = 0
 			volume = 0.5
 			brightness = 75.0
 		}
-		gui.Label(ctx, w, "Count: "+intToString(counter), 210, ctx.CursorY+4)
+		gui.Label(ctx, w, "Count: "+intToString(counter), demoWin.X+190, ctx.CursorY+4)
 		ctx = gui.NextRow(ctx, 26)
 
-		gui.Separator(ctx, w, 30, ctx.CursorY-2, 330)
+		gui.Separator(ctx, w, demoWin.X+10, ctx.CursorY-2, 330)
 		ctx.CursorY = ctx.CursorY + 4
 
 		// Checkboxes
@@ -60,26 +65,26 @@ func main() {
 		ctx, showAnother = gui.AutoCheckbox(ctx, w, "Show Another Window", showAnother)
 		ctx, enabled = gui.AutoCheckbox(ctx, w, "Enable Feature", enabled)
 
-		gui.Separator(ctx, w, 30, ctx.CursorY-2, 330)
+		gui.Separator(ctx, w, demoWin.X+10, ctx.CursorY-2, 330)
 		ctx.CursorY = ctx.CursorY + 4
 
 		// Sliders
 		ctx, volume = gui.AutoSlider(ctx, w, "Volume", 320, 0.0, 1.0, volume)
 		ctx, brightness = gui.AutoSlider(ctx, w, "Bright", 320, 0.0, 100.0, brightness)
 
-		// Second panel if enabled
+		// Second panel if enabled (draggable)
 		if showAnother {
-			gui.Panel(ctx, w, "Another Window", 400, 20, 350, 200)
-			gui.Label(ctx, w, "This is another panel!", 410, 70)
-			ctx, clicked = gui.Button(ctx, w, "Close", 410, 110, 100, 26)
+			ctx, anotherWin = gui.DraggablePanel(ctx, w, "Another Window", anotherWin)
+			gui.Label(ctx, w, "This is another panel!", anotherWin.X+10, anotherWin.Y+50)
+			ctx, clicked = gui.Button(ctx, w, "Close", anotherWin.X+10, anotherWin.Y+90, 100, 26)
 			if clicked {
 				showAnother = false
 			}
 		}
 
-		// Info panel
-		gui.Panel(ctx, w, "Info", 400, 250, 350, 170)
-		ctx = gui.BeginLayout(ctx, 410, 300, 4)
+		// Info panel (draggable)
+		ctx, infoWin = gui.DraggablePanel(ctx, w, "Info", infoWin)
+		ctx = gui.BeginLayout(ctx, infoWin.X+10, infoWin.Y+50, 4)
 		ctx = gui.AutoLabel(ctx, w, "Application Stats:")
 		ctx = gui.AutoLabel(ctx, w, "  Volume: "+floatToString(volume))
 		ctx = gui.AutoLabel(ctx, w, "  Brightness: "+floatToString(brightness))

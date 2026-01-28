@@ -27,6 +27,27 @@ type GuiContext struct {
 	Style GuiStyle
 }
 
+// WindowState holds position and drag state for a draggable window
+type WindowState struct {
+	X           int32
+	Y           int32
+	Width       int32
+	Height      int32
+	Dragging    bool
+	DragOffsetX int32
+	DragOffsetY int32
+}
+
+// NewWindowState creates a new window state at the given position
+func NewWindowState(x int32, y int32, width int32, height int32) WindowState {
+	return WindowState{
+		X:      x,
+		Y:      y,
+		Width:  width,
+		Height: height,
+	}
+}
+
 // GuiStyle defines colors and dimensions for widgets
 type GuiStyle struct {
 	// Colors
@@ -403,6 +424,45 @@ func Panel(ctx GuiContext, w graphics.Window, title string, x int32, y int32, wi
 
 	// Subtle inner highlight on title bar bottom
 	graphics.DrawLine(w, x+1, y+titleH-1, x+width-2, y+titleH-1, graphics.NewColor(255, 255, 255, 20))
+}
+
+// DraggablePanel draws a draggable panel/window and returns updated context and window state
+func DraggablePanel(ctx GuiContext, w graphics.Window, title string, state WindowState) (GuiContext, WindowState) {
+	// Generate ID from title (avoid reusing title after concat)
+	idStr := title
+	idStr += "_panel"
+	id := GenID(idStr)
+	titleH := TextHeight(ctx.Style.FontSize) + ctx.Style.Padding*2
+
+	// Check if mouse is in title bar (drag area)
+	inTitleBar := pointInRect(ctx.MouseX, ctx.MouseY, state.X, state.Y, state.Width, titleH)
+
+	// Handle drag start
+	if inTitleBar && ctx.MouseClicked {
+		state.Dragging = true
+		state.DragOffsetX = ctx.MouseX - state.X
+		state.DragOffsetY = ctx.MouseY - state.Y
+		ctx.ActiveID = id
+	}
+
+	// Handle dragging
+	if state.Dragging && ctx.MouseDown {
+		state.X = ctx.MouseX - state.DragOffsetX
+		state.Y = ctx.MouseY - state.DragOffsetY
+	}
+
+	// Handle drag end
+	if state.Dragging && ctx.MouseReleased {
+		state.Dragging = false
+		if ctx.ActiveID == id {
+			ctx.ActiveID = 0
+		}
+	}
+
+	// Draw the panel at current position
+	Panel(ctx, w, title, state.X, state.Y, state.Width, state.Height)
+
+	return ctx, state
 }
 
 // Separator draws a horizontal separator line
