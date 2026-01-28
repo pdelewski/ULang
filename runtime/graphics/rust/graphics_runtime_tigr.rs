@@ -81,7 +81,7 @@ thread_local! {
 
 // --- Public API types ---
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Color {
     pub R: u8,
     pub G: u8,

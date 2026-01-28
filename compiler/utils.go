@@ -133,6 +133,16 @@ func SearchPointerIndexReverseString(target string, pointerAndIndexVec []Pointer
 	return nil // Return nil if the pointer is not found
 }
 
+// RemovePointerEntryReverse removes the last entry matching the target and returns the new slice
+func RemovePointerEntryReverse(pointerAndIndexVec []PointerAndIndex, target VisitMethod) []PointerAndIndex {
+	for i := len(pointerAndIndexVec) - 1; i >= 0; i-- {
+		if pointerAndIndexVec[i].Pointer == string(target) {
+			return append(pointerAndIndexVec[:i], pointerAndIndexVec[i+1:]...)
+		}
+	}
+	return pointerAndIndexVec
+}
+
 // New token-based functions
 func ExtractTokensNew(position int, tokenSlice []Token) ([]Token, error) {
 	if position < 0 || position >= len(tokenSlice) {
