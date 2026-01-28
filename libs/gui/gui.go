@@ -95,7 +95,7 @@ type GuiStyle struct {
 func DefaultStyle() GuiStyle {
 	return GuiStyle{
 		// Modern dark theme with better contrast and softer colors
-		BackgroundColor:   graphics.NewColor(32, 32, 36, 250),    // Window body - soft dark gray
+		BackgroundColor:   graphics.NewColor(45, 45, 48, 250),    // Window body - neutral gray
 		TextColor:         graphics.NewColor(240, 240, 245, 255), // Soft white text
 		ButtonColor:       graphics.NewColor(70, 130, 210, 180),  // Button normal - softer blue
 		ButtonHoverColor:  graphics.NewColor(90, 150, 230, 220),  // Button hover - brighter
@@ -256,21 +256,31 @@ func Button(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 	}
 
 	// Draw button shadow (offset dark rectangle for depth)
-	graphics.FillRect(w, graphics.NewRect(x+2, y+2, width, height), graphics.NewColor(0, 0, 0, 60))
+	graphics.FillRect(w, graphics.NewRect(x+2, y+2, width, height), graphics.NewColor(0, 0, 0, 70))
 
 	// Main button fill
 	graphics.FillRect(w, graphics.NewRect(x, y, width, height), bgColor)
 
-	// Top highlight for 3D effect
-	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 50))
-	graphics.DrawLine(w, x+1, y+1, x+1, y+height-2, graphics.NewColor(255, 255, 255, 30))
+	// Convex effect - bright top edge (multiple lines for gradient)
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 100))
+	graphics.DrawLine(w, x+1, y+2, x+width-2, y+2, graphics.NewColor(255, 255, 255, 60))
+	graphics.DrawLine(w, x+1, y+3, x+width-2, y+3, graphics.NewColor(255, 255, 255, 30))
 
-	// Bottom/right shadow for depth
-	graphics.DrawLine(w, x+1, y+height-1, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 80))
-	graphics.DrawLine(w, x+width-1, y+1, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 80))
+	// Convex effect - bright left edge
+	graphics.DrawLine(w, x+1, y+1, x+1, y+height-2, graphics.NewColor(255, 255, 255, 80))
+	graphics.DrawLine(w, x+2, y+2, x+2, y+height-3, graphics.NewColor(255, 255, 255, 40))
 
-	// Subtle outer border
-	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(0, 0, 0, 40))
+	// Convex effect - dark bottom edge (multiple lines for gradient)
+	graphics.DrawLine(w, x+2, y+height-1, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, x+2, y+height-2, x+width-2, y+height-2, graphics.NewColor(0, 0, 0, 70))
+	graphics.DrawLine(w, x+2, y+height-3, x+width-2, y+height-3, graphics.NewColor(0, 0, 0, 30))
+
+	// Convex effect - dark right edge
+	graphics.DrawLine(w, x+width-1, y+2, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, x+width-2, y+3, x+width-2, y+height-2, graphics.NewColor(0, 0, 0, 60))
+
+	// Outer border
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(30, 30, 35, 255))
 
 	// Draw centered label with press offset
 	textW := TextWidth(label, ctx.Style.FontSize)
@@ -311,17 +321,25 @@ func Checkbox(ctx GuiContext, w graphics.Window, label string, x int32, y int32,
 	}
 
 	// Draw checkbox shadow
-	graphics.FillRect(w, graphics.NewRect(x+1, y+1, boxSize, boxSize), graphics.NewColor(0, 0, 0, 50))
+	graphics.FillRect(w, graphics.NewRect(x+1, y+1, boxSize, boxSize), graphics.NewColor(0, 0, 0, 60))
 
 	// Draw checkbox frame
 	graphics.FillRect(w, graphics.NewRect(x, y, boxSize, boxSize), boxColor)
 
-	// Inner shadow (inset effect)
-	graphics.DrawLine(w, x+1, y+1, x+boxSize-2, y+1, graphics.NewColor(0, 0, 0, 80))
-	graphics.DrawLine(w, x+1, y+1, x+1, y+boxSize-2, graphics.NewColor(0, 0, 0, 80))
+	// Convex effect - bright top-left edges
+	graphics.DrawLine(w, x+1, y+1, x+boxSize-2, y+1, graphics.NewColor(255, 255, 255, 90))
+	graphics.DrawLine(w, x+1, y+2, x+boxSize-3, y+2, graphics.NewColor(255, 255, 255, 50))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+boxSize-2, graphics.NewColor(255, 255, 255, 70))
+	graphics.DrawLine(w, x+2, y+2, x+2, y+boxSize-3, graphics.NewColor(255, 255, 255, 35))
+
+	// Convex effect - dark bottom-right edges
+	graphics.DrawLine(w, x+2, y+boxSize-1, x+boxSize-1, y+boxSize-1, graphics.NewColor(0, 0, 0, 100))
+	graphics.DrawLine(w, x+3, y+boxSize-2, x+boxSize-2, y+boxSize-2, graphics.NewColor(0, 0, 0, 50))
+	graphics.DrawLine(w, x+boxSize-1, y+2, x+boxSize-1, y+boxSize-1, graphics.NewColor(0, 0, 0, 100))
+	graphics.DrawLine(w, x+boxSize-2, y+3, x+boxSize-2, y+boxSize-2, graphics.NewColor(0, 0, 0, 50))
 
 	// Border
-	graphics.DrawRect(w, graphics.NewRect(x, y, boxSize, boxSize), graphics.NewColor(80, 90, 110, 255))
+	graphics.DrawRect(w, graphics.NewRect(x, y, boxSize, boxSize), graphics.NewColor(60, 65, 75, 255))
 
 	// Draw checkmark if checked
 	if value {
@@ -427,14 +445,24 @@ func Slider(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 		grabColor = ctx.Style.SliderKnobColor
 	}
 	// Grab handle shadow
-	graphics.FillRect(w, graphics.NewRect(grabX+1, y+1, grabW, height), graphics.NewColor(0, 0, 0, 50))
+	graphics.FillRect(w, graphics.NewRect(grabX+2, y+2, grabW, height), graphics.NewColor(0, 0, 0, 70))
 	// Grab handle fill
 	graphics.FillRect(w, graphics.NewRect(grabX, y, grabW, height), grabColor)
-	// Grab handle highlight
-	graphics.DrawLine(w, grabX+1, y+1, grabX+grabW-2, y+1, graphics.NewColor(255, 255, 255, 60))
-	graphics.DrawLine(w, grabX+1, y+1, grabX+1, y+height-2, graphics.NewColor(255, 255, 255, 40))
+
+	// Convex effect - bright top-left
+	graphics.DrawLine(w, grabX+1, y+1, grabX+grabW-2, y+1, graphics.NewColor(255, 255, 255, 100))
+	graphics.DrawLine(w, grabX+1, y+2, grabX+grabW-3, y+2, graphics.NewColor(255, 255, 255, 50))
+	graphics.DrawLine(w, grabX+1, y+1, grabX+1, y+height-2, graphics.NewColor(255, 255, 255, 80))
+	graphics.DrawLine(w, grabX+2, y+2, grabX+2, y+height-3, graphics.NewColor(255, 255, 255, 40))
+
+	// Convex effect - dark bottom-right
+	graphics.DrawLine(w, grabX+2, y+height-1, grabX+grabW-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, grabX+3, y+height-2, grabX+grabW-2, y+height-2, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawLine(w, grabX+grabW-1, y+2, grabX+grabW-1, y+height-1, graphics.NewColor(0, 0, 0, 120))
+	graphics.DrawLine(w, grabX+grabW-2, y+3, grabX+grabW-2, y+height-2, graphics.NewColor(0, 0, 0, 60))
+
 	// Grab handle border
-	graphics.DrawRect(w, graphics.NewRect(grabX, y, grabW, height), graphics.NewColor(40, 50, 70, 255))
+	graphics.DrawRect(w, graphics.NewRect(grabX, y, grabW, height), graphics.NewColor(40, 45, 55, 255))
 
 	// Handle dragging
 	if ctx.ActiveID == id && ctx.MouseDown {
@@ -465,10 +493,15 @@ func Panel(ctx GuiContext, w graphics.Window, title string, x int32, y int32, wi
 
 	// Draw title bar background
 	graphics.FillRect(w, graphics.NewRect(x, y, width, titleH), ctx.Style.TitleBgColor)
-	// Title bar top highlight
-	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 40))
-	// Title bar gradient effect (darker line near bottom)
-	graphics.DrawLine(w, x+1, y+titleH-2, x+width-2, y+titleH-2, graphics.NewColor(0, 0, 0, 30))
+
+	// Convex effect - bright top edge
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 80))
+	graphics.DrawLine(w, x+1, y+2, x+width-2, y+2, graphics.NewColor(255, 255, 255, 40))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+titleH-2, graphics.NewColor(255, 255, 255, 50))
+
+	// Convex effect - darker bottom of title bar
+	graphics.DrawLine(w, x+1, y+titleH-2, x+width-2, y+titleH-2, graphics.NewColor(0, 0, 0, 50))
+	graphics.DrawLine(w, x+1, y+titleH-1, x+width-2, y+titleH-1, graphics.NewColor(0, 0, 0, 80))
 
 	// Title text centered vertically, left padded
 	DrawText(w, title, x+ctx.Style.Padding, y+(titleH-TextHeight(ctx.Style.FontSize))/2, ctx.Style.FontSize, ctx.Style.TextColor)
