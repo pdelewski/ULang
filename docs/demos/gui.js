@@ -211,38 +211,38 @@ const graphics = {
   },
 
   NewColor: function (r, g, b, a) {
-    return { r, g, b, a: a !== undefined ? a : 255 };
+    return { R: r, G: g, B: b, A: a !== undefined ? a : 255 };
   },
 
   // Color helper functions
   Red: function () {
-    return { r: 255, g: 0, b: 0, a: 255 };
+    return { R: 255, G: 0, B: 0, A: 255 };
   },
   Green: function () {
-    return { r: 0, g: 255, b: 0, a: 255 };
+    return { R: 0, G: 255, B: 0, A: 255 };
   },
   Blue: function () {
-    return { r: 0, g: 0, b: 255, a: 255 };
+    return { R: 0, G: 0, B: 255, A: 255 };
   },
   White: function () {
-    return { r: 255, g: 255, b: 255, a: 255 };
+    return { R: 255, G: 255, B: 255, A: 255 };
   },
   Black: function () {
-    return { r: 0, g: 0, b: 0, a: 255 };
+    return { R: 0, G: 0, B: 0, A: 255 };
   },
 
   Clear: function (canvas, color) {
-    this.ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.fillStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
   },
 
   FillRect: function (canvas, rect, color) {
-    this.ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.fillStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   },
 
   DrawRect: function (canvas, rect, color) {
-    this.ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.strokeStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
   },
 
@@ -251,26 +251,26 @@ const graphics = {
   },
 
   FillCircle: function (canvas, centerX, centerY, radius, color) {
-    this.ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.fillStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     this.ctx.fill();
   },
 
   DrawCircle: function (canvas, centerX, centerY, radius, color) {
-    this.ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.strokeStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     this.ctx.stroke();
   },
 
   DrawPoint: function (canvas, x, y, color) {
-    this.ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.fillStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.fillRect(x, y, 1, 1);
   },
 
   DrawLine: function (canvas, x1, y1, x2, y2, color) {
-    this.ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.strokeStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.beginPath();
     this.ctx.moveTo(x1, y1);
     this.ctx.lineTo(x2, y2);
@@ -278,7 +278,7 @@ const graphics = {
   },
 
   SetPixel: function (canvas, x, y, color) {
-    this.ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+    this.ctx.fillStyle = `rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`;
     this.ctx.fillRect(x, y, 1, 1);
   },
 
@@ -385,24 +385,24 @@ const gui = {
   },
   DefaultStyle: function () {
     return {
-      BackgroundColor: graphics.NewColor(15, 15, 15, 240),
-      TextColor: graphics.NewColor(255, 255, 255, 255),
-      ButtonColor: graphics.NewColor(66, 150, 250, 102),
-      ButtonHoverColor: graphics.NewColor(66, 150, 250, 200),
-      ButtonActiveColor: graphics.NewColor(15, 135, 250, 255),
-      CheckboxColor: graphics.NewColor(41, 74, 122, 255),
-      CheckmarkColor: graphics.NewColor(66, 150, 250, 255),
-      SliderTrackColor: graphics.NewColor(66, 150, 250, 171),
-      SliderKnobColor: graphics.NewColor(66, 150, 250, 200),
-      BorderColor: graphics.NewColor(80, 80, 80, 255),
-      FrameBgColor: graphics.NewColor(29, 47, 73, 138),
-      TitleBgColor: graphics.NewColor(41, 74, 137, 255),
+      BackgroundColor: graphics.NewColor(45, 45, 48, 250),
+      TextColor: graphics.NewColor(240, 240, 245, 255),
+      ButtonColor: graphics.NewColor(70, 130, 210, 180),
+      ButtonHoverColor: graphics.NewColor(90, 150, 230, 220),
+      ButtonActiveColor: graphics.NewColor(50, 110, 190, 255),
+      CheckboxColor: graphics.NewColor(55, 65, 85, 255),
+      CheckmarkColor: graphics.NewColor(100, 180, 255, 255),
+      SliderTrackColor: graphics.NewColor(80, 160, 240, 200),
+      SliderKnobColor: graphics.NewColor(120, 180, 255, 255),
+      BorderColor: graphics.NewColor(60, 65, 75, 255),
+      FrameBgColor: graphics.NewColor(45, 50, 60, 220),
+      TitleBgColor: graphics.NewColor(55, 95, 160, 255),
       FontSize: 1,
-      Padding: 6,
-      ButtonHeight: 20,
-      SliderHeight: 18,
-      CheckboxSize: 16,
-      FrameRounding: 2,
+      Padding: 8,
+      ButtonHeight: 24,
+      SliderHeight: 20,
+      CheckboxSize: 18,
+      FrameRounding: 3,
     };
   },
   NewContext: function () {
@@ -510,42 +510,96 @@ const gui = {
     } else {
       bgColor = ctx.Style.ButtonColor;
     }
-    graphics.DrawLine(
-      w,
-      x,
-      y + height - 1,
-      x,
-      y,
-      graphics.NewColor(0, 0, 0, 80),
-    );
-    graphics.DrawLine(
-      w,
-      x,
-      y,
-      x + width - 1,
-      y,
-      graphics.NewColor(0, 0, 0, 80),
-    );
     graphics.FillRect(
       w,
-      graphics.NewRect(x + 1, y + 1, width - 2, height - 2),
-      bgColor,
+      graphics.NewRect(x + 2, y + 2, width, height),
+      graphics.NewColor(0, 0, 0, 70),
+    );
+    graphics.FillRect(w, graphics.NewRect(x, y, width, height), bgColor);
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + width - 2,
+      y + 1,
+      graphics.NewColor(255, 255, 255, 100),
     );
     graphics.DrawLine(
       w,
       x + 1,
-      y + height - 1,
-      x + width - 1,
-      y + height - 1,
+      y + 2,
+      x + width - 2,
+      y + 2,
+      graphics.NewColor(255, 255, 255, 60),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 3,
+      x + width - 2,
+      y + 3,
       graphics.NewColor(255, 255, 255, 30),
     );
     graphics.DrawLine(
       w,
-      x + width - 1,
+      x + 1,
       y + 1,
+      x + 1,
+      y + height - 2,
+      graphics.NewColor(255, 255, 255, 80),
+    );
+    graphics.DrawLine(
+      w,
+      x + 2,
+      y + 2,
+      x + 2,
+      y + height - 3,
+      graphics.NewColor(255, 255, 255, 40),
+    );
+    graphics.DrawLine(
+      w,
+      x + 2,
+      y + height - 1,
       x + width - 1,
       y + height - 1,
-      graphics.NewColor(255, 255, 255, 30),
+      graphics.NewColor(0, 0, 0, 120),
+    );
+    graphics.DrawLine(
+      w,
+      x + 2,
+      y + height - 2,
+      x + width - 2,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 70),
+    );
+    graphics.DrawLine(
+      w,
+      x + 2,
+      y + height - 3,
+      x + width - 2,
+      y + height - 3,
+      graphics.NewColor(0, 0, 0, 30),
+    );
+    graphics.DrawLine(
+      w,
+      x + width - 1,
+      y + 2,
+      x + width - 1,
+      y + height - 1,
+      graphics.NewColor(0, 0, 0, 120),
+    );
+    graphics.DrawLine(
+      w,
+      x + width - 2,
+      y + 3,
+      x + width - 2,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(x, y, width, height),
+      graphics.NewColor(30, 30, 35, 255),
     );
     let textW = this.TextWidth(label, ctx.Style.FontSize);
     let textH = this.TextHeight(ctx.Style.FontSize);
@@ -587,29 +641,89 @@ const gui = {
     } else {
       boxColor = ctx.Style.FrameBgColor;
     }
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x + 1, y + 1, boxSize, boxSize),
+      graphics.NewColor(0, 0, 0, 60),
+    );
     graphics.FillRect(w, graphics.NewRect(x, y, boxSize, boxSize), boxColor);
     graphics.DrawLine(
       w,
-      x,
-      y,
+      x + 1,
+      y + 1,
+      x + boxSize - 2,
+      y + 1,
+      graphics.NewColor(255, 255, 255, 90),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 2,
+      x + boxSize - 3,
+      y + 2,
+      graphics.NewColor(255, 255, 255, 50),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + 1,
+      y + boxSize - 2,
+      graphics.NewColor(255, 255, 255, 70),
+    );
+    graphics.DrawLine(
+      w,
+      x + 2,
+      y + 2,
+      x + 2,
+      y + boxSize - 3,
+      graphics.NewColor(255, 255, 255, 35),
+    );
+    graphics.DrawLine(
+      w,
+      x + 2,
+      y + boxSize - 1,
       x + boxSize - 1,
-      y,
+      y + boxSize - 1,
       graphics.NewColor(0, 0, 0, 100),
     );
     graphics.DrawLine(
       w,
-      x,
-      y,
-      x,
+      x + 3,
+      y + boxSize - 2,
+      x + boxSize - 2,
+      y + boxSize - 2,
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    graphics.DrawLine(
+      w,
+      x + boxSize - 1,
+      y + 2,
+      x + boxSize - 1,
       y + boxSize - 1,
       graphics.NewColor(0, 0, 0, 100),
+    );
+    graphics.DrawLine(
+      w,
+      x + boxSize - 2,
+      y + 3,
+      x + boxSize - 2,
+      y + boxSize - 2,
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(x, y, boxSize, boxSize),
+      graphics.NewColor(60, 65, 75, 255),
     );
     if (value) {
       let checkColor = ctx.Style.CheckmarkColor;
       let cx = x + ((boxSize / 2) | 0);
       let cy = y + ((boxSize / 2) | 0);
+      graphics.DrawLine(w, cx - 5, cy - 1, cx - 2, cy + 3, checkColor);
       graphics.DrawLine(w, cx - 5, cy, cx - 2, cy + 4, checkColor);
       graphics.DrawLine(w, cx - 4, cy, cx - 1, cy + 4, checkColor);
+      graphics.DrawLine(w, cx - 2, cy + 3, cx + 5, cy - 4, checkColor);
       graphics.DrawLine(w, cx - 2, cy + 4, cx + 5, cy - 3, checkColor);
       graphics.DrawLine(w, cx - 1, cy + 4, cx + 6, cy - 3, checkColor);
     }
@@ -668,33 +782,51 @@ const gui = {
     }
     graphics.FillRect(
       w,
+      graphics.NewRect(trackX + 1, y + 1, trackW, height),
+      graphics.NewColor(0, 0, 0, 40),
+    );
+    graphics.FillRect(
+      w,
       graphics.NewRect(trackX, y, trackW, height),
       ctx.Style.FrameBgColor,
     );
     graphics.DrawLine(
       w,
-      trackX,
-      y,
-      trackX + trackW - 1,
-      y,
-      graphics.NewColor(0, 0, 0, 100),
+      trackX + 1,
+      y + 1,
+      trackX + trackW - 2,
+      y + 1,
+      graphics.NewColor(0, 0, 0, 60),
     );
     graphics.DrawLine(
       w,
-      trackX,
-      y,
-      trackX,
-      y + height - 1,
-      graphics.NewColor(0, 0, 0, 100),
+      trackX + 1,
+      y + 1,
+      trackX + 1,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 60),
     );
     let fillW = grabX - trackX + ((grabW / 2) | 0);
     if (fillW > 0) {
       graphics.FillRect(
         w,
-        graphics.NewRect(trackX + 1, y + 1, fillW, height - 2),
+        graphics.NewRect(trackX + 2, y + 2, fillW - 2, height - 4),
         ctx.Style.SliderTrackColor,
       );
+      graphics.DrawLine(
+        w,
+        trackX + 2,
+        y + 2,
+        trackX + fillW - 1,
+        y + 2,
+        graphics.NewColor(255, 255, 255, 40),
+      );
     }
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(trackX, y, trackW, height),
+      graphics.NewColor(50, 55, 65, 255),
+    );
     let grabColor = { R: 0, G: 0, B: 0, A: 0 };
     if (ctx.ActiveID == id) {
       grabColor = ctx.Style.ButtonActiveColor;
@@ -703,7 +835,81 @@ const gui = {
     } else {
       grabColor = ctx.Style.SliderKnobColor;
     }
+    graphics.FillRect(
+      w,
+      graphics.NewRect(grabX + 2, y + 2, grabW, height),
+      graphics.NewColor(0, 0, 0, 70),
+    );
     graphics.FillRect(w, graphics.NewRect(grabX, y, grabW, height), grabColor);
+    graphics.DrawLine(
+      w,
+      grabX + 1,
+      y + 1,
+      grabX + grabW - 2,
+      y + 1,
+      graphics.NewColor(255, 255, 255, 100),
+    );
+    graphics.DrawLine(
+      w,
+      grabX + 1,
+      y + 2,
+      grabX + grabW - 3,
+      y + 2,
+      graphics.NewColor(255, 255, 255, 50),
+    );
+    graphics.DrawLine(
+      w,
+      grabX + 1,
+      y + 1,
+      grabX + 1,
+      y + height - 2,
+      graphics.NewColor(255, 255, 255, 80),
+    );
+    graphics.DrawLine(
+      w,
+      grabX + 2,
+      y + 2,
+      grabX + 2,
+      y + height - 3,
+      graphics.NewColor(255, 255, 255, 40),
+    );
+    graphics.DrawLine(
+      w,
+      grabX + 2,
+      y + height - 1,
+      grabX + grabW - 1,
+      y + height - 1,
+      graphics.NewColor(0, 0, 0, 120),
+    );
+    graphics.DrawLine(
+      w,
+      grabX + 3,
+      y + height - 2,
+      grabX + grabW - 2,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.DrawLine(
+      w,
+      grabX + grabW - 1,
+      y + 2,
+      grabX + grabW - 1,
+      y + height - 1,
+      graphics.NewColor(0, 0, 0, 120),
+    );
+    graphics.DrawLine(
+      w,
+      grabX + grabW - 2,
+      y + 3,
+      grabX + grabW - 2,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(grabX, y, grabW, height),
+      graphics.NewColor(40, 45, 55, 255),
+    );
     if (ctx.ActiveID == id && ctx.MouseDown) {
       let mouseT =
         float64(ctx.MouseX - trackX - ((grabW / 2) | 0)) / float64(grabRange);
@@ -721,8 +927,63 @@ const gui = {
     let titleH = this.TextHeight(ctx.Style.FontSize) + ctx.Style.Padding * 2;
     graphics.FillRect(
       w,
+      graphics.NewRect(x + 4, y + 4, width, height),
+      graphics.NewColor(0, 0, 0, 40),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x + 3, y + 3, width, height),
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x + 2, y + 2, width, height),
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.FillRect(
+      w,
       graphics.NewRect(x, y, width, titleH),
       ctx.Style.TitleBgColor,
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + width - 2,
+      y + 1,
+      graphics.NewColor(255, 255, 255, 80),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 2,
+      x + width - 2,
+      y + 2,
+      graphics.NewColor(255, 255, 255, 40),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + 1,
+      y + titleH - 2,
+      graphics.NewColor(255, 255, 255, 50),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + titleH - 2,
+      x + width - 2,
+      y + titleH - 2,
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + titleH - 1,
+      x + width - 2,
+      y + titleH - 1,
+      graphics.NewColor(0, 0, 0, 80),
     );
     this.DrawText(
       w,
@@ -737,18 +998,26 @@ const gui = {
       graphics.NewRect(x, y + titleH, width, height - titleH),
       ctx.Style.BackgroundColor,
     );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + titleH,
+      x + width - 2,
+      y + titleH,
+      graphics.NewColor(255, 255, 255, 15),
+    );
     graphics.DrawRect(
       w,
       graphics.NewRect(x, y, width, height),
-      ctx.Style.BorderColor,
+      graphics.NewColor(40, 45, 55, 255),
     );
     graphics.DrawLine(
       w,
       x + 1,
-      y + titleH - 1,
-      x + width - 2,
-      y + titleH - 1,
-      graphics.NewColor(255, 255, 255, 20),
+      y + titleH + 1,
+      x + 1,
+      y + height - 2,
+      graphics.NewColor(255, 255, 255, 10),
     );
   },
   DraggablePanel: function (ctx, w, title, state) {
@@ -784,7 +1053,22 @@ const gui = {
     return [ctx, state];
   },
   Separator: function (ctx, w, x, y, width) {
-    graphics.DrawLine(w, x, y, x + width, y, ctx.Style.BorderColor);
+    graphics.DrawLine(
+      w,
+      x,
+      y,
+      x + width,
+      y,
+      graphics.NewColor(25, 30, 40, 255),
+    );
+    graphics.DrawLine(
+      w,
+      x,
+      y + 1,
+      x + width,
+      y + 1,
+      graphics.NewColor(65, 70, 80, 255),
+    );
   },
   BeginMenuBar: function (ctx, w, state, x, y, width) {
     let height = this.TextHeight(ctx.Style.FontSize) + ctx.Style.Padding * 2;
@@ -796,10 +1080,26 @@ const gui = {
     graphics.DrawLine(
       w,
       x,
+      y + 1,
+      x + width - 1,
+      y + 1,
+      graphics.NewColor(255, 255, 255, 30),
+    );
+    graphics.DrawLine(
+      w,
+      x,
       y + height - 1,
       x + width,
       y + height - 1,
-      ctx.Style.BorderColor,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.DrawLine(
+      w,
+      x,
+      y + height,
+      x + width,
+      y + height,
+      graphics.NewColor(0, 0, 0, 30),
     );
     state.MenuBarX = x;
     state.MenuBarY = y;
@@ -828,8 +1128,16 @@ const gui = {
     if (hovered || isOpen) {
       graphics.FillRect(
         w,
-        graphics.NewRect(x, y, menuW, menuH - 1),
+        graphics.NewRect(x, y + 1, menuW, menuH - 2),
         ctx.Style.ButtonHoverColor,
+      );
+      graphics.DrawLine(
+        w,
+        x + 1,
+        y + 2,
+        x + menuW - 2,
+        y + 2,
+        graphics.NewColor(255, 255, 255, 30),
       );
       if (ctx.MouseClicked) {
         if (isOpen) {
@@ -855,15 +1163,35 @@ const gui = {
     state.CurrentMenuX = x + menuW;
     return [ctx, state, isOpen];
   },
-  BeginDropdown: function (ctx, w, state) {
+  BeginDropdown: function (ctx, w, state, dropX, itemCount) {
     let dropY = state.MenuBarY + state.MenuBarH;
+    let padding = ctx.Style.Padding;
+    let textH = this.TextHeight(ctx.Style.FontSize);
+    let itemH = textH + padding * 2;
+    let itemW = int32(160);
+    let totalH = itemH * itemCount;
+    graphics.FillRect(
+      w,
+      graphics.NewRect(dropX + 3, dropY + 3, itemW, totalH),
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(dropX + 2, dropY + 2, itemW, totalH),
+      graphics.NewColor(0, 0, 0, 40),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(dropX, dropY, itemW, totalH),
+      graphics.NewColor(45, 45, 48, 255),
+    );
     return [ctx, dropY];
   },
   MenuItem: function (ctx, w, state, label, dropX, dropY, itemIndex) {
     let padding = ctx.Style.Padding;
     let textH = this.TextHeight(ctx.Style.FontSize);
     let itemH = textH + padding * 2;
-    let itemW = int32(150);
+    let itemW = int32(160);
     let y = dropY + itemIndex * itemH;
     graphics.FillRect(
       w,
@@ -882,7 +1210,7 @@ const gui = {
     if (hovered) {
       graphics.FillRect(
         w,
-        graphics.NewRect(dropX, y, itemW, itemH),
+        graphics.NewRect(dropX + 1, y + 1, itemW - 2, itemH - 2),
         ctx.Style.ButtonHoverColor,
       );
       state.ClickedOutside = false;
@@ -903,7 +1231,7 @@ const gui = {
     graphics.DrawRect(
       w,
       graphics.NewRect(dropX, dropY, itemW, (itemIndex + 1) * itemH),
-      ctx.Style.BorderColor,
+      graphics.NewColor(50, 55, 65, 255),
     );
     return [ctx, state, clicked];
   },
@@ -911,7 +1239,7 @@ const gui = {
     let padding = ctx.Style.Padding;
     let textH = this.TextHeight(ctx.Style.FontSize);
     let itemH = textH + padding * 2;
-    let itemW = int32(150);
+    let itemW = int32(160);
     let y = dropY + itemIndex * itemH + ((itemH / 2) | 0);
     graphics.FillRect(
       w,
@@ -924,7 +1252,15 @@ const gui = {
       y,
       dropX + itemW - padding,
       y,
-      ctx.Style.BorderColor,
+      graphics.NewColor(30, 35, 45, 255),
+    );
+    graphics.DrawLine(
+      w,
+      dropX + padding,
+      y + 1,
+      dropX + itemW - padding,
+      y + 1,
+      graphics.NewColor(70, 75, 85, 255),
     );
   },
   BeginLayout: function (ctx, x, y, spacing) {
@@ -984,6 +1320,1093 @@ const gui = {
     );
     ctx = this.NextRow(ctx, ctx.Style.SliderHeight);
     return [ctx, result];
+  },
+  NewTabState: function () {
+    return { ActiveTab: 0 };
+  },
+  TabBar: function (ctx, w, state, labels, x, y) {
+    let padding = ctx.Style.Padding;
+    let tabH = this.TextHeight(ctx.Style.FontSize) + padding * 2;
+    let tabX = x;
+    for (let i = 0; i < len(labels); i++) {
+      let label = labels[i];
+      let tabW = this.TextWidth(label, ctx.Style.FontSize) + padding * 3;
+      let isActive = int32(i) == state.ActiveTab;
+      let hovered = this.pointInRect(
+        ctx.MouseX,
+        ctx.MouseY,
+        tabX,
+        y,
+        tabW,
+        tabH,
+      );
+      let bgColor = { R: 0, G: 0, B: 0, A: 0 };
+      if (isActive) {
+        bgColor = ctx.Style.BackgroundColor;
+      } else if (hovered) {
+        bgColor = ctx.Style.ButtonHoverColor;
+      } else {
+        bgColor = graphics.NewColor(35, 40, 50, 255);
+      }
+      if (isActive) {
+        graphics.FillRect(
+          w,
+          graphics.NewRect(tabX + 1, y + 1, tabW, tabH),
+          graphics.NewColor(0, 0, 0, 40),
+        );
+      }
+      graphics.FillRect(w, graphics.NewRect(tabX, y, tabW, tabH), bgColor);
+      if (isActive) {
+        graphics.DrawLine(
+          w,
+          tabX + 1,
+          y + 1,
+          tabX + tabW - 2,
+          y + 1,
+          graphics.NewColor(255, 255, 255, 80),
+        );
+        graphics.DrawLine(
+          w,
+          tabX + 1,
+          y + 1,
+          tabX + 1,
+          y + tabH - 1,
+          graphics.NewColor(255, 255, 255, 50),
+        );
+      }
+      graphics.DrawLine(
+        w,
+        tabX,
+        y,
+        tabX + tabW,
+        y,
+        graphics.NewColor(60, 65, 75, 255),
+      );
+      graphics.DrawLine(
+        w,
+        tabX,
+        y,
+        tabX,
+        y + tabH,
+        graphics.NewColor(60, 65, 75, 255),
+      );
+      graphics.DrawLine(
+        w,
+        tabX + tabW,
+        y,
+        tabX + tabW,
+        y + tabH,
+        graphics.NewColor(60, 65, 75, 255),
+      );
+      if (!isActive) {
+        graphics.DrawLine(
+          w,
+          tabX,
+          y + tabH,
+          tabX + tabW,
+          y + tabH,
+          graphics.NewColor(60, 65, 75, 255),
+        );
+      }
+      let textY = y + (((tabH - this.TextHeight(ctx.Style.FontSize)) / 2) | 0);
+      this.DrawText(
+        w,
+        label,
+        tabX + padding,
+        textY,
+        ctx.Style.FontSize,
+        ctx.Style.TextColor,
+      );
+      if (hovered && ctx.MouseClicked) {
+        state.ActiveTab = int32(i);
+      }
+      tabX = tabX + tabW;
+    }
+    return [ctx, state];
+  },
+  NewTreeNodeState: function () {
+    return { ExpandedIDs: [] };
+  },
+  isExpanded: function (state, id) {
+    for (let i = 0; i < len(state.ExpandedIDs); i++) {
+      if (state.ExpandedIDs[i] == id) {
+        return true;
+      }
+    }
+    return false;
+  },
+  toggleExpanded: function (state, id) {
+    for (let i = 0; i < len(state.ExpandedIDs); i++) {
+      if (state.ExpandedIDs[i] == id) {
+        let newIDs = [];
+        for (let j = 0; j < len(state.ExpandedIDs); j++) {
+          if (state.ExpandedIDs[j] != id) {
+            newIDs = append(newIDs, state.ExpandedIDs[j]);
+          }
+        }
+        state.ExpandedIDs = newIDs;
+        return state;
+      }
+    }
+    state.ExpandedIDs = append(state.ExpandedIDs, id);
+    return state;
+  },
+  TreeNode: function (ctx, w, state, label, x, y, indent) {
+    let id = this.GenID(label);
+    let padding = ctx.Style.Padding;
+    let nodeH = this.TextHeight(ctx.Style.FontSize) + padding;
+    let arrowSize = int32(8);
+    let actualX = x + indent;
+    let arrowHovered = this.pointInRect(
+      ctx.MouseX,
+      ctx.MouseY,
+      actualX,
+      y,
+      arrowSize + padding,
+      nodeH,
+    );
+    let labelHovered = this.pointInRect(
+      ctx.MouseX,
+      ctx.MouseY,
+      actualX + arrowSize + padding,
+      y,
+      this.TextWidth(label, ctx.Style.FontSize) + padding,
+      nodeH,
+    );
+    let expanded = this.isExpanded(state, id);
+    if (arrowHovered || labelHovered) {
+      let totalW =
+        arrowSize +
+        padding +
+        this.TextWidth(label, ctx.Style.FontSize) +
+        padding;
+      graphics.FillRect(
+        w,
+        graphics.NewRect(actualX, y, totalW, nodeH),
+        graphics.NewColor(255, 255, 255, 20),
+      );
+    }
+    let arrowX = actualX + ((arrowSize / 2) | 0);
+    let arrowY = y + ((nodeH / 2) | 0);
+    let arrowColor = ctx.Style.TextColor;
+    if (expanded) {
+      graphics.DrawLine(
+        w,
+        arrowX - 3,
+        arrowY - 2,
+        arrowX,
+        arrowY + 2,
+        arrowColor,
+      );
+      graphics.DrawLine(
+        w,
+        arrowX,
+        arrowY + 2,
+        arrowX + 3,
+        arrowY - 2,
+        arrowColor,
+      );
+      graphics.DrawLine(
+        w,
+        arrowX - 2,
+        arrowY - 2,
+        arrowX,
+        arrowY + 1,
+        arrowColor,
+      );
+      graphics.DrawLine(
+        w,
+        arrowX,
+        arrowY + 1,
+        arrowX + 2,
+        arrowY - 2,
+        arrowColor,
+      );
+    } else {
+      graphics.DrawLine(
+        w,
+        arrowX - 2,
+        arrowY - 3,
+        arrowX + 2,
+        arrowY,
+        arrowColor,
+      );
+      graphics.DrawLine(
+        w,
+        arrowX + 2,
+        arrowY,
+        arrowX - 2,
+        arrowY + 3,
+        arrowColor,
+      );
+      graphics.DrawLine(
+        w,
+        arrowX - 2,
+        arrowY - 2,
+        arrowX + 1,
+        arrowY,
+        arrowColor,
+      );
+      graphics.DrawLine(
+        w,
+        arrowX + 1,
+        arrowY,
+        arrowX - 2,
+        arrowY + 2,
+        arrowColor,
+      );
+    }
+    this.DrawText(
+      w,
+      label,
+      actualX + arrowSize + padding,
+      y + (((nodeH - this.TextHeight(ctx.Style.FontSize)) / 2) | 0),
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+    if (arrowHovered && ctx.MouseClicked) {
+      state = this.toggleExpanded(state, id);
+      expanded = !expanded;
+    }
+    return [ctx, state, expanded];
+  },
+  TreeLeaf: function (ctx, w, label, x, y, indent) {
+    let padding = ctx.Style.Padding;
+    let nodeH = this.TextHeight(ctx.Style.FontSize) + padding;
+    let bulletSize = int32(4);
+    let actualX = x + indent;
+    let hovered = this.pointInRect(
+      ctx.MouseX,
+      ctx.MouseY,
+      actualX,
+      y,
+      this.TextWidth(label, ctx.Style.FontSize) + padding * 2 + bulletSize,
+      nodeH,
+    );
+    let clicked = false;
+    if (hovered) {
+      let totalW =
+        bulletSize +
+        padding +
+        this.TextWidth(label, ctx.Style.FontSize) +
+        padding;
+      graphics.FillRect(
+        w,
+        graphics.NewRect(actualX, y, totalW, nodeH),
+        graphics.NewColor(255, 255, 255, 20),
+      );
+      if (ctx.MouseClicked) {
+        clicked = true;
+      }
+    }
+    let bulletX = actualX + ((bulletSize / 2) | 0) + 2;
+    let bulletY = y + ((nodeH / 2) | 0);
+    graphics.FillCircle(w, bulletX, bulletY, 2, ctx.Style.TextColor);
+    this.DrawText(
+      w,
+      label,
+      actualX + bulletSize + padding,
+      y + (((nodeH - this.TextHeight(ctx.Style.FontSize)) / 2) | 0),
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+    return [ctx, clicked];
+  },
+  ProgressBar: function (ctx, w, x, y, width, height, progress) {
+    if (progress < 0) {
+      progress = 0;
+    }
+    if (progress > 1) {
+      progress = 1;
+    }
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x + 1, y + 1, width, height),
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x, y, width, height),
+      ctx.Style.FrameBgColor,
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + width - 2,
+      y + 1,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + 1,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    let fillW = int32(float64(width - 4) * progress);
+    if (fillW > 0) {
+      let fillColor = ctx.Style.SliderTrackColor;
+      graphics.FillRect(
+        w,
+        graphics.NewRect(x + 2, y + 2, fillW, height - 4),
+        fillColor,
+      );
+      graphics.DrawLine(
+        w,
+        x + 2,
+        y + 2,
+        x + fillW,
+        y + 2,
+        graphics.NewColor(255, 255, 255, 60),
+      );
+      graphics.DrawLine(
+        w,
+        x + 2,
+        y + 3,
+        x + fillW,
+        y + 3,
+        graphics.NewColor(255, 255, 255, 30),
+      );
+    }
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(x, y, width, height),
+      graphics.NewColor(50, 55, 65, 255),
+    );
+  },
+  RadioButton: function (ctx, w, label, x, y, selected) {
+    let id = this.GenID(label);
+    let radioSize = ctx.Style.CheckboxSize;
+    let radius = (radioSize / 2) | 0;
+    let labelW = this.TextWidth(label, ctx.Style.FontSize);
+    let totalW = radioSize + ctx.Style.Padding + labelW;
+    let hovered = this.pointInRect(
+      ctx.MouseX,
+      ctx.MouseY,
+      x,
+      y,
+      totalW,
+      radioSize,
+    );
+    if (hovered) {
+      ctx.HotID = id;
+      if (ctx.MouseClicked) {
+        ctx.ActiveID = id;
+      }
+    }
+    let centerX = x + radius;
+    let centerY = y + radius;
+    graphics.DrawCircle(
+      w,
+      centerX + 1,
+      centerY + 1,
+      radius,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    let bgColor = { R: 0, G: 0, B: 0, A: 0 };
+    if (hovered) {
+      bgColor = ctx.Style.ButtonHoverColor;
+    } else {
+      bgColor = ctx.Style.FrameBgColor;
+    }
+    graphics.FillCircle(w, centerX, centerY, radius - 1, bgColor);
+    graphics.DrawCircle(
+      w,
+      centerX - 1,
+      centerY - 1,
+      radius - 2,
+      graphics.NewColor(255, 255, 255, 50),
+    );
+    graphics.DrawCircle(
+      w,
+      centerX,
+      centerY,
+      radius,
+      graphics.NewColor(60, 65, 75, 255),
+    );
+    if (selected) {
+      let dotColor = ctx.Style.CheckmarkColor;
+      graphics.FillCircle(w, centerX, centerY, radius - 4, dotColor);
+      graphics.DrawCircle(
+        w,
+        centerX - 1,
+        centerY - 1,
+        radius - 5,
+        graphics.NewColor(255, 255, 255, 60),
+      );
+    }
+    let labelX = x + radioSize + ctx.Style.Padding;
+    let labelY =
+      y + (((radioSize - this.TextHeight(ctx.Style.FontSize)) / 2) | 0);
+    this.DrawText(
+      w,
+      label,
+      labelX,
+      labelY,
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+    let clicked = ctx.ReleasedID == id && ctx.MouseReleased && hovered;
+    return [ctx, clicked];
+  },
+  NewTextInputState: function (initialText) {
+    return {
+      Text: initialText,
+      CursorPos: int32(len(initialText)),
+      Active: false,
+      BlinkTimer: 0,
+    };
+  },
+  TextInput: function (ctx, w, state, x, y, width) {
+    let idStr = "textinput_";
+    let id = this.GenID(idStr) + x * 1000 + y;
+    let height = ctx.Style.ButtonHeight;
+    let padding = ctx.Style.Padding;
+    let hovered = this.pointInRect(ctx.MouseX, ctx.MouseY, x, y, width, height);
+    if (hovered && ctx.MouseClicked) {
+      state.Active = true;
+      ctx.ActiveID = id;
+    } else if (ctx.MouseClicked && !hovered) {
+      state.Active = false;
+      if (ctx.ActiveID == id) {
+        ctx.ActiveID = 0;
+      }
+    }
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x + 1, y + 1, width, height),
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    let bgColor = { R: 0, G: 0, B: 0, A: 0 };
+    if (state.Active) {
+      bgColor = graphics.NewColor(55, 60, 70, 255);
+    } else {
+      bgColor = ctx.Style.FrameBgColor;
+    }
+    graphics.FillRect(w, graphics.NewRect(x, y, width, height), bgColor);
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + width - 2,
+      y + 1,
+      graphics.NewColor(0, 0, 0, 80),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + 1,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 80),
+    );
+    let textY = y + (((height - this.TextHeight(ctx.Style.FontSize)) / 2) | 0);
+    this.DrawText(
+      w,
+      state.Text,
+      x + padding,
+      textY,
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+    if (state.Active) {
+      state.BlinkTimer = state.BlinkTimer + 1;
+      if (state.BlinkTimer > 60) {
+        state.BlinkTimer = 0;
+      }
+      if (state.BlinkTimer < 30) {
+        let cursorX =
+          x + padding + this.TextWidth(state.Text, ctx.Style.FontSize);
+        graphics.DrawLine(
+          w,
+          cursorX,
+          y + 4,
+          cursorX,
+          y + height - 4,
+          ctx.Style.TextColor,
+        );
+      }
+    }
+    let borderColor = { R: 0, G: 0, B: 0, A: 0 };
+    if (state.Active) {
+      borderColor = ctx.Style.CheckmarkColor;
+    } else if (hovered) {
+      borderColor = graphics.NewColor(80, 90, 110, 255);
+    } else {
+      borderColor = graphics.NewColor(50, 55, 65, 255);
+    }
+    graphics.DrawRect(w, graphics.NewRect(x, y, width, height), borderColor);
+    if (state.Active) {
+      let key = graphics.GetLastKey();
+      if (key > 0) {
+        if (key == 8) {
+          if (len(state.Text) > 0) {
+            state.Text = this.removeLastChar(state.Text);
+          }
+        } else if (key >= 32 && key < 127) {
+          state.Text = state.Text + this.asciiToString(key);
+        }
+      }
+    }
+    return [ctx, state];
+  },
+  ListBox: function (
+    ctx,
+    w,
+    items,
+    x,
+    y,
+    width,
+    height,
+    selectedIndex,
+    scrollOffset,
+  ) {
+    let padding = ctx.Style.Padding;
+    let itemH = this.TextHeight(ctx.Style.FontSize) + padding;
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x + 2, y + 2, width, height),
+      graphics.NewColor(0, 0, 0, 50),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x, y, width, height),
+      ctx.Style.FrameBgColor,
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + width - 2,
+      y + 1,
+      graphics.NewColor(0, 0, 0, 80),
+    );
+    graphics.DrawLine(
+      w,
+      x + 1,
+      y + 1,
+      x + 1,
+      y + height - 2,
+      graphics.NewColor(0, 0, 0, 80),
+    );
+    let visibleCount = ((height - 4) / itemH) | 0;
+    let startIndex = (scrollOffset / itemH) | 0;
+    if (startIndex < 0) {
+      startIndex = 0;
+    }
+    for (let i = int32(0); i < visibleCount; i++) {
+      if (int(startIndex + i) >= len(items)) {
+        break;
+      }
+      let itemIndex = startIndex + i;
+      let item = items[itemIndex];
+      let itemY = y + 2 + i * itemH;
+      if (itemIndex == selectedIndex) {
+        graphics.FillRect(
+          w,
+          graphics.NewRect(x + 2, itemY, width - 4, itemH),
+          ctx.Style.ButtonHoverColor,
+        );
+      }
+      if (
+        this.pointInRect(ctx.MouseX, ctx.MouseY, x + 2, itemY, width - 4, itemH)
+      ) {
+        if (itemIndex != selectedIndex) {
+          graphics.FillRect(
+            w,
+            graphics.NewRect(x + 2, itemY, width - 4, itemH),
+            graphics.NewColor(255, 255, 255, 20),
+          );
+        }
+        if (ctx.MouseClicked) {
+          selectedIndex = itemIndex;
+        }
+      }
+      let textY =
+        itemY + (((itemH - this.TextHeight(ctx.Style.FontSize)) / 2) | 0);
+      this.DrawText(
+        w,
+        item,
+        x + padding,
+        textY,
+        ctx.Style.FontSize,
+        ctx.Style.TextColor,
+      );
+    }
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(x, y, width, height),
+      graphics.NewColor(50, 55, 65, 255),
+    );
+    let totalHeight = int32(len(items)) * itemH;
+    if (totalHeight > height) {
+      let scrollbarW = int32(8);
+      let scrollbarX = x + width - scrollbarW - 2;
+      let scrollbarH = height - 4;
+      let thumbH = ((height * scrollbarH) / totalHeight) | 0;
+      if (thumbH < 20) {
+        thumbH = 20;
+      }
+      let maxScroll = totalHeight - height;
+      let thumbY =
+        y + 2 + ((((scrollbarH - thumbH) * scrollOffset) / maxScroll) | 0);
+      graphics.FillRect(
+        w,
+        graphics.NewRect(scrollbarX, y + 2, scrollbarW, scrollbarH),
+        graphics.NewColor(30, 35, 45, 255),
+      );
+      graphics.FillRect(
+        w,
+        graphics.NewRect(scrollbarX, thumbY, scrollbarW, thumbH),
+        graphics.NewColor(80, 90, 110, 255),
+      );
+      graphics.DrawLine(
+        w,
+        scrollbarX + 1,
+        thumbY + 1,
+        scrollbarX + scrollbarW - 2,
+        thumbY + 1,
+        graphics.NewColor(255, 255, 255, 40),
+      );
+    }
+    return [ctx, selectedIndex, scrollOffset];
+  },
+  AutoProgressBar: function (ctx, w, width, height, progress) {
+    this.ProgressBar(ctx, w, ctx.CursorX, ctx.CursorY, width, height, progress);
+    ctx = this.NextRow(ctx, height);
+    return ctx;
+  },
+  AutoRadioButton: function (ctx, w, label, selected) {
+    let clicked = false;
+    [ctx, clicked] = this.RadioButton(
+      ctx,
+      w,
+      label,
+      ctx.CursorX,
+      ctx.CursorY,
+      selected,
+    );
+    ctx = this.NextRow(ctx, ctx.Style.CheckboxSize);
+    return [ctx, clicked];
+  },
+  Tooltip: function (ctx, w, text, x, y) {
+    let padding = ctx.Style.Padding;
+    let textW = this.TextWidth(text, ctx.Style.FontSize);
+    let textH = this.TextHeight(ctx.Style.FontSize);
+    let tipW = textW + padding * 2;
+    let tipH = textH + padding * 2;
+    let tipX = x + 10;
+    let tipY = y + 10;
+    graphics.FillRect(
+      w,
+      graphics.NewRect(tipX + 2, tipY + 2, tipW, tipH),
+      graphics.NewColor(0, 0, 0, 80),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(tipX, tipY, tipW, tipH),
+      graphics.NewColor(60, 60, 65, 250),
+    );
+    graphics.DrawLine(
+      w,
+      tipX + 1,
+      tipY + 1,
+      tipX + tipW - 2,
+      tipY + 1,
+      graphics.NewColor(255, 255, 255, 50),
+    );
+    graphics.DrawLine(
+      w,
+      tipX + 1,
+      tipY + 1,
+      tipX + 1,
+      tipY + tipH - 2,
+      graphics.NewColor(255, 255, 255, 30),
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(tipX, tipY, tipW, tipH),
+      graphics.NewColor(80, 85, 95, 255),
+    );
+    this.DrawText(
+      w,
+      text,
+      tipX + padding,
+      tipY + padding,
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+  },
+  Spinner: function (ctx, w, label, x, y, value, minVal, maxVal) {
+    let padding = ctx.Style.Padding;
+    let height = ctx.Style.ButtonHeight;
+    let btnW = height;
+    let valueW = int32(50);
+    let labelW = this.TextWidth(label, ctx.Style.FontSize);
+    let labelY = y + (((height - this.TextHeight(ctx.Style.FontSize)) / 2) | 0);
+    this.DrawText(w, label, x, labelY, ctx.Style.FontSize, ctx.Style.TextColor);
+    let spinX = x + labelW + padding;
+    let minusHovered = this.pointInRect(
+      ctx.MouseX,
+      ctx.MouseY,
+      spinX,
+      y,
+      btnW,
+      height,
+    );
+    let minusBg = { R: 0, G: 0, B: 0, A: 0 };
+    if (minusHovered) {
+      minusBg = ctx.Style.ButtonHoverColor;
+    } else {
+      minusBg = ctx.Style.ButtonColor;
+    }
+    graphics.FillRect(w, graphics.NewRect(spinX, y, btnW, height), minusBg);
+    graphics.DrawLine(
+      w,
+      spinX + 1,
+      y + 1,
+      spinX + btnW - 2,
+      y + 1,
+      graphics.NewColor(255, 255, 255, 70),
+    );
+    graphics.DrawLine(
+      w,
+      spinX + 1,
+      y + height - 1,
+      spinX + btnW - 1,
+      y + height - 1,
+      graphics.NewColor(0, 0, 0, 80),
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(spinX, y, btnW, height),
+      graphics.NewColor(50, 55, 65, 255),
+    );
+    graphics.DrawLine(
+      w,
+      spinX + 4,
+      y + ((height / 2) | 0),
+      spinX + btnW - 4,
+      y + ((height / 2) | 0),
+      ctx.Style.TextColor,
+    );
+    graphics.DrawLine(
+      w,
+      spinX + 4,
+      y + ((height / 2) | 0) + 1,
+      spinX + btnW - 4,
+      y + ((height / 2) | 0) + 1,
+      ctx.Style.TextColor,
+    );
+    if (minusHovered && ctx.MouseClicked && value > minVal) {
+      value = value - 1;
+    }
+    let valueX = spinX + btnW;
+    graphics.FillRect(
+      w,
+      graphics.NewRect(valueX, y, valueW, height),
+      ctx.Style.FrameBgColor,
+    );
+    graphics.DrawLine(
+      w,
+      valueX + 1,
+      y + 1,
+      valueX + valueW - 2,
+      y + 1,
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(valueX, y, valueW, height),
+      graphics.NewColor(50, 55, 65, 255),
+    );
+    let valueStr = this.intToString(value);
+    let valueTextW = this.TextWidth(valueStr, ctx.Style.FontSize);
+    let valueTextX = valueX + (((valueW - valueTextW) / 2) | 0);
+    this.DrawText(
+      w,
+      valueStr,
+      valueTextX,
+      labelY,
+      ctx.Style.FontSize,
+      ctx.Style.TextColor,
+    );
+    let plusX = valueX + valueW;
+    let plusHovered = this.pointInRect(
+      ctx.MouseX,
+      ctx.MouseY,
+      plusX,
+      y,
+      btnW,
+      height,
+    );
+    let plusBg = { R: 0, G: 0, B: 0, A: 0 };
+    if (plusHovered) {
+      plusBg = ctx.Style.ButtonHoverColor;
+    } else {
+      plusBg = ctx.Style.ButtonColor;
+    }
+    graphics.FillRect(w, graphics.NewRect(plusX, y, btnW, height), plusBg);
+    graphics.DrawLine(
+      w,
+      plusX + 1,
+      y + 1,
+      plusX + btnW - 2,
+      y + 1,
+      graphics.NewColor(255, 255, 255, 70),
+    );
+    graphics.DrawLine(
+      w,
+      plusX + 1,
+      y + height - 1,
+      plusX + btnW - 1,
+      y + height - 1,
+      graphics.NewColor(0, 0, 0, 80),
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(plusX, y, btnW, height),
+      graphics.NewColor(50, 55, 65, 255),
+    );
+    graphics.DrawLine(
+      w,
+      plusX + 4,
+      y + ((height / 2) | 0),
+      plusX + btnW - 4,
+      y + ((height / 2) | 0),
+      ctx.Style.TextColor,
+    );
+    graphics.DrawLine(
+      w,
+      plusX + 4,
+      y + ((height / 2) | 0) + 1,
+      plusX + btnW - 4,
+      y + ((height / 2) | 0) + 1,
+      ctx.Style.TextColor,
+    );
+    graphics.DrawLine(
+      w,
+      plusX + ((btnW / 2) | 0),
+      y + 4,
+      plusX + ((btnW / 2) | 0),
+      y + height - 4,
+      ctx.Style.TextColor,
+    );
+    graphics.DrawLine(
+      w,
+      plusX + ((btnW / 2) | 0) + 1,
+      y + 4,
+      plusX + ((btnW / 2) | 0) + 1,
+      y + height - 4,
+      ctx.Style.TextColor,
+    );
+    if (plusHovered && ctx.MouseClicked && value < maxVal) {
+      value = value + 1;
+    }
+    return [ctx, value];
+  },
+  intToString: function (n) {
+    let digitChars = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+    if (n == 0) {
+      return "0";
+    }
+    let negative = false;
+    if (n < 0) {
+      negative = true;
+      n = -n;
+    }
+    let result = "";
+    for (; n > 0; ) {
+      let digit = n % 10;
+      result = digitChars[digit] + result;
+      n = (n / 10) | 0;
+    }
+    if (negative) {
+      result = "-" + result;
+    }
+    return result;
+  },
+  removeLastChar: function (s) {
+    let slen = len(s);
+    if (slen == 0) {
+      return s;
+    }
+    let result = "";
+    for (let i = 0; i < slen - 1; i++) {
+      result = result + this.asciiToString(int(s.charCodeAt(i)));
+    }
+    return result;
+  },
+  asciiToString: function (code) {
+    let chars = [
+      " ",
+      "!",
+      '"',
+      "#",
+      "$",
+      "%",
+      "&",
+      "'",
+      "(",
+      ")",
+      "*",
+      "+",
+      ",",
+      "-",
+      ".",
+      "/",
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      ":",
+      ";",
+      "<",
+      "=",
+      ">",
+      "?",
+      "@",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J",
+      "K",
+      "L",
+      "M",
+      "N",
+      "O",
+      "P",
+      "Q",
+      "R",
+      "S",
+      "T",
+      "U",
+      "V",
+      "W",
+      "X",
+      "Y",
+      "Z",
+      "[",
+      "\\",
+      "]",
+      "^",
+      "_",
+      "`",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j",
+      "k",
+      "l",
+      "m",
+      "n",
+      "o",
+      "p",
+      "q",
+      "r",
+      "s",
+      "t",
+      "u",
+      "v",
+      "w",
+      "x",
+      "y",
+      "z",
+      "{",
+      "|",
+      "}",
+      "~",
+    ];
+    if (code >= 32 && code <= 126) {
+      return chars[code - 32];
+    }
+    return "";
+  },
+  ColorPicker: function (ctx, w, label, x, y, width, color) {
+    let padding = ctx.Style.Padding;
+    let sliderH = ctx.Style.SliderHeight;
+    let previewSize = int32(40);
+    this.DrawText(w, label, x, y, ctx.Style.FontSize, ctx.Style.TextColor);
+    y = y + this.TextHeight(ctx.Style.FontSize) + padding;
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x + 1, y + 1, previewSize, previewSize),
+      graphics.NewColor(0, 0, 0, 60),
+    );
+    graphics.FillRect(
+      w,
+      graphics.NewRect(x, y, previewSize, previewSize),
+      color,
+    );
+    graphics.DrawRect(
+      w,
+      graphics.NewRect(x, y, previewSize, previewSize),
+      graphics.NewColor(60, 65, 75, 255),
+    );
+    let sliderX = x + previewSize + padding;
+    let sliderW = width - previewSize - padding;
+    let rVal = 0;
+    let gVal = 0;
+    let bVal = 0;
+    [ctx, rVal] = this.Slider(
+      ctx,
+      w,
+      "R",
+      sliderX,
+      y,
+      sliderW,
+      0,
+      255,
+      float64(color.R),
+    );
+    color.R = uint8(rVal);
+    y = y + sliderH + 2;
+    [ctx, gVal] = this.Slider(
+      ctx,
+      w,
+      "G",
+      sliderX,
+      y,
+      sliderW,
+      0,
+      255,
+      float64(color.G),
+    );
+    color.G = uint8(gVal);
+    y = y + sliderH + 2;
+    [ctx, bVal] = this.Slider(
+      ctx,
+      w,
+      "B",
+      sliderX,
+      y,
+      sliderW,
+      0,
+      255,
+      float64(color.B),
+    );
+    color.B = uint8(bVal);
+    return [ctx, color];
   },
   getFontData: function () {
     return [
@@ -1056,22 +2479,48 @@ const gui = {
 };
 
 function main() {
-  let w = graphics.CreateWindow("ImGui-like Demo", 1280, 960);
+  let w = graphics.CreateWindow("GUI Widgets Demo", 1280, 960);
   let ctx = gui.NewContext();
   let showDemo = true;
   let showAnother = false;
+  let showWidgets = true;
   let enabled = true;
   let volume = 0.5;
   let brightness = 75.0;
   let counter = 0;
+  let progress = 0.35;
   let menuState = gui.NewMenuState();
-  let demoWin = gui.NewWindowState(20, 45, 350, 400);
-  let anotherWin = gui.NewWindowState(400, 45, 350, 200);
-  let infoWin = gui.NewWindowState(400, 270, 350, 170);
+  let tabState = gui.NewTabState();
+  let tabLabels = ["Basic", "Lists", "Tree", "Inputs"];
+  let treeState = gui.NewTreeNodeState();
+  let textInput = gui.NewTextInputState("Hello");
+  let textInput2 = gui.NewTextInputState("");
+  let listItems = [
+    "Apple",
+    "Banana",
+    "Cherry",
+    "Date",
+    "Elderberry",
+    "Fig",
+    "Grape",
+    "Honeydew",
+  ];
+  let selectedItem = int32(0);
+  let scrollOffset = int32(0);
+  let spinnerValue = int32(50);
+  let radioSelection = 0;
+  let pickedColor = graphics.NewColor(100, 150, 200, 255);
+  let demoWin = gui.NewWindowState(20, 45, 350, 420);
+  let anotherWin = gui.NewWindowState(780, 45, 250, 180);
+  let widgetsWin = gui.NewWindowState(390, 45, 380, 550);
+  let infoWin = gui.NewWindowState(780, 240, 250, 200);
   let clicked = false;
-  let menuOpen = false;
+  let fileMenuOpen = false;
+  let viewMenuOpen = false;
   let dropY = 0;
   let dropX = 0;
+  let fileDropX = 0;
+  let viewDropX = 0;
   graphics.RunLoop(w, function (w) {
     ctx = gui.UpdateInput(ctx, w);
     graphics.Clear(w, graphics.NewColor(30, 30, 30, 255));
@@ -1083,10 +2532,356 @@ function main() {
       0,
       graphics.GetWidth(w),
     );
-    [ctx, menuState, menuOpen] = gui.Menu(ctx, w, menuState, "File");
-    if (menuOpen) {
-      dropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
-      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState);
+    [ctx, menuState, fileMenuOpen] = gui.Menu(ctx, w, menuState, "File");
+    if (fileMenuOpen) {
+      fileDropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
+    }
+    [ctx, menuState, viewMenuOpen] = gui.Menu(ctx, w, menuState, "View");
+    if (viewMenuOpen) {
+      viewDropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
+    }
+    [ctx, menuState] = gui.EndMenuBar(ctx, menuState);
+    if (showDemo) {
+      [ctx, demoWin] = gui.DraggablePanel(ctx, w, "Demo Window", demoWin);
+      ctx = gui.BeginLayout(ctx, demoWin.X + 10, demoWin.Y + 50, 6);
+      ctx = gui.AutoLabel(ctx, w, "Hello from goany GUI!");
+      gui.Separator(ctx, w, demoWin.X + 10, ctx.CursorY - 2, 330);
+      ctx.CursorY = ctx.CursorY + 4;
+      [ctx, clicked] = gui.Button(
+        ctx,
+        w,
+        "Click",
+        demoWin.X + 10,
+        ctx.CursorY,
+        80,
+        26,
+      );
+      if (clicked) {
+        counter = counter + 1;
+      }
+      [ctx, clicked] = gui.Button(
+        ctx,
+        w,
+        "Reset",
+        demoWin.X + 100,
+        ctx.CursorY,
+        80,
+        26,
+      );
+      if (clicked) {
+        counter = 0;
+        volume = 0.5;
+        brightness = 75.0;
+        progress = 0.35;
+      }
+      gui.Label(
+        ctx,
+        w,
+        "Count: " + intToString(counter),
+        demoWin.X + 190,
+        ctx.CursorY + 4,
+      );
+      ctx = gui.NextRow(ctx, 26);
+      gui.Separator(ctx, w, demoWin.X + 10, ctx.CursorY - 2, 330);
+      ctx.CursorY = ctx.CursorY + 4;
+      [ctx, showDemo] = gui.AutoCheckbox(ctx, w, "Show Demo Window", showDemo);
+      [ctx, showWidgets] = gui.AutoCheckbox(
+        ctx,
+        w,
+        "Show Widgets Window",
+        showWidgets,
+      );
+      [ctx, showAnother] = gui.AutoCheckbox(
+        ctx,
+        w,
+        "Show Another Window",
+        showAnother,
+      );
+      [ctx, enabled] = gui.AutoCheckbox(ctx, w, "Enable Feature", enabled);
+      gui.Separator(ctx, w, demoWin.X + 10, ctx.CursorY - 2, 330);
+      ctx.CursorY = ctx.CursorY + 4;
+      [ctx, volume] = gui.AutoSlider(ctx, w, "Volume", 320, 0.0, 1.0, volume);
+      [ctx, brightness] = gui.AutoSlider(
+        ctx,
+        w,
+        "Bright",
+        320,
+        0.0,
+        100.0,
+        brightness,
+      );
+      gui.Separator(ctx, w, demoWin.X + 10, ctx.CursorY - 2, 330);
+      ctx.CursorY = ctx.CursorY + 4;
+      ctx = gui.AutoLabel(ctx, w, "Progress Bar:");
+      gui.ProgressBar(ctx, w, demoWin.X + 10, ctx.CursorY, 320, 20, progress);
+      ctx = gui.NextRow(ctx, 24);
+      progress = progress + 0.002;
+      if (progress > 1.0) {
+        progress = 0.0;
+      }
+    }
+    if (showWidgets) {
+      [ctx, widgetsWin] = gui.DraggablePanel(
+        ctx,
+        w,
+        "Widgets Showcase",
+        widgetsWin,
+      );
+      [ctx, tabState] = gui.TabBar(
+        ctx,
+        w,
+        tabState,
+        tabLabels,
+        widgetsWin.X + 10,
+        widgetsWin.Y + 35,
+      );
+      let contentY = widgetsWin.Y + 70;
+      if (tabState.ActiveTab == 0) {
+        ctx = gui.BeginLayout(ctx, widgetsWin.X + 15, contentY, 6);
+        ctx = gui.AutoLabel(ctx, w, "Radio Buttons:");
+        [ctx, clicked] = gui.AutoRadioButton(
+          ctx,
+          w,
+          "Option A",
+          radioSelection == 0,
+        );
+        if (clicked) {
+          radioSelection = 0;
+        }
+        [ctx, clicked] = gui.AutoRadioButton(
+          ctx,
+          w,
+          "Option B",
+          radioSelection == 1,
+        );
+        if (clicked) {
+          radioSelection = 1;
+        }
+        [ctx, clicked] = gui.AutoRadioButton(
+          ctx,
+          w,
+          "Option C",
+          radioSelection == 2,
+        );
+        if (clicked) {
+          radioSelection = 2;
+        }
+        gui.Separator(ctx, w, widgetsWin.X + 15, ctx.CursorY, 350);
+        ctx.CursorY = ctx.CursorY + 8;
+        ctx = gui.AutoLabel(ctx, w, "Spinner:");
+        [ctx, spinnerValue] = gui.Spinner(
+          ctx,
+          w,
+          "Value",
+          widgetsWin.X + 15,
+          ctx.CursorY,
+          spinnerValue,
+          0,
+          100,
+        );
+        ctx = gui.NextRow(ctx, 28);
+        gui.Separator(ctx, w, widgetsWin.X + 15, ctx.CursorY, 350);
+        ctx.CursorY = ctx.CursorY + 8;
+        [ctx, pickedColor] = gui.ColorPicker(
+          ctx,
+          w,
+          "Color Picker:",
+          widgetsWin.X + 15,
+          ctx.CursorY,
+          340,
+          pickedColor,
+        );
+      } else if (tabState.ActiveTab == 1) {
+        ctx = gui.BeginLayout(ctx, widgetsWin.X + 15, contentY, 6);
+        ctx = gui.AutoLabel(ctx, w, "List Box (select an item):");
+        [ctx, selectedItem, scrollOffset] = gui.ListBox(
+          ctx,
+          w,
+          listItems,
+          widgetsWin.X + 15,
+          ctx.CursorY,
+          200,
+          150,
+          selectedItem,
+          scrollOffset,
+        );
+        ctx.CursorY = ctx.CursorY + 155;
+        ctx = gui.AutoLabel(ctx, w, "Selected: " + listItems[selectedItem]);
+      } else if (tabState.ActiveTab == 2) {
+        ctx = gui.BeginLayout(ctx, widgetsWin.X + 15, contentY, 4);
+        ctx = gui.AutoLabel(ctx, w, "Tree View:");
+        let expanded = false;
+        let nodeY = ctx.CursorY;
+        [ctx, treeState, expanded] = gui.TreeNode(
+          ctx,
+          w,
+          treeState,
+          "Root",
+          widgetsWin.X + 15,
+          nodeY,
+          0,
+        );
+        nodeY = nodeY + 20;
+        if (expanded) {
+          [ctx, treeState, expanded] = gui.TreeNode(
+            ctx,
+            w,
+            treeState,
+            "Branch 1",
+            widgetsWin.X + 15,
+            nodeY,
+            20,
+          );
+          nodeY = nodeY + 20;
+          if (expanded) {
+            [ctx, clicked] = gui.TreeLeaf(
+              ctx,
+              w,
+              "Leaf 1.1",
+              widgetsWin.X + 15,
+              nodeY,
+              40,
+            );
+            nodeY = nodeY + 20;
+            [ctx, clicked] = gui.TreeLeaf(
+              ctx,
+              w,
+              "Leaf 1.2",
+              widgetsWin.X + 15,
+              nodeY,
+              40,
+            );
+            nodeY = nodeY + 20;
+            [ctx, clicked] = gui.TreeLeaf(
+              ctx,
+              w,
+              "Leaf 1.3",
+              widgetsWin.X + 15,
+              nodeY,
+              40,
+            );
+            nodeY = nodeY + 20;
+          }
+          [ctx, treeState, expanded] = gui.TreeNode(
+            ctx,
+            w,
+            treeState,
+            "Branch 2",
+            widgetsWin.X + 15,
+            nodeY,
+            20,
+          );
+          nodeY = nodeY + 20;
+          if (expanded) {
+            [ctx, clicked] = gui.TreeLeaf(
+              ctx,
+              w,
+              "Leaf 2.1",
+              widgetsWin.X + 15,
+              nodeY,
+              40,
+            );
+            nodeY = nodeY + 20;
+            [ctx, clicked] = gui.TreeLeaf(
+              ctx,
+              w,
+              "Leaf 2.2",
+              widgetsWin.X + 15,
+              nodeY,
+              40,
+            );
+            nodeY = nodeY + 20;
+          }
+          [ctx, clicked] = gui.TreeLeaf(
+            ctx,
+            w,
+            "Leaf 3",
+            widgetsWin.X + 15,
+            nodeY,
+            20,
+          );
+          nodeY = nodeY + 20;
+        }
+      } else if (tabState.ActiveTab == 3) {
+        ctx = gui.BeginLayout(ctx, widgetsWin.X + 15, contentY, 8);
+        ctx = gui.AutoLabel(ctx, w, "Text Input:");
+        gui.Label(ctx, w, "Name:", widgetsWin.X + 15, ctx.CursorY + 4);
+        [ctx, textInput] = gui.TextInput(
+          ctx,
+          w,
+          textInput,
+          widgetsWin.X + 70,
+          ctx.CursorY,
+          200,
+        );
+        ctx = gui.NextRow(ctx, 28);
+        gui.Label(ctx, w, "Email:", widgetsWin.X + 15, ctx.CursorY + 4);
+        [ctx, textInput2] = gui.TextInput(
+          ctx,
+          w,
+          textInput2,
+          widgetsWin.X + 70,
+          ctx.CursorY,
+          200,
+        );
+        ctx = gui.NextRow(ctx, 28);
+        gui.Separator(ctx, w, widgetsWin.X + 15, ctx.CursorY, 350);
+        ctx.CursorY = ctx.CursorY + 8;
+        ctx = gui.AutoLabel(ctx, w, "Entered text:");
+        ctx = gui.AutoLabel(ctx, w, "  Name: " + textInput.Text);
+        ctx = gui.AutoLabel(ctx, w, "  Email: " + textInput2.Text);
+      }
+    }
+    if (showAnother) {
+      [ctx, anotherWin] = gui.DraggablePanel(
+        ctx,
+        w,
+        "Another Window",
+        anotherWin,
+      );
+      gui.Label(
+        ctx,
+        w,
+        "This is another panel!",
+        anotherWin.X + 10,
+        anotherWin.Y + 50,
+      );
+      [ctx, clicked] = gui.Button(
+        ctx,
+        w,
+        "Close",
+        anotherWin.X + 10,
+        anotherWin.Y + 90,
+        100,
+        26,
+      );
+      if (clicked) {
+        showAnother = false;
+      }
+    }
+    [ctx, infoWin] = gui.DraggablePanel(ctx, w, "Info", infoWin);
+    ctx = gui.BeginLayout(ctx, infoWin.X + 10, infoWin.Y + 50, 4);
+    ctx = gui.AutoLabel(ctx, w, "Application Stats:");
+    ctx = gui.AutoLabel(ctx, w, "  Volume: " + floatToString(volume));
+    ctx = gui.AutoLabel(ctx, w, "  Brightness: " + floatToString(brightness));
+    ctx = gui.AutoLabel(ctx, w, "  Clicks: " + intToString(counter));
+    ctx = gui.AutoLabel(ctx, w, "  Spinner: " + intToString(int(spinnerValue)));
+    ctx = gui.AutoLabel(ctx, w, "  Radio: " + intToString(radioSelection));
+    if (
+      ctx.MouseX >= infoWin.X &&
+      ctx.MouseX <= infoWin.X + infoWin.Width &&
+      ctx.MouseY >= infoWin.Y &&
+      ctx.MouseY <= infoWin.Y + 30
+    ) {
+      gui.Tooltip(ctx, w, "Drag to move this panel", ctx.MouseX, ctx.MouseY);
+    }
+    [ctx, clicked] = gui.Button(ctx, w, "Quit", 1150, 900, 100, 30);
+    if (clicked) {
+      return false;
+    }
+    if (fileMenuOpen) {
+      dropX = fileDropX;
+      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState, dropX, 5);
       [ctx, menuState, clicked] = gui.MenuItem(
         ctx,
         w,
@@ -1131,61 +2926,9 @@ function main() {
         return false;
       }
     }
-    [ctx, menuState, menuOpen] = gui.Menu(ctx, w, menuState, "Edit");
-    if (menuOpen) {
-      dropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
-      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState);
-      [ctx, menuState, clicked] = gui.MenuItem(
-        ctx,
-        w,
-        menuState,
-        "Undo",
-        dropX,
-        dropY,
-        0,
-      );
-      [ctx, menuState, clicked] = gui.MenuItem(
-        ctx,
-        w,
-        menuState,
-        "Redo",
-        dropX,
-        dropY,
-        1,
-      );
-      gui.MenuItemSeparator(ctx, w, dropX, dropY, 2);
-      [ctx, menuState, clicked] = gui.MenuItem(
-        ctx,
-        w,
-        menuState,
-        "Cut",
-        dropX,
-        dropY,
-        3,
-      );
-      [ctx, menuState, clicked] = gui.MenuItem(
-        ctx,
-        w,
-        menuState,
-        "Copy",
-        dropX,
-        dropY,
-        4,
-      );
-      [ctx, menuState, clicked] = gui.MenuItem(
-        ctx,
-        w,
-        menuState,
-        "Paste",
-        dropX,
-        dropY,
-        5,
-      );
-    }
-    [ctx, menuState, menuOpen] = gui.Menu(ctx, w, menuState, "View");
-    if (menuOpen) {
-      dropX = menuState.CurrentMenuX - menuState.CurrentMenuW;
-      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState);
+    if (viewMenuOpen) {
+      dropX = viewDropX;
+      [ctx, dropY] = gui.BeginDropdown(ctx, w, menuState, dropX, 3);
       [ctx, menuState, clicked] = gui.MenuItem(
         ctx,
         w,
@@ -1202,122 +2945,26 @@ function main() {
         ctx,
         w,
         menuState,
-        "Another Window",
+        "Widgets Window",
         dropX,
         dropY,
         1,
       );
       if (clicked) {
-        showAnother = !showAnother;
+        showWidgets = !showWidgets;
       }
       [ctx, menuState, clicked] = gui.MenuItem(
         ctx,
         w,
         menuState,
-        "Info Panel",
+        "Another Window",
         dropX,
         dropY,
         2,
       );
-    }
-    [ctx, menuState] = gui.EndMenuBar(ctx, menuState);
-    [ctx, demoWin] = gui.DraggablePanel(ctx, w, "Demo Window", demoWin);
-    ctx = gui.BeginLayout(ctx, demoWin.X + 10, demoWin.Y + 50, 6);
-    ctx = gui.AutoLabel(ctx, w, "Hello from goany GUI!");
-    gui.Separator(ctx, w, demoWin.X + 10, ctx.CursorY - 2, 330);
-    ctx.CursorY = ctx.CursorY + 4;
-    [ctx, clicked] = gui.Button(
-      ctx,
-      w,
-      "Click",
-      demoWin.X + 10,
-      ctx.CursorY,
-      80,
-      26,
-    );
-    if (clicked) {
-      counter = counter + 1;
-    }
-    [ctx, clicked] = gui.Button(
-      ctx,
-      w,
-      "Reset",
-      demoWin.X + 100,
-      ctx.CursorY,
-      80,
-      26,
-    );
-    if (clicked) {
-      counter = 0;
-      volume = 0.5;
-      brightness = 75.0;
-    }
-    gui.Label(
-      ctx,
-      w,
-      "Count: " + intToString(counter),
-      demoWin.X + 190,
-      ctx.CursorY + 4,
-    );
-    ctx = gui.NextRow(ctx, 26);
-    gui.Separator(ctx, w, demoWin.X + 10, ctx.CursorY - 2, 330);
-    ctx.CursorY = ctx.CursorY + 4;
-    [ctx, showDemo] = gui.AutoCheckbox(ctx, w, "Show Demo Window", showDemo);
-    [ctx, showAnother] = gui.AutoCheckbox(
-      ctx,
-      w,
-      "Show Another Window",
-      showAnother,
-    );
-    [ctx, enabled] = gui.AutoCheckbox(ctx, w, "Enable Feature", enabled);
-    gui.Separator(ctx, w, demoWin.X + 10, ctx.CursorY - 2, 330);
-    ctx.CursorY = ctx.CursorY + 4;
-    [ctx, volume] = gui.AutoSlider(ctx, w, "Volume", 320, 0.0, 1.0, volume);
-    [ctx, brightness] = gui.AutoSlider(
-      ctx,
-      w,
-      "Bright",
-      320,
-      0.0,
-      100.0,
-      brightness,
-    );
-    if (showAnother) {
-      [ctx, anotherWin] = gui.DraggablePanel(
-        ctx,
-        w,
-        "Another Window",
-        anotherWin,
-      );
-      gui.Label(
-        ctx,
-        w,
-        "This is another panel!",
-        anotherWin.X + 10,
-        anotherWin.Y + 50,
-      );
-      [ctx, clicked] = gui.Button(
-        ctx,
-        w,
-        "Close",
-        anotherWin.X + 10,
-        anotherWin.Y + 90,
-        100,
-        26,
-      );
       if (clicked) {
-        showAnother = false;
+        showAnother = !showAnother;
       }
-    }
-    [ctx, infoWin] = gui.DraggablePanel(ctx, w, "Info", infoWin);
-    ctx = gui.BeginLayout(ctx, infoWin.X + 10, infoWin.Y + 50, 4);
-    ctx = gui.AutoLabel(ctx, w, "Application Stats:");
-    ctx = gui.AutoLabel(ctx, w, "  Volume: " + floatToString(volume));
-    ctx = gui.AutoLabel(ctx, w, "  Brightness: " + floatToString(brightness));
-    ctx = gui.AutoLabel(ctx, w, "  Clicks: " + intToString(counter));
-    [ctx, clicked] = gui.Button(ctx, w, "Quit", 680, 550, 100, 30);
-    if (clicked) {
-      return false;
     }
     graphics.Present(w);
     return true;
