@@ -91,28 +91,28 @@ type GuiStyle struct {
 
 // --- Initialization ---
 
-// DefaultStyle returns an ImGui-like style
+// DefaultStyle returns a modern, polished dark theme style
 func DefaultStyle() GuiStyle {
 	return GuiStyle{
-		// ImGui Dark theme colors (from actual ImGui)
-		BackgroundColor:   graphics.NewColor(15, 15, 15, 240),    // Window body - very dark
-		TextColor:         graphics.NewColor(255, 255, 255, 255), // White text
-		ButtonColor:       graphics.NewColor(66, 150, 250, 102),  // Button normal
-		ButtonHoverColor:  graphics.NewColor(66, 150, 250, 200),  // Button hover
-		ButtonActiveColor: graphics.NewColor(15, 135, 250, 255),  // Button pressed
-		CheckboxColor:     graphics.NewColor(41, 74, 122, 255),   // Checkbox/frame bg
-		CheckmarkColor:    graphics.NewColor(66, 150, 250, 255),  // Checkmark color
-		SliderTrackColor:  graphics.NewColor(66, 150, 250, 171),  // Slider filled
-		SliderKnobColor:   graphics.NewColor(66, 150, 250, 200),  // Slider grab
-		BorderColor:       graphics.NewColor(80, 80, 80, 255),    // Borders
-		FrameBgColor:      graphics.NewColor(29, 47, 73, 138),    // Input field bg
-		TitleBgColor:      graphics.NewColor(41, 74, 137, 255),   // Title bar - blue!
-		FontSize:          1,                                     // 8px like classic ImGui
-		Padding:           6,
-		ButtonHeight:      20,
-		SliderHeight:      18,
-		CheckboxSize:      16,
-		FrameRounding:     2,
+		// Modern dark theme with better contrast and softer colors
+		BackgroundColor:   graphics.NewColor(32, 32, 36, 250),    // Window body - soft dark gray
+		TextColor:         graphics.NewColor(240, 240, 245, 255), // Soft white text
+		ButtonColor:       graphics.NewColor(70, 130, 210, 180),  // Button normal - softer blue
+		ButtonHoverColor:  graphics.NewColor(90, 150, 230, 220),  // Button hover - brighter
+		ButtonActiveColor: graphics.NewColor(50, 110, 190, 255),  // Button pressed - deeper
+		CheckboxColor:     graphics.NewColor(55, 65, 85, 255),    // Checkbox/frame bg
+		CheckmarkColor:    graphics.NewColor(100, 180, 255, 255), // Checkmark - bright accent
+		SliderTrackColor:  graphics.NewColor(80, 160, 240, 200),  // Slider filled
+		SliderKnobColor:   graphics.NewColor(120, 180, 255, 255), // Slider grab - bright
+		BorderColor:       graphics.NewColor(60, 65, 75, 255),    // Subtle borders
+		FrameBgColor:      graphics.NewColor(45, 50, 60, 220),    // Input field bg
+		TitleBgColor:      graphics.NewColor(55, 95, 160, 255),   // Title bar - refined blue
+		FontSize:          1,
+		Padding:           8,
+		ButtonHeight:      24,
+		SliderHeight:      20,
+		CheckboxSize:      18,
+		FrameRounding:     3,
 	}
 }
 
@@ -255,17 +255,22 @@ func Button(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 		bgColor = ctx.Style.ButtonColor
 	}
 
-	// Draw button with ImGui-like frame
-	// Dark edge on top-left for depth
-	graphics.DrawLine(w, x, y+height-1, x, y, graphics.NewColor(0, 0, 0, 80))
-	graphics.DrawLine(w, x, y, x+width-1, y, graphics.NewColor(0, 0, 0, 80))
+	// Draw button shadow (offset dark rectangle for depth)
+	graphics.FillRect(w, graphics.NewRect(x+2, y+2, width, height), graphics.NewColor(0, 0, 0, 60))
 
 	// Main button fill
-	graphics.FillRect(w, graphics.NewRect(x+1, y+1, width-2, height-2), bgColor)
+	graphics.FillRect(w, graphics.NewRect(x, y, width, height), bgColor)
 
-	// Light edge on bottom-right for depth (subtle)
-	graphics.DrawLine(w, x+1, y+height-1, x+width-1, y+height-1, graphics.NewColor(255, 255, 255, 30))
-	graphics.DrawLine(w, x+width-1, y+1, x+width-1, y+height-1, graphics.NewColor(255, 255, 255, 30))
+	// Top highlight for 3D effect
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 50))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+height-2, graphics.NewColor(255, 255, 255, 30))
+
+	// Bottom/right shadow for depth
+	graphics.DrawLine(w, x+1, y+height-1, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 80))
+	graphics.DrawLine(w, x+width-1, y+1, x+width-1, y+height-1, graphics.NewColor(0, 0, 0, 80))
+
+	// Subtle outer border
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(0, 0, 0, 40))
 
 	// Draw centered label with press offset
 	textW := TextWidth(label, ctx.Style.FontSize)
@@ -305,22 +310,31 @@ func Checkbox(ctx GuiContext, w graphics.Window, label string, x int32, y int32,
 		boxColor = ctx.Style.FrameBgColor
 	}
 
-	// Draw checkbox frame with depth
-	graphics.FillRect(w, graphics.NewRect(x, y, boxSize, boxSize), boxColor)
-	// Dark inner edge
-	graphics.DrawLine(w, x, y, x+boxSize-1, y, graphics.NewColor(0, 0, 0, 100))
-	graphics.DrawLine(w, x, y, x, y+boxSize-1, graphics.NewColor(0, 0, 0, 100))
+	// Draw checkbox shadow
+	graphics.FillRect(w, graphics.NewRect(x+1, y+1, boxSize, boxSize), graphics.NewColor(0, 0, 0, 50))
 
-	// Draw checkmark if checked (ImGui-style tick)
+	// Draw checkbox frame
+	graphics.FillRect(w, graphics.NewRect(x, y, boxSize, boxSize), boxColor)
+
+	// Inner shadow (inset effect)
+	graphics.DrawLine(w, x+1, y+1, x+boxSize-2, y+1, graphics.NewColor(0, 0, 0, 80))
+	graphics.DrawLine(w, x+1, y+1, x+1, y+boxSize-2, graphics.NewColor(0, 0, 0, 80))
+
+	// Border
+	graphics.DrawRect(w, graphics.NewRect(x, y, boxSize, boxSize), graphics.NewColor(80, 90, 110, 255))
+
+	// Draw checkmark if checked
 	if value {
 		checkColor := ctx.Style.CheckmarkColor
-		// Draw a checkmark (tick shape)
+		// Draw a thicker, more visible checkmark
 		cx := x + boxSize/2
 		cy := y + boxSize/2
-		// Left part of tick (going down-right)
+		// Left part of tick (going down-right) - thicker
+		graphics.DrawLine(w, cx-5, cy-1, cx-2, cy+3, checkColor)
 		graphics.DrawLine(w, cx-5, cy, cx-2, cy+4, checkColor)
 		graphics.DrawLine(w, cx-4, cy, cx-1, cy+4, checkColor)
-		// Right part of tick (going up-right)
+		// Right part of tick (going up-right) - thicker
+		graphics.DrawLine(w, cx-2, cy+3, cx+5, cy-4, checkColor)
 		graphics.DrawLine(w, cx-2, cy+4, cx+5, cy-3, checkColor)
 		graphics.DrawLine(w, cx-1, cy+4, cx+6, cy-3, checkColor)
 	}
@@ -382,19 +396,28 @@ func Slider(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 		}
 	}
 
-	// Draw track background (full width, ImGui style)
-	graphics.FillRect(w, graphics.NewRect(trackX, y, trackW, height), ctx.Style.FrameBgColor)
-	// Dark inner edge for depth
-	graphics.DrawLine(w, trackX, y, trackX+trackW-1, y, graphics.NewColor(0, 0, 0, 100))
-	graphics.DrawLine(w, trackX, y, trackX, y+height-1, graphics.NewColor(0, 0, 0, 100))
+	// Draw track shadow (inset effect)
+	graphics.FillRect(w, graphics.NewRect(trackX+1, y+1, trackW, height), graphics.NewColor(0, 0, 0, 40))
 
-	// Draw filled portion (from start to grab)
+	// Draw track background
+	graphics.FillRect(w, graphics.NewRect(trackX, y, trackW, height), ctx.Style.FrameBgColor)
+
+	// Inner shadow for inset look
+	graphics.DrawLine(w, trackX+1, y+1, trackX+trackW-2, y+1, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawLine(w, trackX+1, y+1, trackX+1, y+height-2, graphics.NewColor(0, 0, 0, 60))
+
+	// Draw filled portion (from start to grab) with gradient effect
 	fillW := grabX - trackX + grabW/2
 	if fillW > 0 {
-		graphics.FillRect(w, graphics.NewRect(trackX+1, y+1, fillW, height-2), ctx.Style.SliderTrackColor)
+		graphics.FillRect(w, graphics.NewRect(trackX+2, y+2, fillW-2, height-4), ctx.Style.SliderTrackColor)
+		// Highlight on top of fill
+		graphics.DrawLine(w, trackX+2, y+2, trackX+fillW-1, y+2, graphics.NewColor(255, 255, 255, 40))
 	}
 
-	// Draw grab handle
+	// Track border
+	graphics.DrawRect(w, graphics.NewRect(trackX, y, trackW, height), graphics.NewColor(50, 55, 65, 255))
+
+	// Draw grab handle with better styling
 	var grabColor graphics.Color
 	if ctx.ActiveID == id {
 		grabColor = ctx.Style.ButtonActiveColor
@@ -403,7 +426,15 @@ func Slider(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 	} else {
 		grabColor = ctx.Style.SliderKnobColor
 	}
+	// Grab handle shadow
+	graphics.FillRect(w, graphics.NewRect(grabX+1, y+1, grabW, height), graphics.NewColor(0, 0, 0, 50))
+	// Grab handle fill
 	graphics.FillRect(w, graphics.NewRect(grabX, y, grabW, height), grabColor)
+	// Grab handle highlight
+	graphics.DrawLine(w, grabX+1, y+1, grabX+grabW-2, y+1, graphics.NewColor(255, 255, 255, 60))
+	graphics.DrawLine(w, grabX+1, y+1, grabX+1, y+height-2, graphics.NewColor(255, 255, 255, 40))
+	// Grab handle border
+	graphics.DrawRect(w, graphics.NewRect(grabX, y, grabW, height), graphics.NewColor(40, 50, 70, 255))
 
 	// Handle dragging
 	if ctx.ActiveID == id && ctx.MouseDown {
@@ -425,21 +456,34 @@ func Slider(ctx GuiContext, w graphics.Window, label string, x int32, y int32, w
 
 // Panel draws a panel/window background with title
 func Panel(ctx GuiContext, w graphics.Window, title string, x int32, y int32, width int32, height int32) {
-	// Draw title bar with blue ImGui style
 	titleH := TextHeight(ctx.Style.FontSize) + ctx.Style.Padding*2
+
+	// Draw drop shadow (multiple layers for soft shadow effect)
+	graphics.FillRect(w, graphics.NewRect(x+4, y+4, width, height), graphics.NewColor(0, 0, 0, 40))
+	graphics.FillRect(w, graphics.NewRect(x+3, y+3, width, height), graphics.NewColor(0, 0, 0, 50))
+	graphics.FillRect(w, graphics.NewRect(x+2, y+2, width, height), graphics.NewColor(0, 0, 0, 60))
+
+	// Draw title bar background
 	graphics.FillRect(w, graphics.NewRect(x, y, width, titleH), ctx.Style.TitleBgColor)
+	// Title bar top highlight
+	graphics.DrawLine(w, x+1, y+1, x+width-2, y+1, graphics.NewColor(255, 255, 255, 40))
+	// Title bar gradient effect (darker line near bottom)
+	graphics.DrawLine(w, x+1, y+titleH-2, x+width-2, y+titleH-2, graphics.NewColor(0, 0, 0, 30))
 
 	// Title text centered vertically, left padded
 	DrawText(w, title, x+ctx.Style.Padding, y+(titleH-TextHeight(ctx.Style.FontSize))/2, ctx.Style.FontSize, ctx.Style.TextColor)
 
-	// Draw panel body - dark gray/black
+	// Draw panel body
 	graphics.FillRect(w, graphics.NewRect(x, y+titleH, width, height-titleH), ctx.Style.BackgroundColor)
 
-	// Outer border for the whole window
-	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), ctx.Style.BorderColor)
+	// Inner body highlight (top edge below title)
+	graphics.DrawLine(w, x+1, y+titleH, x+width-2, y+titleH, graphics.NewColor(255, 255, 255, 15))
 
-	// Subtle inner highlight on title bar bottom
-	graphics.DrawLine(w, x+1, y+titleH-1, x+width-2, y+titleH-1, graphics.NewColor(255, 255, 255, 20))
+	// Outer border for the whole window
+	graphics.DrawRect(w, graphics.NewRect(x, y, width, height), graphics.NewColor(40, 45, 55, 255))
+
+	// Inner border highlight (top-left edges)
+	graphics.DrawLine(w, x+1, y+titleH+1, x+1, y+height-2, graphics.NewColor(255, 255, 255, 10))
 }
 
 // DraggablePanel draws a draggable panel/window and returns updated context and window state
@@ -481,9 +525,10 @@ func DraggablePanel(ctx GuiContext, w graphics.Window, title string, state Windo
 	return ctx, state
 }
 
-// Separator draws a horizontal separator line
+// Separator draws a horizontal separator line with subtle 3D effect
 func Separator(ctx GuiContext, w graphics.Window, x int32, y int32, width int32) {
-	graphics.DrawLine(w, x, y, x+width, y, ctx.Style.BorderColor)
+	graphics.DrawLine(w, x, y, x+width, y, graphics.NewColor(25, 30, 40, 255))
+	graphics.DrawLine(w, x, y+1, x+width, y+1, graphics.NewColor(65, 70, 80, 255))
 }
 
 // --- Menu System ---
@@ -492,10 +537,13 @@ func Separator(ctx GuiContext, w graphics.Window, x int32, y int32, width int32)
 func BeginMenuBar(ctx GuiContext, w graphics.Window, state MenuState, x int32, y int32, width int32) (GuiContext, MenuState) {
 	height := TextHeight(ctx.Style.FontSize) + ctx.Style.Padding*2
 
-	// Draw menu bar background
+	// Draw menu bar background with gradient effect
 	graphics.FillRect(w, graphics.NewRect(x, y, width, height), ctx.Style.TitleBgColor)
-	// Bottom border
-	graphics.DrawLine(w, x, y+height-1, x+width, y+height-1, ctx.Style.BorderColor)
+	// Top highlight
+	graphics.DrawLine(w, x, y+1, x+width-1, y+1, graphics.NewColor(255, 255, 255, 30))
+	// Bottom shadow
+	graphics.DrawLine(w, x, y+height-1, x+width, y+height-1, graphics.NewColor(0, 0, 0, 60))
+	graphics.DrawLine(w, x, y+height, x+width, y+height, graphics.NewColor(0, 0, 0, 30))
 
 	// Store menu bar info for dropdown positioning
 	state.MenuBarX = x
@@ -538,7 +586,9 @@ func Menu(ctx GuiContext, w graphics.Window, state MenuState, label string) (Gui
 
 	// Draw background if hovered or open
 	if hovered || isOpen {
-		graphics.FillRect(w, graphics.NewRect(x, y, menuW, menuH-1), ctx.Style.ButtonHoverColor)
+		graphics.FillRect(w, graphics.NewRect(x, y+1, menuW, menuH-2), ctx.Style.ButtonHoverColor)
+		// Highlight effect
+		graphics.DrawLine(w, x+1, y+2, x+menuW-2, y+2, graphics.NewColor(255, 255, 255, 30))
 		// If clicked, toggle menu
 		if ctx.MouseClicked {
 			if isOpen {
@@ -575,9 +625,15 @@ func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, 
 	padding := ctx.Style.Padding
 	textH := TextHeight(ctx.Style.FontSize)
 	itemH := textH + padding*2
-	itemW := int32(150) // Fixed width for menu items
+	itemW := int32(160) // Fixed width for menu items
 
 	y := dropY + itemIndex*itemH
+
+	// Draw dropdown shadow (only for first item)
+	if itemIndex == 0 {
+		graphics.FillRect(w, graphics.NewRect(dropX+3, dropY+3, itemW, itemH*5), graphics.NewColor(0, 0, 0, 50))
+		graphics.FillRect(w, graphics.NewRect(dropX+2, dropY+2, itemW, itemH*5), graphics.NewColor(0, 0, 0, 40))
+	}
 
 	// Draw item background
 	graphics.FillRect(w, graphics.NewRect(dropX, y, itemW, itemH), ctx.Style.BackgroundColor)
@@ -587,7 +643,8 @@ func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, 
 	clicked := false
 
 	if hovered {
-		graphics.FillRect(w, graphics.NewRect(dropX, y, itemW, itemH), ctx.Style.ButtonHoverColor)
+		// Hover highlight with gradient effect
+		graphics.FillRect(w, graphics.NewRect(dropX+1, y+1, itemW-2, itemH-2), ctx.Style.ButtonHoverColor)
 		state.ClickedOutside = false // Click is on menu item
 		if ctx.MouseClicked {
 			clicked = true
@@ -599,8 +656,8 @@ func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, 
 	textY := y + (itemH-textH)/2
 	DrawText(w, label, dropX+padding, textY, ctx.Style.FontSize, ctx.Style.TextColor)
 
-	// Draw border
-	graphics.DrawRect(w, graphics.NewRect(dropX, dropY, itemW, (itemIndex+1)*itemH), ctx.Style.BorderColor)
+	// Draw border around dropdown (cleaner look)
+	graphics.DrawRect(w, graphics.NewRect(dropX, dropY, itemW, (itemIndex+1)*itemH), graphics.NewColor(50, 55, 65, 255))
 
 	return ctx, state, clicked
 }
@@ -610,12 +667,14 @@ func MenuItemSeparator(ctx GuiContext, w graphics.Window, dropX int32, dropY int
 	padding := ctx.Style.Padding
 	textH := TextHeight(ctx.Style.FontSize)
 	itemH := textH + padding*2
-	itemW := int32(150)
+	itemW := int32(160)
 
 	y := dropY + itemIndex*itemH + itemH/2
 
 	graphics.FillRect(w, graphics.NewRect(dropX, dropY+itemIndex*itemH, itemW, itemH), ctx.Style.BackgroundColor)
-	graphics.DrawLine(w, dropX+padding, y, dropX+itemW-padding, y, ctx.Style.BorderColor)
+	// Draw separator with subtle 3D effect
+	graphics.DrawLine(w, dropX+padding, y, dropX+itemW-padding, y, graphics.NewColor(30, 35, 45, 255))
+	graphics.DrawLine(w, dropX+padding, y+1, dropX+itemW-padding, y+1, graphics.NewColor(70, 75, 85, 255))
 }
 
 // --- Layout Helpers ---
