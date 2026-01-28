@@ -647,9 +647,21 @@ func Menu(ctx GuiContext, w graphics.Window, state MenuState, label string) (Gui
 }
 
 // BeginDropdown starts a dropdown menu area, returns the dropdown Y position
-func BeginDropdown(ctx GuiContext, w graphics.Window, state MenuState) (GuiContext, int32) {
+// itemCount is the total number of items in this dropdown (for shadow sizing)
+func BeginDropdown(ctx GuiContext, w graphics.Window, state MenuState, itemCount int32) (GuiContext, int32) {
 	// Dropdown appears below menu bar, aligned with current menu header
 	dropY := state.MenuBarY + state.MenuBarH
+
+	// Draw dropdown shadow
+	padding := ctx.Style.Padding
+	textH := TextHeight(ctx.Style.FontSize)
+	itemH := textH + padding*2
+	itemW := int32(160)
+	dropX := state.CurrentMenuX - state.CurrentMenuW
+
+	graphics.FillRect(w, graphics.NewRect(dropX+3, dropY+3, itemW, itemH*itemCount), graphics.NewColor(0, 0, 0, 50))
+	graphics.FillRect(w, graphics.NewRect(dropX+2, dropY+2, itemW, itemH*itemCount), graphics.NewColor(0, 0, 0, 40))
+
 	return ctx, dropY
 }
 
@@ -661,12 +673,6 @@ func MenuItem(ctx GuiContext, w graphics.Window, state MenuState, label string, 
 	itemW := int32(160) // Fixed width for menu items
 
 	y := dropY + itemIndex*itemH
-
-	// Draw dropdown shadow (only for first item)
-	if itemIndex == 0 {
-		graphics.FillRect(w, graphics.NewRect(dropX+3, dropY+3, itemW, itemH*5), graphics.NewColor(0, 0, 0, 50))
-		graphics.FillRect(w, graphics.NewRect(dropX+2, dropY+2, itemW, itemH*5), graphics.NewColor(0, 0, 0, 40))
-	}
 
 	// Draw item background
 	graphics.FillRect(w, graphics.NewRect(dropX, y, itemW, itemH), ctx.Style.BackgroundColor)
