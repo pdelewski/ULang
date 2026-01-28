@@ -145,8 +145,56 @@ inline int GetLastKey() {
     return lastKeyPressed;
 }
 
+// GetMouse returns mouse position and button state
+inline std::tuple<int32_t, int32_t, int32_t> GetMouse(Window w) {
+    int x, y;
+    Uint32 buttons = SDL_GetMouseState(&x, &y);
+    // Convert SDL button mask to our format: left=1, right=2, middle=4
+    int32_t result = 0;
+    if (buttons & SDL_BUTTON(1)) result |= 1; // left
+    if (buttons & SDL_BUTTON(3)) result |= 2; // right
+    if (buttons & SDL_BUTTON(2)) result |= 4; // middle
+    return {static_cast<int32_t>(x), static_cast<int32_t>(y), result};
+}
+
 inline int32_t GetWidth(Window w) { return w.width; }
 inline int32_t GetHeight(Window w) { return w.height; }
+
+// GetScreenSize returns screen resolution (SDL2 cross-platform)
+inline std::tuple<int32_t, int32_t> GetScreenSize() {
+    SDL_DisplayMode mode;
+    if (SDL_GetCurrentDisplayMode(0, &mode) == 0) {
+        return {mode.w, mode.h};
+    }
+    return {1920, 1080};
+}
+
+// CreateWindowFullscreen creates a fullscreen window
+inline Window CreateWindowFullscreen(const std::string& title, int32_t width, int32_t height) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        return Window{0, 0, width, height, false};
+    }
+
+    SDL_Window* window = SDL_CreateWindow(title.c_str(),
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        width, height, SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP);
+    if (!window) {
+        return Window{0, 0, width, height, false};
+    }
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1,
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!renderer) {
+        SDL_DestroyWindow(window);
+        return Window{0, 0, width, height, false};
+    }
+
+    return Window{
+        reinterpret_cast<int64_t>(window),
+        reinterpret_cast<int64_t>(renderer),
+        width, height, true
+    };
+}
 
 // --- Rendering ---
 

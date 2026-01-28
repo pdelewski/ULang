@@ -26,6 +26,7 @@ var e2eTestCases = []TestCase{
 	{"uql", "../examples/uql", true, true, true, true, true},
 	{"graphics-minimal", "../examples/graphics-minimal", true, true, true, true, false},  // JS transpile only (needs browser)
 	{"graphics-demo", "../examples/graphics-demo", true, true, true, true, false},        // JS transpile only (needs browser)
+	{"gui-demo", "../examples/gui-demo", true, true, true, true, false},                  // JS transpile only (needs browser)
 	{"mos6502-graphic", "../examples/mos6502/cmd/graphic", true, true, true, true, false}, // JS transpile only (needs browser)
 	{"mos6502-text", "../examples/mos6502/cmd/text", true, true, true, true, false},       // JS transpile only (needs browser)
 	{"mos6502-textscroll", "../examples/mos6502/cmd/textscroll", true, true, true, true, false}, // JS transpile only (needs browser)

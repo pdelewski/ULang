@@ -239,12 +239,33 @@ const graphics = {
   mouseDown: false,
 
   CreateWindow: function(title, width, height) {
+    // Make canvas fill entire browser window
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    document.body.style.overflow = 'hidden';
+
     this.canvas = document.createElement('canvas');
-    this.canvas.width = width;
-    this.canvas.height = height;
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.canvas.style.display = 'block';
     this.ctx = this.canvas.getContext('2d');
     document.body.appendChild(this.canvas);
     document.title = title;
+
+    // Create window object with dimensions that can be updated
+    this.windowObj = {
+      canvas: this.canvas,
+      width: this.canvas.width,
+      height: this.canvas.height
+    };
+
+    // Resize canvas when browser window resizes
+    window.addEventListener('resize', () => {
+      this.canvas.width = window.innerWidth;
+      this.canvas.height = window.innerHeight;
+      this.windowObj.width = this.canvas.width;
+      this.windowObj.height = this.canvas.height;
+    });
 
     // Event listeners
     window.addEventListener('keydown', (e) => {
@@ -280,7 +301,12 @@ const graphics = {
     this.canvas.addEventListener('mousedown', () => { this.mouseDown = true; });
     this.canvas.addEventListener('mouseup', () => { this.mouseDown = false; });
 
-    return this.canvas;
+    return this.windowObj;
+  },
+
+  // CreateWindowFullscreen - same as CreateWindow since JS canvas already fills the browser window
+  CreateWindowFullscreen: function(title, width, height) {
+    return this.CreateWindow(title, width, height);
   },
 
   NewColor: function(r, g, b, a) {
@@ -370,6 +396,18 @@ const graphics = {
   GetMouse: function(canvas) {
     // Returns [x, y, buttons] like other backends
     return [this.mouseX, this.mouseY, this.mouseDown ? 1 : 0];
+  },
+
+  GetWidth: function(w) {
+    return w.width;
+  },
+
+  GetHeight: function(w) {
+    return w.height;
+  },
+
+  GetScreenSize: function() {
+    return [window.screen.width, window.screen.height];
   },
 
   MouseDown: function(canvas) {

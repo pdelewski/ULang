@@ -19,7 +19,7 @@ thread_local! {
     static LAST_KEY: RefCell<i32> = RefCell::new(0);
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Color {
     pub R: u8,
     pub G: u8,
@@ -27,7 +27,7 @@ pub struct Color {
     pub A: u8,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Rect {
     pub X: i32,
     pub Y: i32,
@@ -35,7 +35,7 @@ pub struct Rect {
     pub Height: i32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Window {
     pub handle: i64,
     pub renderer: i64,
@@ -175,8 +175,95 @@ pub fn GetLastKey() -> i32 {
     LAST_KEY.with(|k| *k.borrow())
 }
 
+/// GetMouse returns mouse position and button state
+pub fn GetMouse(w: Window) -> (i32, i32, i32) {
+    SDL_CONTEXT.with(|ctx| {
+        if let Some(ref sdl) = *ctx.borrow() {
+            if let Ok(event_pump) = sdl.event_pump() {
+                let state = event_pump.mouse_state();
+                let mut buttons: i32 = 0;
+                if state.left() { buttons |= 1; }
+                if state.right() { buttons |= 2; }
+                if state.middle() { buttons |= 4; }
+                return (state.x(), state.y(), buttons);
+            }
+        }
+        (0, 0, 0)
+    })
+}
+
 pub fn GetWidth(mut w: Window) -> i32 { w.width }
 pub fn GetHeight(mut w: Window) -> i32 { w.height }
+
+/// GetScreenSize returns the screen resolution (SDL2 cross-platform)
+pub fn GetScreenSize() -> (i32, i32) {
+    SDL_CONTEXT.with(|ctx| {
+        let mut ctx_ref = ctx.borrow_mut();
+        if ctx_ref.is_none() {
+            *ctx_ref = sdl2::init().ok();
+        }
+        if let Some(ref sdl) = *ctx_ref {
+            if let Ok(video) = sdl.video() {
+                if let Ok(mode) = video.current_display_mode(0) {
+                    return (mode.w, mode.h);
+                }
+            }
+        }
+        (1920, 1080)
+    })
+}
+
+/// CreateWindowFullscreen creates a fullscreen window
+pub fn CreateWindowFullscreen(title: String, width: i32, height: i32) -> Window {
+    SDL_CONTEXT.with(|ctx| {
+        let mut ctx_ref = ctx.borrow_mut();
+        if ctx_ref.is_none() {
+            *ctx_ref = sdl2::init().ok();
+        }
+
+        if let Some(ref sdl) = *ctx_ref {
+            let video = match sdl.video() {
+                Ok(v) => v,
+                Err(_) => return Window { handle: 0, renderer: 0, width, height, running: false },
+            };
+
+            let window = match video
+                .window(&title, width as u32, height as u32)
+                .position_centered()
+                .fullscreen_desktop()
+                .build()
+            {
+                Ok(w) => w,
+                Err(_) => return Window { handle: 0, renderer: 0, width, height, running: false },
+            };
+
+            let canvas = match window.into_canvas().accelerated().present_vsync().build() {
+                Ok(c) => c,
+                Err(_) => return Window { handle: 0, renderer: 0, width, height, running: false },
+            };
+
+            let handle = NEXT_HANDLE.with(|h| {
+                let mut h_ref = h.borrow_mut();
+                let current = *h_ref;
+                *h_ref += 1;
+                current
+            });
+
+            CANVASES.with(|c| {
+                c.borrow_mut().insert(handle, canvas);
+            });
+
+            return Window {
+                handle,
+                renderer: handle,
+                width,
+                height,
+                running: true,
+            };
+        }
+        Window { handle: 0, renderer: 0, width, height, running: false }
+    })
+}
 
 // --- Rendering ---
 

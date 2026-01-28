@@ -11,6 +11,15 @@ using System.Runtime.InteropServices;
 
 public static class graphics
 {
+    // GetScreenSize returns a safe default size for tigr (windowed mode)
+    internal static class ScreenInfo
+    {
+        public static (int, int) GetSize()
+        {
+            return (1024, 768);
+        }
+    }
+
     // --- P/Invoke declarations for tigr ---
     internal static class Tigr
     {
@@ -175,6 +184,33 @@ public static class graphics
         };
     }
 
+    public static Window CreateWindowFullscreen(string title, int width, int height)
+    {
+        // TIGR_FULLSCREEN = 64
+        IntPtr win = Tigr.tigrWindow(width, height, title, 64);
+
+        if (win == IntPtr.Zero)
+        {
+            return new Window
+            {
+                handle = 0,
+                renderer = 0,
+                width = width,
+                height = height,
+                running = false
+            };
+        }
+
+        return new Window
+        {
+            handle = win.ToInt64(),
+            renderer = win.ToInt64(),
+            width = width,
+            height = height,
+            running = true
+        };
+    }
+
     public static void CloseWindow(Window w)
     {
         if (w.handle != 0)
@@ -282,6 +318,11 @@ public static class graphics
 
     public static int GetWidth(Window w) { return w.width; }
     public static int GetHeight(Window w) { return w.height; }
+
+    public static (int, int) GetScreenSize()
+    {
+        return ScreenInfo.GetSize();
+    }
 
     // --- Rendering ---
 

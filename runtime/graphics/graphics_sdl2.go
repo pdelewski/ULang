@@ -124,6 +124,26 @@ func GetHeight(w Window) int32 {
 	return w.height
 }
 
+// GetScreenSize returns the screen resolution (SDL2 cross-platform).
+func GetScreenSize() (int32, int32) {
+	return sdl.GetScreenSize()
+}
+
+// CreateWindowFullscreen creates a fullscreen window.
+func CreateWindowFullscreen(title string, width int32, height int32) Window {
+	handle, renderer, ok := sdl.CreateWindowFullscreen(title, width, height)
+	if !ok {
+		return Window{width: width, height: height, running: false}
+	}
+	return Window{
+		handle:   handle,
+		renderer: renderer,
+		width:    width,
+		height:   height,
+		running:  true,
+	}
+}
+
 // --- Rendering ---
 
 // Clear clears the window with the specified color.

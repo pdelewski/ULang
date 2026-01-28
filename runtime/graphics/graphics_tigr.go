@@ -84,6 +84,21 @@ func CreateWindow(title string, width int32, height int32) Window {
 	}
 }
 
+// CreateWindowFullscreen creates a fullscreen window with the specified buffer dimensions.
+func CreateWindowFullscreen(title string, width int32, height int32) Window {
+	handle, renderer, ok := tigr.CreateWindowFullscreen(title, width, height)
+	if !ok {
+		return Window{width: width, height: height, running: false}
+	}
+	return Window{
+		handle:   handle,
+		renderer: renderer,
+		width:    width,
+		height:   height,
+		running:  true,
+	}
+}
+
 // CloseWindow closes the window and releases resources.
 func CloseWindow(w Window) {
 	tigr.CloseWindow(w.handle, w.renderer)
@@ -123,6 +138,11 @@ func GetWidth(w Window) int32 {
 // GetHeight returns the window height.
 func GetHeight(w Window) int32 {
 	return w.height
+}
+
+// GetScreenSize returns the screen resolution.
+func GetScreenSize() (int32, int32) {
+	return tigr.GetScreenSize()
 }
 
 // --- Rendering ---

@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	w := graphics.CreateWindow("ImGui-like Demo", 800, 600)
+	w := graphics.CreateWindow("ImGui-like Demo", 1280, 960)
 	ctx := gui.NewContext()
 
 	// State variables
@@ -37,8 +37,8 @@ func main() {
 		// Clear with very dark background (like ImGui demo)
 		graphics.Clear(w, graphics.NewColor(30, 30, 30, 255))
 
-		// Menu bar at top
-		ctx, menuState = gui.BeginMenuBar(ctx, w, menuState, 0, 0, 800)
+		// Menu bar at top (use window width for full-width menu bar)
+		ctx, menuState = gui.BeginMenuBar(ctx, w, menuState, 0, 0, graphics.GetWidth(w))
 
 		// File menu
 		ctx, menuState, menuOpen = gui.Menu(ctx, w, menuState, "File")
