@@ -288,7 +288,7 @@ func main() {
 		// Draw menu dropdowns LAST so they appear on top of windows
 		if fileMenuOpen {
 			dropX = fileDropX
-			ctx, dropY = gui.BeginDropdown(ctx, w, menuState, 5) // 5 items in File menu
+			ctx, dropY = gui.BeginDropdown(ctx, w, menuState, dropX, 5) // 5 items in File menu
 			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "New", dropX, dropY, 0)
 			if clicked {
 				counter = 0
@@ -304,7 +304,7 @@ func main() {
 
 		if viewMenuOpen {
 			dropX = viewDropX
-			ctx, dropY = gui.BeginDropdown(ctx, w, menuState, 3) // 3 items in View menu
+			ctx, dropY = gui.BeginDropdown(ctx, w, menuState, dropX, 3) // 3 items in View menu
 			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Demo Window", dropX, dropY, 0)
 			if clicked {
 				showDemo = !showDemo
