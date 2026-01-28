@@ -310,28 +310,28 @@ const graphics = {
   },
 
   NewColor: function(r, g, b, a) {
-    return { r, g, b, a: a !== undefined ? a : 255 };
+    return { R: r, G: g, B: b, A: a !== undefined ? a : 255 };
   },
 
   // Color helper functions
-  Red: function() { return { r: 255, g: 0, b: 0, a: 255 }; },
-  Green: function() { return { r: 0, g: 255, b: 0, a: 255 }; },
-  Blue: function() { return { r: 0, g: 0, b: 255, a: 255 }; },
-  White: function() { return { r: 255, g: 255, b: 255, a: 255 }; },
-  Black: function() { return { r: 0, g: 0, b: 0, a: 255 }; },
+  Red: function() { return { R: 255, G: 0, B: 0, A: 255 }; },
+  Green: function() { return { R: 0, G: 255, B: 0, A: 255 }; },
+  Blue: function() { return { R: 0, G: 0, B: 255, A: 255 }; },
+  White: function() { return { R: 255, G: 255, B: 255, A: 255 }; },
+  Black: function() { return { R: 0, G: 0, B: 0, A: 255 }; },
 
   Clear: function(canvas, color) {
-    this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.fillStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
   },
 
   FillRect: function(canvas, rect, color) {
-    this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.fillStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   },
 
   DrawRect: function(canvas, rect, color) {
-    this.ctx.strokeStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.strokeStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
   },
 
@@ -340,26 +340,26 @@ const graphics = {
   },
 
   FillCircle: function(canvas, centerX, centerY, radius, color) {
-    this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.fillStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     this.ctx.fill();
   },
 
   DrawCircle: function(canvas, centerX, centerY, radius, color) {
-    this.ctx.strokeStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.strokeStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.beginPath();
     this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     this.ctx.stroke();
   },
 
   DrawPoint: function(canvas, x, y, color) {
-    this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.fillStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.fillRect(x, y, 1, 1);
   },
 
   DrawLine: function(canvas, x1, y1, x2, y2, color) {
-    this.ctx.strokeStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.strokeStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.beginPath();
     this.ctx.moveTo(x1, y1);
     this.ctx.lineTo(x2, y2);
@@ -367,7 +367,7 @@ const graphics = {
   },
 
   SetPixel: function(canvas, x, y, color) {
-    this.ctx.fillStyle = ` + "`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`" + `;
+    this.ctx.fillStyle = ` + "`rgba(${color.R}, ${color.G}, ${color.B}, ${color.A / 255})`" + `;
     this.ctx.fillRect(x, y, 1, 1);
   },
 
