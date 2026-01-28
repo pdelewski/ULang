@@ -122,6 +122,13 @@ type RustEmitter struct {
 	stmtVarUsages                []map[string]bool // Variable usages per statement
 	// Parameter mutation tracking
 	mutatedParams                map[string]bool   // Parameters that are assigned to in the function body
+	// Compound condition for loop support (generates while loop with manual increment)
+	pendingLoopIncrement         bool              // Track if we need to add increment at end of next block
+	loopIncrementVar             string            // Variable to increment
+	loopIncrementOp              string            // Operator: += or -=
+	loopIncrementVal             string            // Value to increment by
+	inForLoopBody                bool              // Track if current block is the for loop body
+	forLoopBodyDepth             int               // Depth counter to track nested blocks within loop body
 }
 
 func (*RustEmitter) lowerToBuiltins(selector string) string {
@@ -693,6 +700,14 @@ func (re *RustEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	if re.forwardDecls {
 		return
 	}
+	// Track block depth when inside a for loop body that needs increment
+	if re.inForLoopBody {
+		re.forLoopBodyDepth++
+	} else if re.pendingLoopIncrement {
+		// This is the for loop body block
+		re.inForLoopBody = true
+		re.forLoopBodyDepth = 1
+	}
 	re.emitToken("{", LeftBrace, 1)
 	str := re.emitAsString("\n", 0)
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
@@ -701,6 +716,18 @@ func (re *RustEmitter) PreVisitBlockStmt(node *ast.BlockStmt, indent int) {
 func (re *RustEmitter) PostVisitBlockStmt(node *ast.BlockStmt, indent int) {
 	if re.forwardDecls {
 		return
+	}
+	// Track block depth and add loop increment only when exiting the loop body block itself
+	if re.inForLoopBody {
+		re.forLoopBodyDepth--
+		if re.forLoopBodyDepth == 0 && re.pendingLoopIncrement && re.loopIncrementVar != "" {
+			// Emit the increment statement at end of loop body
+			incStr := re.emitAsString(re.loopIncrementVar+" "+re.loopIncrementOp+" "+re.loopIncrementVal+";\n", indent)
+			re.gir.emitToFileBuffer(incStr, EmptyVisitMethod)
+			// Clear the flags
+			re.inForLoopBody = false
+			re.pendingLoopIncrement = false
+		}
 	}
 	re.emitToken("}", RightBrace, 1)
 	// Note: removed isArray = false as it interfered with composite literal stack management
@@ -2673,6 +2700,42 @@ func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	re.forLoopStep = 0
 	re.forLoopInclusive = false
 	re.forLoopReverse = false
+	re.pendingLoopIncrement = false
+	re.inForLoopBody = false
+
+	// Check for compound condition (contains && or ||)
+	hasCompoundCond := re.hasCompoundCondition(node.Cond)
+	if hasCompoundCond && node.Init != nil && node.Post != nil {
+		// This is a for loop with compound condition - will be converted to while loop
+		// Extract the loop variable and increment info from Init and Post
+		if assign, ok := node.Init.(*ast.AssignStmt); ok && len(assign.Lhs) > 0 {
+			if ident, ok := assign.Lhs[0].(*ast.Ident); ok {
+				re.loopIncrementVar = ident.Name
+			}
+		}
+		// Check Post for increment/decrement
+		if inc, ok := node.Post.(*ast.IncDecStmt); ok {
+			if inc.Tok.String() == "++" {
+				re.loopIncrementOp = "+="
+			} else {
+				re.loopIncrementOp = "-="
+			}
+			re.loopIncrementVal = "1"
+		} else if assign, ok := node.Post.(*ast.AssignStmt); ok {
+			// Handle i += n or i -= n
+			if assign.Tok.String() == "+=" {
+				re.loopIncrementOp = "+="
+			} else if assign.Tok.String() == "-=" {
+				re.loopIncrementOp = "-="
+			}
+			if len(assign.Rhs) > 0 {
+				if lit, ok := assign.Rhs[0].(*ast.BasicLit); ok {
+					re.loopIncrementVal = lit.Value
+				}
+			}
+		}
+		re.pendingLoopIncrement = true
+	}
 
 	// Detect loop type upfront to emit correct Rust keyword
 	var str string
@@ -2686,6 +2749,21 @@ func (re *RustEmitter) PreVisitForStmt(node *ast.ForStmt, indent int) {
 	}
 	re.gir.emitToFileBuffer(str, EmptyVisitMethod)
 	re.shouldGenerate = true
+}
+
+// hasCompoundCondition checks if the expression contains && or ||
+func (re *RustEmitter) hasCompoundCondition(expr ast.Expr) bool {
+	if expr == nil {
+		return false
+	}
+	if binExpr, ok := expr.(*ast.BinaryExpr); ok {
+		if binExpr.Op.String() == "&&" || binExpr.Op.String() == "||" {
+			return true
+		}
+		// Check nested expressions
+		return re.hasCompoundCondition(binExpr.X) || re.hasCompoundCondition(binExpr.Y)
+	}
+	return false
 }
 
 func (re *RustEmitter) PostVisitForStmtInit(node ast.Stmt, indent int) {
@@ -2874,6 +2952,48 @@ func (re *RustEmitter) PostVisitForStmt(node *ast.ForStmt, indent int) {
 		// Rewrite the tokens from PreVisitForStmt to PostVisitForStmtPost
 		re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pFor.Index, p6.Index, newTokens)
 		return
+	}
+
+	// Case 1.5: For loop with compound condition (contains && or ||) → while loop
+	// Go: for i := 0; i < n && someOtherCond; i++ { } → Rust: let mut i = 0; while i < n && someOtherCond { ... i += 1; }
+	hasCompoundCond := false
+	for _, tok := range condTokens {
+		// Check if token contains && or || (may be combined with other chars in some token formats)
+		if tok.Content == "&&" || tok.Content == "||" ||
+			strings.Contains(tok.Content, "&&") || strings.Contains(tok.Content, "||") {
+			hasCompoundCond = true
+			break
+		}
+	}
+	if pFor != nil && p6 != nil && hasInit && hasCond && hasCompoundCond && len(forVars) > 0 {
+		// Build new tokens: init statement + while loop
+		newTokens := []string{}
+
+		// Add init statement: let mut var = value;
+		newTokens = append(newTokens, "let mut ")
+		newTokens = append(newTokens, forVars[0].Content)
+		newTokens = append(newTokens, " = ")
+		if len(rangeTokens) > 0 {
+			newTokens = append(newTokens, rangeTokens[0].Content)
+		} else {
+			newTokens = append(newTokens, "0")
+		}
+		newTokens = append(newTokens, ";\n")
+
+		// Add while loop with condition
+		newTokens = append(newTokens, "while ")
+		for _, tok := range condTokens {
+			if tok.Content != ";" {
+				newTokens = append(newTokens, tok.Content)
+			}
+		}
+		newTokens = append(newTokens, " ")
+
+		// Rewrite the tokens from PreVisitForStmt to PostVisitForStmtPost
+		re.gir.tokenSlice, _ = RewriteTokensBetween(re.gir.tokenSlice, pFor.Index, p6.Index, newTokens)
+		// Note: The increment is already added by PostVisitBlockStmt using flags set in PreVisitForStmt
+		// Fall through to cleanup at the end, but skip Case 2 by clearing rangeTokens
+		rangeTokens = nil
 	}
 
 	// Case 2: Traditional for loop with init, cond, post and increment/decrement → for in range
