@@ -13,17 +13,19 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var destTypes = []string{"sbyte", "short", "int", "long", "byte", "ushort", "object", "string"}
+var destTypes = []string{"sbyte", "short", "int", "long", "byte", "ushort", "object", "string", "float", "double"}
 
 var csTypesMap = map[string]string{
-	"int8":   destTypes[0],
-	"int16":  destTypes[1],
-	"int32":  destTypes[2],
-	"int64":  destTypes[3],
-	"uint8":  destTypes[4],
-	"uint16": destTypes[5],
-	"any":    destTypes[6],
-	"string": destTypes[7],
+	"int8":    destTypes[0],
+	"int16":   destTypes[1],
+	"int32":   destTypes[2],
+	"int64":   destTypes[3],
+	"uint8":   destTypes[4],
+	"uint16":  destTypes[5],
+	"any":     destTypes[6],
+	"string":  destTypes[7],
+	"float32": destTypes[8],
+	"float64": destTypes[9],
 }
 
 type AliasRepr struct {

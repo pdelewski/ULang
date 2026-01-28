@@ -58,6 +58,9 @@ public static class graphics
         [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int tigrKeyHeld(IntPtr bmp, int key);
 
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void tigrMouse(IntPtr bmp, out int x, out int y, out int buttons);
+
         // tigr key constants (from tigr.h TKey enum starting at TK_PAD0=128)
         public const int TK_BACKSPACE = 156;
         public const int TK_TAB = 157;
@@ -265,6 +268,16 @@ public static class graphics
     public static int GetLastKey()
     {
         return lastKeyPressed;
+    }
+
+    public static (int, int, int) GetMouse(Window w)
+    {
+        if (w.handle != 0)
+        {
+            Tigr.tigrMouse(new IntPtr(w.handle), out int x, out int y, out int buttons);
+            return (x, y, buttons);
+        }
+        return (0, 0, 0);
     }
 
     public static int GetWidth(Window w) { return w.width; }

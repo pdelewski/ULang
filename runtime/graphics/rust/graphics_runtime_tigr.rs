@@ -67,6 +67,7 @@ extern "C" {
     fn tigrReadChar(bmp: *mut Tigr) -> c_int;
     fn tigrKeyDown(bmp: *mut Tigr, key: c_int) -> c_int;
     fn tigrKeyHeld(bmp: *mut Tigr, key: c_int) -> c_int;
+    fn tigrMouse(bmp: *mut Tigr, x: *mut c_int, y: *mut c_int, buttons: *mut c_int);
 }
 
 // --- Thread-local storage ---
@@ -255,6 +256,19 @@ pub fn PollEvents(mut w: Window) -> (Window, bool) {
 
 pub fn GetLastKey() -> i32 {
     LAST_KEY.with(|k| *k.borrow())
+}
+
+pub fn GetMouse(w: Window) -> (i32, i32, i32) {
+    if w.handle != 0 {
+        unsafe {
+            let mut x: c_int = 0;
+            let mut y: c_int = 0;
+            let mut buttons: c_int = 0;
+            tigrMouse(w.handle as *mut Tigr, &mut x, &mut y, &mut buttons);
+            return (x as i32, y as i32, buttons as i32);
+        }
+    }
+    (0, 0, 0)
 }
 
 pub fn GetWidth(w: Window) -> i32 { w.width }
