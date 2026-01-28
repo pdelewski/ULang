@@ -54,9 +54,12 @@ func main() {
 	infoWin := gui.NewWindowState(780, 240, 250, 200)
 
 	var clicked bool
-	var menuOpen bool
+	var fileMenuOpen bool
+	var viewMenuOpen bool
 	var dropY int32
 	var dropX int32
+	var fileDropX int32
+	var viewDropX int32
 
 	graphics.RunLoop(w, func(w graphics.Window) bool {
 		// Update input first
@@ -65,44 +68,19 @@ func main() {
 		// Clear with very dark background
 		graphics.Clear(w, graphics.NewColor(30, 30, 30, 255))
 
-		// Menu bar at top
+		// Menu bar at top - just draw the bar and detect which menu is open
 		ctx, menuState = gui.BeginMenuBar(ctx, w, menuState, 0, 0, graphics.GetWidth(w))
 
-		// File menu
-		ctx, menuState, menuOpen = gui.Menu(ctx, w, menuState, "File")
-		if menuOpen {
-			dropX = menuState.CurrentMenuX - menuState.CurrentMenuW
-			ctx, dropY = gui.BeginDropdown(ctx, w, menuState)
-			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "New", dropX, dropY, 0)
-			if clicked {
-				counter = 0
-			}
-			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Open", dropX, dropY, 1)
-			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Save", dropX, dropY, 2)
-			gui.MenuItemSeparator(ctx, w, dropX, dropY, 3)
-			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Exit", dropX, dropY, 4)
-			if clicked {
-				return false
-			}
+		// File menu header
+		ctx, menuState, fileMenuOpen = gui.Menu(ctx, w, menuState, "File")
+		if fileMenuOpen {
+			fileDropX = menuState.CurrentMenuX - menuState.CurrentMenuW
 		}
 
-		// View menu
-		ctx, menuState, menuOpen = gui.Menu(ctx, w, menuState, "View")
-		if menuOpen {
-			dropX = menuState.CurrentMenuX - menuState.CurrentMenuW
-			ctx, dropY = gui.BeginDropdown(ctx, w, menuState)
-			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Demo Window", dropX, dropY, 0)
-			if clicked {
-				showDemo = !showDemo
-			}
-			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Widgets Window", dropX, dropY, 1)
-			if clicked {
-				showWidgets = !showWidgets
-			}
-			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Another Window", dropX, dropY, 2)
-			if clicked {
-				showAnother = !showAnother
-			}
+		// View menu header
+		ctx, menuState, viewMenuOpen = gui.Menu(ctx, w, menuState, "View")
+		if viewMenuOpen {
+			viewDropX = menuState.CurrentMenuX - menuState.CurrentMenuW
 		}
 
 		ctx, menuState = gui.EndMenuBar(ctx, menuState)
@@ -305,6 +283,40 @@ func main() {
 		ctx, clicked = gui.Button(ctx, w, "Quit", 1150, 900, 100, 30)
 		if clicked {
 			return false
+		}
+
+		// Draw menu dropdowns LAST so they appear on top of windows
+		if fileMenuOpen {
+			dropX = fileDropX
+			ctx, dropY = gui.BeginDropdown(ctx, w, menuState)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "New", dropX, dropY, 0)
+			if clicked {
+				counter = 0
+			}
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Open", dropX, dropY, 1)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Save", dropX, dropY, 2)
+			gui.MenuItemSeparator(ctx, w, dropX, dropY, 3)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Exit", dropX, dropY, 4)
+			if clicked {
+				return false
+			}
+		}
+
+		if viewMenuOpen {
+			dropX = viewDropX
+			ctx, dropY = gui.BeginDropdown(ctx, w, menuState)
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Demo Window", dropX, dropY, 0)
+			if clicked {
+				showDemo = !showDemo
+			}
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Widgets Window", dropX, dropY, 1)
+			if clicked {
+				showWidgets = !showWidgets
+			}
+			ctx, menuState, clicked = gui.MenuItem(ctx, w, menuState, "Another Window", dropX, dropY, 2)
+			if clicked {
+				showAnother = !showAnother
+			}
 		}
 
 		graphics.Present(w)
