@@ -191,3 +191,15 @@ func FillCircle(renderer int64, centerX int32, centerY int32, radius int32, r ui
 	C.tigrFillCircle(win, C.int(centerX), C.int(centerY), C.int(radius),
 		C.rgbaToPixel(C.uchar(r), C.uchar(g), C.uchar(b), C.uchar(a)))
 }
+
+// GetMouse returns mouse position and button state.
+// Returns: x, y, buttons (bit 0=left, bit 1=right, bit 2=middle)
+func GetMouse(handle int64) (int32, int32, int32) {
+	if handle == 0 {
+		return 0, 0, 0
+	}
+	win := (*C.Tigr)(unsafe.Pointer(uintptr(handle)))
+	var x, y, buttons C.int
+	C.tigrMouse(win, &x, &y, &buttons)
+	return int32(x), int32(y), int32(buttons)
+}

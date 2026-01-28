@@ -108,6 +108,12 @@ func GetLastKey() int {
 	return sdl.GetLastKey()
 }
 
+// GetMouse returns mouse position and button state.
+// Returns: x, y, buttons (bit 0=left, bit 1=right, bit 2=middle)
+func GetMouse(w Window) (int32, int32, int32) {
+	return sdl.GetMouse(w.handle)
+}
+
 // GetWidth returns the window width.
 func GetWidth(w Window) int32 {
 	return w.width
