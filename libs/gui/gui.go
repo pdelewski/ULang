@@ -1185,10 +1185,7 @@ func ListBox(ctx GuiContext, w graphics.Window, items []string, x int32, y int32
 	}
 
 	// Draw items
-	for i := int32(0); i < visibleCount; i++ {
-		if int(startIndex+i) >= len(items) {
-			break
-		}
+	for i := int32(0); i < visibleCount && int(startIndex+i) < len(items); i++ {
 		itemIndex := startIndex + i
 		item := items[itemIndex]
 		itemY := y + 2 + i*itemH
