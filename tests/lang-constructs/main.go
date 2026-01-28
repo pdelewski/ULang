@@ -178,6 +178,46 @@ func testLoopConstructs() {
 		sumDecrStep += i // 9 + 6 + 3 = 18
 	}
 	fmt.Println(sumDecrStep)
+
+	// Compound condition with && (cannot be converted to simple range)
+	// @test rust="while ((i < 10) && (i < limit))"
+	limit := 5
+	sumCompound := 0
+	for i := 0; i < 10 && i < limit; i++ {
+		sumCompound += i // 0 + 1 + 2 + 3 + 4 = 10
+	}
+	fmt.Println(sumCompound)
+
+	// Compound condition with || (cannot be converted to simple range)
+	// @test rust="while ((i < 3) || flag)"
+	sumOr := 0
+	flag := false
+	for i := 0; i < 3 || flag; i++ {
+		sumOr += i // 0 + 1 + 2 = 3
+		if i >= 2 {
+			flag = false
+		}
+	}
+	fmt.Println(sumOr)
+
+	// Compound condition with slice length check (common pattern)
+	// @test rust="while ((i < maxItems) && (i < len(&items.clone())))"
+	items := []int{10, 20, 30}
+	maxItems := 5
+	sumItems := 0
+	for i := 0; i < maxItems && i < len(items); i++ {
+		sumItems += items[i] // 10 + 20 + 30 = 60
+	}
+	fmt.Println(sumItems)
+
+	// Multiple compound conditions
+	// @test rust="while (((i < 10) && (i < limit2)) && (sumMulti < 20))"
+	limit2 := 8
+	sumMulti := 0
+	for i := 0; i < 10 && i < limit2 && sumMulti < 20; i++ {
+		sumMulti += i // stops when sumMulti >= 20
+	}
+	fmt.Println(sumMulti)
 }
 
 // Boolean logic: not operator, boolean literals
